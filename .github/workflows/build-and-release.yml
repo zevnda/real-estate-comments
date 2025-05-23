@@ -36,7 +36,6 @@ jobs:
         run: |
           sed -i 's/"version": "[^"]*"/"version": "${{ github.event.inputs.version }}"/' manifest-chrome.json
           sed -i 's/"version": "[^"]*"/"version": "${{ github.event.inputs.version }}"/' manifest-firefox.json
-          sed -i 's/"version": "[^"]*"/"version": "${{ github.event.inputs.version }}"/' package.json
 
       - name: Configure Git
         run: |
@@ -45,7 +44,7 @@ jobs:
 
       - name: Commit version changes
         run: |
-          git add manifest-chrome.json manifest-firefox.json package.json
+          git add manifest-chrome.json manifest-firefox.json
           git commit -m "chore: bump version to ${{ github.event.inputs.version }}"
           git push origin HEAD:${{ github.ref }}
 
