@@ -1,3 +1,5 @@
+import browserAPI from './browser-polyfill.js';
+
 // Create and inject the comments panel
 function createCommentsPanel() {
     // Check if panel already exists, if so, don't create another one
@@ -137,42 +139,41 @@ function restorePanelState() {
 }
 
 function loadComments() {
-    chrome.runtime.sendMessage(
-        { action: "getComments", url: window.location.href },
-        (response) => {
-            const commentsList = document.getElementById('comments-list');
-            commentsList.innerHTML = '';
-            
-            if (response.error) {
-                commentsList.innerHTML = `<p class="no-comments">Error loading comments: ${response.error}</p>`;
-                return;
-            }
-            
-            if (response.isEmpty || !response.comments || response.comments.length === 0) {
-                commentsList.innerHTML = '<p class="no-comments">No comments yet. Be the first to share your insights about this property!</p>';
-                return;
-            }
-            
-            response.comments.forEach(comment => {
-                const commentElement = document.createElement('div');
-                commentElement.className = 'comment';
-                commentElement.dataset.id = comment.id;
-                
-                const date = new Date(comment.timestamp);
-                const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-                
-                commentElement.innerHTML = `
-                    <div class="comment-header">
-                        <span class="comment-author">${comment.username}</span>
-                        <span class="comment-date">${formattedDate}</span>
-                    </div>
-                    <div class="comment-text">${comment.text}</div>
-                `;
-                
-                commentsList.appendChild(commentElement);
-            });
+    browserAPI.runtime.sendMessage(
+        { action: "getComments", url: window.location.href }
+    ).then(response => {
+        const commentsList = document.getElementById('comments-list');
+        commentsList.innerHTML = '';
+        
+        if (response.error) {
+            commentsList.innerHTML = `<p class="no-comments">Error loading comments: ${response.error}</p>`;
+            return;
         }
-    );
+        
+        if (response.isEmpty || !response.comments || response.comments.length === 0) {
+            commentsList.innerHTML = '<p class="no-comments">No comments yet. Be the first to share your insights about this property!</p>';
+            return;
+        }
+        
+        response.comments.forEach(comment => {
+            const commentElement = document.createElement('div');
+            commentElement.className = 'comment';
+            commentElement.dataset.id = comment.id;
+            
+            const date = new Date(comment.timestamp);
+            const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+            
+            commentElement.innerHTML = `
+                <div class="comment-header">
+                    <span class="comment-author">${comment.username}</span>
+                    <span class="comment-date">${formattedDate}</span>
+                </div>
+                <div class="comment-text">${comment.text}</div>
+            `;
+            
+            commentsList.appendChild(commentElement);
+        });
+    });
 }
 
 function submitComment() {
@@ -196,24 +197,23 @@ function submitComment() {
         username: username || "Anonymous"
     };
     
-    chrome.runtime.sendMessage(
+    browserAPI.runtime.sendMessage(
         { 
             action: "saveComment", 
             url: window.location.href,
             comment: comment 
-        },
-        (response) => {
-            submitBtn.innerText = originalText;
-            submitBtn.disabled = false;
-            
-            if (response.status === "success") {
-                document.getElementById('new-comment').value = '';
-                loadComments();
-            } else {
-                alert(`Failed to save comment: ${response.message || 'Unknown error'}`);
-            }
         }
-    );
+    ).then(response => {
+        submitBtn.innerText = originalText;
+        submitBtn.disabled = false;
+        
+        if (response.status === "success") {
+            document.getElementById('new-comment').value = '';
+            loadComments();
+        } else {
+            alert(`Failed to save comment: ${response.message || 'Unknown error'}`);
+        }
+    });
 }
 
 document.addEventListener('DOMContentLoaded', function() {

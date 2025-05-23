@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, addDoc, query, where, orderBy, limit } from 'firebase/firestore';
 import firebaseConfig from './firebase-config.js';
+import browserAPI from './browser-polyfill.js';
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -108,118 +109,120 @@ function validateComment(text) {
     return { valid: true };
 }
 
-chrome.runtime.onInstalled.addListener(() => {
-    console.log("Real Estate Comments Extension Installed");
-    
-    // Clear cache when extension is installed/updated
-    userActivityCache.clear();
-});
+// Add at the very beginning of the file
+try {
+  // Use browserAPI instead of directly using chrome
+  browserAPI.runtime.onInstalled.addListener((details) => {
+      console.log("Real Estate Comments Extension Installed", details ? details.reason : "");
+      
+      // Clear cache when extension is installed/updated
+      userActivityCache.clear();
+  });
+  
+  browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === "getComments") {
+          // Get comments for the specific URL from Firestore
+          const url = request.url;
+          
+          // Create a query to get comments for this URL
+          const commentsRef = collection(db, "comments");
+          const q = query(
+              commentsRef, 
+              where("url", "==", url),
+              orderBy("createdAt", "desc"),
+              orderBy("__name__", "desc"),
+              limit(50)
+          );
+          
+          return getDocs(q).then((querySnapshot) => {
+              if (querySnapshot.empty) {
+                  return { comments: [], isEmpty: true };
+              } else {
+                  const comments = [];
+                  querySnapshot.forEach((doc) => {
+                      const data = doc.data();
+                      comments.push({
+                          id: doc.id,
+                          text: data.text,
+                          timestamp: data.timestamp,
+                          username: data.username
+                      });
+                  });
+                  
+                  // Sort comments by timestamp (newest first)
+                  comments.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                  
+                  return { comments: comments, isEmpty: false };
+              }
+          }).catch((error) => {
+              console.error("Error getting comments: ", error);
+              return { error: error.message };
+          });
+      }
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "getComments") {
-        // Get comments for the specific URL from Firestore
-        const url = request.url;
-        
-        // Create a query to get comments for this URL
-        const commentsRef = collection(db, "comments");
-        const q = query(
-            commentsRef, 
-            where("url", "==", url),
-            orderBy("createdAt", "desc"),
-            orderBy("__name__", "desc"),
-            limit(50)
-        );
-        
-        getDocs(q).then((querySnapshot) => {
-            if (querySnapshot.empty) {
-                sendResponse({ comments: [], isEmpty: true });
-            } else {
-                const comments = [];
-                querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    comments.push({
-                        id: doc.id,
-                        text: data.text,
-                        timestamp: data.timestamp,
-                        username: data.username
-                    });
-                });
-                
-                // Sort comments by timestamp (newest first)
-                comments.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                
-                sendResponse({ comments: comments, isEmpty: false });
-            }
-        }).catch((error) => {
-            console.error("Error getting comments: ", error);
-            sendResponse({ error: error.message });
-        });
-        
-        return true;
-    }
-
-    if (request.action === "saveComment") {
-        const url = request.url;
-        const comment = request.comment;
-        
-        // Validate the comment text
-        const textValidation = validateComment(comment.text);
-        if (!textValidation.valid) {
-            sendResponse({ 
-                status: "error", 
-                message: textValidation.reason 
-            });
-            return true;
-        }
-        
-        // Check rate limiting
-        checkRateLimit(url, sender.tab?.id).then(rateLimitResult => {
-            if (!rateLimitResult.allowed) {
-                sendResponse({ 
-                    status: "error", 
-                    message: rateLimitResult.reason 
-                });
-                return;
-            }
-            
-            // Use the provided username or default to Anonymous
-            const username = comment.username && comment.username.trim() !== "" 
-                ? comment.username.trim().substring(0, 50)
-                : "Anonymous";
-            
-            // Create a new comment document in Firestore
-            const commentsRef = collection(db, "comments");
-            const commentData = {
-                url: url,
-                text: comment.text.trim(),
-                timestamp: comment.timestamp || new Date().toISOString(),
-                username: username,
-                createdAt: new Date(),
-                clientInfo: {
-                    browser: navigator.userAgent,
-                    tabId: sender.tab?.id
-                }
-            };
-            
-            addDoc(commentsRef, commentData)
-                .then((docRef) => {
-                    // Update rate limit records
-                    updateRateLimitRecords(url, sender.tab?.id);
-                    
-                    sendResponse({ 
-                        status: "success", 
-                        commentId: docRef.id 
-                    });
-                })
-                .catch((error) => {
-                    console.error("Error adding comment: ", error);
-                    sendResponse({ 
-                        status: "error", 
-                        message: error.message 
-                    });
-                });
-        });
-        
-        return true;
-    }
-});
+      if (request.action === "saveComment") {
+          const url = request.url;
+          const comment = request.comment;
+          
+          // Validate the comment text
+          const textValidation = validateComment(comment.text);
+          if (!textValidation.valid) {
+              return Promise.resolve({ 
+                  status: "error", 
+                  message: textValidation.reason 
+              });
+          }
+          
+          // Check rate limiting
+          return checkRateLimit(url, sender.tab?.id).then(rateLimitResult => {
+              if (!rateLimitResult.allowed) {
+                  return { 
+                      status: "error", 
+                      message: rateLimitResult.reason 
+                  };
+              }
+              
+              // Use the provided username or default to Anonymous
+              const username = comment.username && comment.username.trim() !== "" 
+                  ? comment.username.trim().substring(0, 50)
+                  : "Anonymous";
+              
+              // Create a new comment document in Firestore
+              const commentsRef = collection(db, "comments");
+              const commentData = {
+                  url: url,
+                  text: comment.text.trim(),
+                  timestamp: comment.timestamp || new Date().toISOString(),
+                  username: username,
+                  createdAt: new Date(),
+                  clientInfo: {
+                      browser: navigator.userAgent,
+                      tabId: sender.tab?.id
+                  }
+              };
+              
+              return addDoc(commentsRef, commentData)
+                  .then((docRef) => {
+                      // Update rate limit records
+                      updateRateLimitRecords(url, sender.tab?.id);
+                      
+                      return { 
+                          status: "success", 
+                          commentId: docRef.id 
+                      };
+                  })
+                  .catch((error) => {
+                      console.error("Error adding comment: ", error);
+                      return { 
+                          status: "error", 
+                          message: error.message 
+                      };
+                  });
+          });
+      }
+      
+      return false;
+  });
+} catch (e) {
+  console.error("Error initializing background script:", e);
+}

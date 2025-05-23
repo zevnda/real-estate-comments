@@ -11,13 +11,13 @@
   "permissions": ["storage", "activeTab"],
   "host_permissions": ["https://www.realestate.com.au/*"],
   "background": {
-    "scripts": ["dist/background.bundle.js"],
+    "scripts": ["background.bundle.js"],
     "type": "module"
   },
   "content_scripts": [
     {
       "matches": ["https://www.realestate.com.au/*"],
-      "js": ["dist/content.bundle.js"],
+      "js": ["content.bundle.js"],
       "css": ["src/styles.css"]
     }
   ],

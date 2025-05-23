@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Real Estate Comments",
+  "version": "1.0",
+  "description": "Adds a comment section on realestate.com.au property listings",
+  "icons": {
+    "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png",
+    "128": "icons/icon-128.png"
+  },
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": ["https://www.realestate.com.au/*"],
+  "background": {
+    "service_worker": "background.bundle.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.realestate.com.au/*"],
+      "js": ["content.bundle.js"],
+      "css": ["src/styles.css"]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}
