@@ -1,0 +1,59 @@
+name: Build and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.1)'
+        required: true
+        default: ''
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: latest
+          run_install: false
+          
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Update version in manifest files
+        run: |
+          sed -i 's/"version": "[^"]*"/"version": "${{ github.event.inputs.version }}"/' manifest-chrome.json
+          sed -i 's/"version": "[^"]*"/"version": "${{ github.event.inputs.version }}"/' manifest-firefox.json
+          sed -i 's/"version": "[^"]*"/"version": "${{ github.event.inputs.version }}"/' package.json
+
+      - name: Build extensions
+        run: pnpm build
+
+      - name: Create ZIP files
+        run: |
+          cd dist
+          zip -r ../chrome-extension-v${{ github.event.inputs.version }}.zip chrome
+          zip -r ../firefox-extension-v${{ github.event.inputs.version }}.zip firefox
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ github.event.inputs.version }}
+          name: Release v${{ github.event.inputs.version }}
+          draft: false
+          prerelease: false
+          files: |
+            chrome-extension-v${{ github.event.inputs.version }}.zip
+            firefox-extension-v${{ github.event.inputs.version }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
