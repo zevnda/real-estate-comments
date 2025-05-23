@@ -38,14 +38,25 @@ jobs:
           sed -i 's/"version": "[^"]*"/"version": "${{ github.event.inputs.version }}"/' manifest-firefox.json
           sed -i 's/"version": "[^"]*"/"version": "${{ github.event.inputs.version }}"/' package.json
 
+      - name: Configure Git
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+      - name: Commit version changes
+        run: |
+          git add manifest-chrome.json manifest-firefox.json package.json
+          git commit -m "chore: bump version to ${{ github.event.inputs.version }}"
+          git push origin HEAD:${{ github.ref }}
+
       - name: Build extensions
         run: pnpm build
 
       - name: Create ZIP files
         run: |
           cd dist
-          zip -r ../chrome-extension-v${{ github.event.inputs.version }}.zip chrome
-          zip -r ../firefox-extension-v${{ github.event.inputs.version }}.zip firefox
+          zip -r ../realestate-comments-chrome-v${{ github.event.inputs.version }}.zip chrome
+          zip -r ../realestate-comments-firefox-v${{ github.event.inputs.version }}.zip firefox
 
       - name: Create GitHub Release
         id: create_release
@@ -56,7 +67,7 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            chrome-extension-v${{ github.event.inputs.version }}.zip
-            firefox-extension-v${{ github.event.inputs.version }}.zip
+            realestate-comments-chrome-v${{ github.event.inputs.version }}.zip
+            realestate-comments-firefox-v${{ github.event.inputs.version }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
