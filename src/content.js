@@ -1,9 +1,19 @@
 import browserAPI from './browser-polyfill.js';
 
+// Function to check if current URL is a property page
+function isPropertyPage() {
+    return window.location.href.includes('realestate.com.au/property-');
+}
+
 // Create and inject the comments panel
 function createCommentsPanel() {
     // Check if panel already exists, if so, don't create another one
     if (document.getElementById('property-comments-panel')) {
+        return;
+    }
+    
+    // Only create the panel if we're on a property page
+    if (!isPropertyPage()) {
         return;
     }
     
@@ -219,10 +229,68 @@ function submitComment() {
     });
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    createCommentsPanel();
-});
+// Function to handle URL changes
+function handleUrlChange() {
+    if (isPropertyPage()) {
+        // We're on a property page, ensure panel exists
+        if (!document.getElementById('property-comments-panel')) {
+            createCommentsPanel();
+        } else {
+            // Panel exists but may need to refresh comments for new property
+            loadComments();
+        }
+    } else {
+        // Not on a property page, remove panel if it exists
+        const panel = document.getElementById('property-comments-panel');
+        if (panel) panel.remove();
+    }
+}
 
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    createCommentsPanel();
+// Set up URL change detection
+let lastUrl = window.location.href;
+function checkForUrlChanges() {
+    if (lastUrl !== window.location.href) {
+        lastUrl = window.location.href;
+        handleUrlChange();
+    }
+}
+
+// Set up a MutationObserver to detect when the property details have fully loaded
+function observePageChanges() {
+    // Check for URL changes every 500ms
+    setInterval(checkForUrlChanges, 500);
+    
+    // Also use a MutationObserver to detect DOM changes that might indicate page content has loaded
+    const observer = new MutationObserver(function(mutations) {
+        // Only act if we're on a property page but the panel isn't showing
+        if (isPropertyPage() && !document.getElementById('property-comments-panel')) {
+            // Check if the property details are loaded by looking for typical elements
+            const propertyLoaded = document.querySelector('.property-info, .listing-details, .property-features');
+            if (propertyLoaded) {
+                createCommentsPanel();
+                
+                // Optional: If the page is fully loaded, we could disconnect the observer
+                // observer.disconnect();
+            }
+        }
+    });
+    
+    // Observe changes to the entire document
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+}
+
+// Initialize on page load
+function initialize() {
+    handleUrlChange(); // Check initial URL
+    observePageChanges(); // Start observing for changes
+}
+
+// Update initialization logic
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initialize);
+} else {
+    initialize();
 }
