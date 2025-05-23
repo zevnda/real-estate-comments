@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Real Estate Comments",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Adds a comment section on realestate.com.au property listings",
   "icons": {
     "48": "icons/icon-48.png",
