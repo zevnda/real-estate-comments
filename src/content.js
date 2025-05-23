@@ -26,28 +26,84 @@ function createCommentsPanel() {
         ? 'property-comments-container minimized' 
         : 'property-comments-container expanded';
     
-    panel.innerHTML = `
-        <div class="property-comments-header">
-            <div class="header-title">
-                <span class="header-caret">▼</span>
-                <h3>Property Comments</h3>
-            </div>
-            <div class="header-controls">
-                <button id="fullscreen-comments-btn" title="Toggle fullscreen"><i>⛶</i></button>
-            </div>
-        </div>
-        <div class="property-comments-body">
-            <div id="comments-list"></div>
-            <div class="property-comments-form">
-                <input type="text" id="reacom-name" placeholder="Your name (optional)">
-                <textarea id="new-comment" placeholder="Share your thoughts about this property..."></textarea>
-                <div class="button-container">
-                  <a id="donate-btn" href="https://github.com/sponsors/zevnda" target="_blank">Donate</a>
-                  <button id="submit-comment-btn">Submit</button>
-              </div>
-            </div>
-        </div>
-    `;
+    // Create header
+    const headerDiv = document.createElement('div');
+    headerDiv.className = 'property-comments-header';
+    
+    const headerTitleDiv = document.createElement('div');
+    headerTitleDiv.className = 'header-title';
+    
+    const headerCaret = document.createElement('span');
+    headerCaret.className = 'header-caret';
+    headerCaret.textContent = '▼';
+    
+    const headerTitle = document.createElement('h3');
+    headerTitle.textContent = 'Property Comments';
+    
+    headerTitleDiv.appendChild(headerCaret);
+    headerTitleDiv.appendChild(headerTitle);
+    
+    const headerControlsDiv = document.createElement('div');
+    headerControlsDiv.className = 'header-controls';
+    
+    const fullscreenBtn = document.createElement('button');
+    fullscreenBtn.id = 'fullscreen-comments-btn';
+    fullscreenBtn.title = 'Toggle fullscreen';
+    
+    const fullscreenIcon = document.createElement('i');
+    fullscreenIcon.textContent = '⛶';
+    fullscreenBtn.appendChild(fullscreenIcon);
+    
+    headerControlsDiv.appendChild(fullscreenBtn);
+    
+    headerDiv.appendChild(headerTitleDiv);
+    headerDiv.appendChild(headerControlsDiv);
+    
+    // Create body
+    const bodyDiv = document.createElement('div');
+    bodyDiv.className = 'property-comments-body';
+    
+    const commentsListDiv = document.createElement('div');
+    commentsListDiv.id = 'comments-list';
+    
+    const commentsFormDiv = document.createElement('div');
+    commentsFormDiv.className = 'property-comments-form';
+    
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.id = 'reacom-name';
+    nameInput.placeholder = 'Your name (optional)';
+    
+    const commentTextarea = document.createElement('textarea');
+    commentTextarea.id = 'new-comment';
+    commentTextarea.placeholder = 'Share your thoughts about this property...';
+    
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'button-container';
+    
+    const donateLink = document.createElement('a');
+    donateLink.id = 'donate-btn';
+    donateLink.href = 'https://github.com/sponsors/zevnda';
+    donateLink.target = '_blank';
+    donateLink.textContent = 'Donate';
+    
+    const submitBtn = document.createElement('button');
+    submitBtn.id = 'submit-comment-btn';
+    submitBtn.textContent = 'Submit';
+    
+    buttonContainer.appendChild(donateLink);
+    buttonContainer.appendChild(submitBtn);
+    
+    commentsFormDiv.appendChild(nameInput);
+    commentsFormDiv.appendChild(commentTextarea);
+    commentsFormDiv.appendChild(buttonContainer);
+    
+    bodyDiv.appendChild(commentsListDiv);
+    bodyDiv.appendChild(commentsFormDiv);
+    
+    // Append all elements to panel
+    panel.appendChild(headerDiv);
+    panel.appendChild(bodyDiv);
     
     document.body.appendChild(panel);
     
@@ -156,15 +212,24 @@ function loadComments() {
         { action: "getComments", url: window.location.href }
     ).then(response => {
         const commentsList = document.getElementById('comments-list');
-        commentsList.innerHTML = '';
+        // Clear the existing comments
+        while (commentsList.firstChild) {
+            commentsList.removeChild(commentsList.firstChild);
+        }
         
         if (response.error) {
-            commentsList.innerHTML = `<p class="no-comments">Error loading comments: ${response.error}</p>`;
+            const errorPara = document.createElement('p');
+            errorPara.className = 'no-comments';
+            errorPara.textContent = `Error loading comments: ${response.error}`;
+            commentsList.appendChild(errorPara);
             return;
         }
         
         if (response.isEmpty || !response.comments || response.comments.length === 0) {
-            commentsList.innerHTML = '<p class="no-comments">No comments yet. Be the first to share your insights about this property!</p>';
+            const noPara = document.createElement('p');
+            noPara.className = 'no-comments';
+            noPara.textContent = 'No comments yet. Be the first to share your insights about this property!';
+            commentsList.appendChild(noPara);
             return;
         }
         
@@ -176,13 +241,26 @@ function loadComments() {
             const date = new Date(comment.timestamp);
             const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
             
-            commentElement.innerHTML = `
-                <div class="comment-header">
-                    <span class="comment-author">${comment.username}</span>
-                    <span class="comment-date">${formattedDate}</span>
-                </div>
-                <div class="comment-text">${comment.text}</div>
-            `;
+            const commentHeader = document.createElement('div');
+            commentHeader.className = 'comment-header';
+            
+            const authorSpan = document.createElement('span');
+            authorSpan.className = 'comment-author';
+            authorSpan.textContent = comment.username;
+            
+            const dateSpan = document.createElement('span');
+            dateSpan.className = 'comment-date';
+            dateSpan.textContent = formattedDate;
+            
+            commentHeader.appendChild(authorSpan);
+            commentHeader.appendChild(dateSpan);
+            
+            const commentText = document.createElement('div');
+            commentText.className = 'comment-text';
+            commentText.textContent = comment.text;
+            
+            commentElement.appendChild(commentHeader);
+            commentElement.appendChild(commentText);
             
             commentsList.appendChild(commentElement);
         });
