@@ -191,7 +191,6 @@
 }
 
 #submit-comment-btn {
-    align-self: flex-end;
     padding: 10px 18px;
     background-color: #4285f4;
     color: white;
@@ -201,6 +200,36 @@
     font-weight: 600;
     font-size: 14px;
     transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.button-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+#donate-btn {
+    padding: 10px 18px;
+    background-color: #ff9800;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+}
+
+#donate-btn:hover {
+    background-color: #e68a00;
+}
+
+#donate-btn:active {
+    transform: scale(0.98);
 }
 
 #submit-comment-btn:hover {

@@ -31,7 +31,10 @@ function createCommentsPanel() {
             <div class="property-comments-form">
                 <input type="text" id="reacom-name" placeholder="Your name (optional)">
                 <textarea id="new-comment" placeholder="Share your thoughts about this property..."></textarea>
-                <button id="submit-comment-btn">Submit</button>
+                <div class="button-container">
+                  <a id="donate-btn" href="https://github.com/sponsors/zevnda" target="_blank">Donate</a>
+                  <button id="submit-comment-btn">Submit</button>
+              </div>
             </div>
         </div>
     `;
