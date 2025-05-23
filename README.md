@@ -13,14 +13,14 @@ This browser extension adds a comment section to [https://www.realestate.com.au]
 ## Installation - Unpacked
 
 ### Chrome
-1. [Download](https://github.com/zevnda/realestate-comments/releases/tag/v1.0.0) or clone this repository to your computer
+1. [Download](https://github.com/zevnda/realestate-comments/releases/latest) or clone this repository to your computer
 2. Open Chrome and navigate to `chrome://extensions/`
 3. Enable "Developer mode" by toggling the switch in the top-right corner
 4. Click "Load unpacked" and select the extension directory
 5. The extension should now be installed and active
 
 ### Firefox
-1. [Download](https://github.com/zevnda/realestate-comments/releases/tag/v1.0.0) or clone this repository to your computer
+1. [Download](https://github.com/zevnda/realestate-comments/releases/latest) or clone this repository to your computer
 2. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`
 3. Click "Load Temporary Add-on..."
 4. Navigate to the extension directory and select the `manifest.json` file
