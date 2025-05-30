@@ -97,7 +97,7 @@ function validateComment(text) {
     }
     
     // Basic spam check - repeated characters
-    // TODO - Implement more sophisticated spam detection
+    // TODO: Implement more sophisticated spam detection
     const repeatedCharsRegex = /(.)\1{10,}/;
     if (repeatedCharsRegex.test(text)) {
         return {
@@ -109,12 +109,9 @@ function validateComment(text) {
     return { valid: true };
 }
 
-// Add at the very beginning of the file
 try {
   // Use browserAPI instead of directly using chrome
   browserAPI.runtime.onInstalled.addListener((details) => {
-      console.log("Real Estate Comments Extension Installed", details ? details.reason : "");
-      
       // Clear cache when extension is installed/updated
       userActivityCache.clear();
   });
@@ -149,7 +146,7 @@ try {
                       });
                   });
                   
-                  // Sort comments by timestamp (newest first)
+                  // Sort comments by timestamp newest first
                   comments.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
                   
                   return { comments: comments, isEmpty: false };
@@ -187,7 +184,7 @@ try {
                   ? comment.username.trim().substring(0, 50)
                   : "Anonymous";
               
-              // Create a new comment document in Firestore
+              // Create new comment document in Firestore
               const commentsRef = collection(db, "comments");
               const commentData = {
                   url: url,

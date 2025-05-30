@@ -252,7 +252,6 @@
     border: 1px dashed #dadce0;
 }
 
-/* Media queries for responsiveness */
 @media (max-width: 768px) {
     .property-comments-body {
         flex-direction: column;

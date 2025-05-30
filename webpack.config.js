@@ -1,7 +1,6 @@
 const path = require('path');
 const CopyPlugin = require('copy-webpack-plugin');
 
-// Create configurations for both Chrome and Firefox
 module.exports = [
   // Chrome build configuration
   {
@@ -46,7 +45,6 @@ module.exports = [
     },
     target: ['web', 'es2020']
   },
-  
   // Firefox build configuration
   {
     name: 'firefox',

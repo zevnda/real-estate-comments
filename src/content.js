@@ -1,18 +1,18 @@
 import browserAPI from './browser-polyfill.js';
 
-// Function to check if current URL is a property page
+// Check if current URL is a property page
 function isPropertyPage() {
     return window.location.href.includes('realestate.com.au/property-');
 }
 
 // Create and inject the comments panel
 function createCommentsPanel() {
-    // Check if panel already exists, if so, don't create another one
+    // Check if panel already exists
     if (document.getElementById('property-comments-panel')) {
         return;
     }
     
-    // Only create the panel if we're on a property page
+    // Only create panel if we're on a property page
     if (!isPropertyPage()) {
         return;
     }
@@ -111,7 +111,6 @@ function createCommentsPanel() {
         const headerElement = document.querySelector('.property-comments-header');
         if (headerElement) {
             headerElement.addEventListener('click', function(event) {
-                // Don't toggle if clicking on the fullscreen button
                 if (!event.target.closest('#fullscreen-comments-btn')) {
                     toggleCommentsPanel();
                 }
@@ -147,7 +146,6 @@ function toggleCommentsPanel() {
         panel.classList.add('minimized');
         if (caret) caret.innerHTML = '▲';
         
-        // Remove fullscreen if active
         panel.classList.remove('fullscreen');
         
         // Store the current state
@@ -192,7 +190,7 @@ function toggleFullscreen() {
 function restorePanelState() {
     const panel = document.getElementById('property-comments-panel');
     
-    // Restore state after events that might change it unexpectedly
+    // Restore state after unexpected events
     const savedState = localStorage.getItem('comments-panel-state');
     const caret = document.querySelector('.header-caret');
     
@@ -276,7 +274,7 @@ function submitComment() {
         return;
     }
     
-    // Show loading indicator
+    // Loading indicator
     const submitBtn = document.getElementById('submit-comment-btn');
     const originalText = submitBtn.innerText;
     submitBtn.innerText = 'Posting...';
@@ -307,7 +305,7 @@ function submitComment() {
     });
 }
 
-// Function to handle URL changes
+// Handle URL changes
 function handleUrlChange() {
     if (isPropertyPage()) {
         // We're on a property page, ensure panel exists
@@ -324,7 +322,7 @@ function handleUrlChange() {
     }
 }
 
-// Set up URL change detection
+// URL change detection
 let lastUrl = window.location.href;
 function checkForUrlChanges() {
     if (lastUrl !== window.location.href) {
@@ -333,27 +331,22 @@ function checkForUrlChanges() {
     }
 }
 
-// Set up a MutationObserver to detect when the property details have fully loaded
+// Set up observer to detect when the property details have fully loaded
 function observePageChanges() {
     // Check for URL changes every 500ms
     setInterval(checkForUrlChanges, 500);
     
-    // Also use a MutationObserver to detect DOM changes that might indicate page content has loaded
+    // Also use an observer to detect DOM changes that might indicate page content has loaded
     const observer = new MutationObserver(function(mutations) {
-        // Only act if we're on a property page but the panel isn't showing
         if (isPropertyPage() && !document.getElementById('property-comments-panel')) {
             // Check if the property details are loaded by looking for typical elements
             const propertyLoaded = document.querySelector('.property-info, .listing-details, .property-features');
             if (propertyLoaded) {
                 createCommentsPanel();
-                
-                // Optional: If the page is fully loaded, we could disconnect the observer
-                // observer.disconnect();
             }
         }
     });
     
-    // Observe changes to the entire document
     observer.observe(document.body, {
         childList: true,
         subtree: true
@@ -362,11 +355,10 @@ function observePageChanges() {
 
 // Initialize on page load
 function initialize() {
-    handleUrlChange(); // Check initial URL
-    observePageChanges(); // Start observing for changes
+    handleUrlChange();
+    observePageChanges();
 }
 
-// Update initialization logic
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initialize);
 } else {
