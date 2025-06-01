@@ -8,6 +8,8 @@ on:
         required: true
         default: ''
 
+run-name: Build release v${{ github.event.inputs.version }}
+
 permissions:
   contents: write
 
