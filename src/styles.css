@@ -29,7 +29,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 12px 20px;
-    background-color: #f8f9fa;
+    background: #4285f4;
     border-bottom: 1px solid #eaeaea;
     border-radius: 16px 16px 0 0;
     user-select: none;
@@ -39,6 +39,8 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    color: #ffffff;
+    font-weight: 600;
 }
 
 .property-comments-close-btn {
@@ -53,8 +55,21 @@
     transition: color 0.2s;
 }
 
-.property-comments-close-btn:hover {
-    color: #d32f2f;
+.panel-close-btn {
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s;
+}
+
+.panel-close-btn svg {
+    width: 18px;
+    height: 18px;
+    fill: #ffffff;
 }
 
 .property-comments-header h3 {
@@ -68,6 +83,12 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    border-radius: 100%;
+    transition: background 0.2s;
+}
+
+.header-controls:hover {
+    background: #3777dd;
 }
 
 .property-comments-body {
@@ -99,7 +120,7 @@
     border-radius: 8px;
     border-left: 3px solid #4285f4;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-    transition: transform 0.1s ease, box-shadow 0.1s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .comment:hover {
@@ -128,6 +149,7 @@
     line-height: 1.5;
     color: #202124;
     word-break: break-word;
+    white-space: pre-wrap;
 }
 
 #reacom-name {
@@ -167,6 +189,13 @@
     box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
 }
 
+.char-counter {
+    font-size: 12px;
+    color: #5f6368;
+    text-align: right;
+    margin: -8px 0 8px 0;
+}
+
 #submit-comment-btn {
     padding: 10px 18px;
     background-color: #4285f4;
@@ -179,6 +208,14 @@
     transition: background-color 0.2s ease, transform 0.1s ease;
 }
 
+#submit-comment-btn:hover {
+    background-color: #3777dd;
+}
+
+#submit-comment-btn:active {
+    transform: scale(0.98);
+}
+
 .button-container {
     display: flex;
     justify-content: space-between;
@@ -187,6 +224,9 @@
 }
 
 #donate-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     padding: 10px 18px;
     background-color: #ff9800;
     color: white;
@@ -206,14 +246,6 @@
 }
 
 #donate-btn:active {
-    transform: scale(0.98);
-}
-
-#submit-comment-btn:hover {
-    background-color: #3367d6;
-}
-
-#submit-comment-btn:active {
     transform: scale(0.98);
 }
 
@@ -242,30 +274,24 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    min-height: 420px;
+    height: 56vh;
     max-height: 80vh;
-    transition:
-        opacity 0.35s cubic-bezier(0.4,0,0.2,1),
-        transform 0.35s cubic-bezier(0.4,0,0.2,1),
-        max-height 0.35s cubic-bezier(0.4,0,0.2,1);
-    opacity: 1;
-    transform: translateY(0);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform, opacity;
+    transform-origin: bottom right;
 }
 
 .property-comments-floating.expanded {
     opacity: 1;
     pointer-events: auto;
-    transform: translateY(0);
-    max-height: 80vh;
-    display: flex;
+    transform: scale(1);
 }
 
 .property-comments-floating.minimized {
     opacity: 0;
     pointer-events: none;
-    transform: translateY(40px) scale(0.98);
-    max-height: 0;
-    display: flex;
+    transform: scale(0.95);
+    height: 0;
 }
 
 .property-comments-bubble {
@@ -285,12 +311,20 @@
     font-weight: 700;
     font-size: 16px;
     cursor: pointer;
-    transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+    opacity: 0;
+    transition: all 0.2s ease-in-out, opacity 0.3s ease, transform 0.1s ease;
     user-select: none;
+    will-change: transform, opacity;
 }
+
 .property-comments-bubble:hover {
-    background: #3367d6;
-    transform: scale(1.06);
+    background: #3777dd;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.2);
+    transform: scale(1.02);
+}
+
+.property-comments-bubble.visible {
+    opacity: 1;
 }
 
 .fa-svg-icon {

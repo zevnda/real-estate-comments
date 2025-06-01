@@ -1,0 +1,109 @@
+import browserAPI from '../browser-polyfill.js';
+
+export function loadComments() {
+    browserAPI.runtime.sendMessage(
+        { action: "getComments", url: window.location.href }
+    ).then(response => {
+        const commentsList = document.getElementById('comments-list');
+        // Clear the existing comments
+        while (commentsList.firstChild) {
+            commentsList.removeChild(commentsList.firstChild);
+        }
+
+        if (response.error) {
+            const errorPara = document.createElement('p');
+            errorPara.className = 'no-comments';
+            errorPara.textContent = `Error loading comments: ${response.error}`;
+            commentsList.appendChild(errorPara);
+            return;
+        }
+
+        if (response.isEmpty || !response.comments || response.comments.length === 0) {
+            const noPara = document.createElement('p');
+            noPara.className = 'no-comments';
+            noPara.textContent = 'No comments yet. Be the first to share your insights about this property!';
+            commentsList.appendChild(noPara);
+            return;
+        }
+
+        response.comments.forEach(comment => {
+            const commentElement = document.createElement('div');
+            commentElement.className = 'comment';
+            commentElement.dataset.id = comment.id;
+
+            const date = new Date(comment.timestamp);
+            const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+
+            const commentHeader = document.createElement('div');
+            commentHeader.className = 'comment-header';
+
+            const authorSpan = document.createElement('span');
+            authorSpan.className = 'comment-author';
+            authorSpan.textContent = comment.username;
+
+            const dateSpan = document.createElement('span');
+            dateSpan.className = 'comment-date';
+            dateSpan.textContent = formattedDate;
+
+            commentHeader.appendChild(authorSpan);
+            commentHeader.appendChild(dateSpan);
+
+            const commentText = document.createElement('div');
+            commentText.className = 'comment-text';
+            // Replace newlines with <br> tags and preserve whitespace
+            commentText.innerHTML = comment.text
+                .replace(/\n/g, '<br>')
+                .replace(/\s{2,}/g, match => '&nbsp;'.repeat(match.length));
+
+            commentElement.appendChild(commentHeader);
+            commentElement.appendChild(commentText);
+
+            commentsList.appendChild(commentElement);
+        });
+    });
+}
+
+export function submitComment() {
+    const commentText = document.getElementById('new-comment').value.trim();
+    const username = document.getElementById('reacom-name').value.trim();
+
+    if (!commentText) {
+        alert('Please enter a comment before submitting.');
+        return;
+    }
+
+    if (commentText.length > 500) {
+        alert('Comment is too long. Maximum length is 500 characters.');
+        return;
+    }
+
+    // Loading indicator
+    const submitBtn = document.getElementById('submit-comment-btn');
+    const originalText = submitBtn.innerText;
+    submitBtn.innerText = 'Posting...';
+    submitBtn.disabled = true;
+
+    const comment = {
+        text: commentText,
+        timestamp: new Date().toISOString(),
+        username: username || "Anonymous"
+    };
+
+    browserAPI.runtime.sendMessage(
+        {
+            action: "saveComment",
+            url: window.location.href,
+            comment: comment
+        }
+    ).then(response => {
+        submitBtn.innerText = originalText;
+        submitBtn.disabled = false;
+
+        if (response.status === "success") {
+            document.getElementById('new-comment').value = '';
+            loadComments();
+        } else {
+            alert(`Failed to save comment: ${response.message || 'Unknown error'}`);
+        }
+    });
+}
