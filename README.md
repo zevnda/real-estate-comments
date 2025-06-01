@@ -5,61 +5,38 @@ This browser extension adds a comment section to [https://www.realestate.com.au]
 ## Installation - Chrome Web Store/Firefox Add-ons
 
 1. Download the extension from
-  - **Chome Web Store**: *coming soon..*
-  - **Firefox Add-ons**: *coming soon..*
-2. Install and enable the extension in your browser
-3. Refresh any open realestate.com.au tabs
+  - **[Chome Web Store](https://chromewebstore.google.com/detail/fpmhogbiebniapjfkbhgeacgkgpjaenn)**
+  - **[Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/real-estate-comments/)**
+2. Refresh any open realestate.com.au tabs
 
-## Installation - Unpacked
+## Installation - Unpacked Source
 
-### Chrome
-1. [Download](https://github.com/zevnda/realestate-comments/releases/latest) or clone this repository to your computer
-2. Open Chrome and navigate to `chrome://extensions/`
-3. Enable "Developer mode" by toggling the switch in the top-right corner
-4. Click "Load unpacked" and select the extension directory
-5. The extension should now be installed and active
+### Prerequisites
+- Node 22.x
+- pnpm 10.x
 
-### Firefox
-1. [Download](https://github.com/zevnda/realestate-comments/releases/latest) or clone this repository to your computer
-2. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`
-3. Click "Load Temporary Add-on..."
-4. Navigate to the extension directory and select the `manifest.json` file
-5. The extension should now be installed temporarily (will be removed when Firefox closes)
+### Steps
+1. Clone and build the extension
+```bash
+git clone https://github.com/zevnda/realestate-comments.git
+cd realestate-comments
+pnpm install  # or npm install
+pnpm build  # or npm run build
+```
+
+2. Load the extension
+- **Chrome**:
+  - Go to `chrome://extensions/`
+  - Enable `Developer mode`
+  - Click `Load unpacked` and select `dist/chrome`
+- **Firefox**:
+  - Go to `about:debugging#/runtime/this-firefox`
+  - Click `Load Temporary Add-on` and select `dist/firefox/manifest.json`
+
+[Chrome Written Guide](https://developer.chrome.com/docs/extensions/mv3/getstarted/development-basics/#load-unpacked) | [Firefox Written Guide](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Your_first_WebExtension#installing) | [Chrome/Firefox Video Guide](https://www.youtube.com/watch?v=dhaGRJvJAII)
 
 ## Usage
 
 - Navigate to a property listing on [https://www.realestate.com.au](https://www.realestate.com.au)
 - A blue/white comment button will appear in the bottom-right of the listing page
 - Click the button to view other users' comments or create your own comment
-
-## Build from Source
-
-### Prerequisites
-- [Node.js](https://nodejs.org/) (v14 or higher)
-- npm or pnpm package manager
-
-1. Clone the repository
-```bash
-git clone https://github.com/zevnda/realestate-comments.git
-cd realestate-comments
-```
-
-2. Install dependencies 
-```bash
-npm install
-# or if using pnpm
-pnpm install
-```
-
-3. Build the extension
-```bash
-npm run build
-# or if using pnpm
-pnpm build
-```
-
-This will create:
-- `dist/chrome/` - Chrome extension files
-- `dist/firefox/` - Firefox extension files
-
-4. Load the extension in your browser following the `Installation - Unpacked` instructions above
