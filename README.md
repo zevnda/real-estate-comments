@@ -26,14 +26,40 @@ This browser extension adds a comment section to [https://www.realestate.com.au]
 4. Navigate to the extension directory and select the `manifest.json` file
 5. The extension should now be installed temporarily (will be removed when Firefox closes)
 
-## Features
-
-- View comments from other users about property conditions
-- Submit your own experiences and insights about properties
-- Help create transparency in the rental and buying market
-
 ## Usage
 
 - Navigate to a property listing on [https://www.realestate.com.au](https://www.realestate.com.au)
-- The comment section will appear at the bottom of the page
-- View other users' comments or create your own comment
+- A blue/white comment button will appear in the bottom-right of the listing page
+- Click the button to view other users' comments or create your own comment
+
+## Build from Source
+
+### Prerequisites
+- [Node.js](https://nodejs.org/) (v14 or higher)
+- npm or pnpm package manager
+
+1. Clone the repository
+```bash
+git clone https://github.com/zevnda/realestate-comments.git
+cd realestate-comments
+```
+
+2. Install dependencies 
+```bash
+npm install
+# or if using pnpm
+pnpm install
+```
+
+3. Build the extension
+```bash
+npm run build
+# or if using pnpm
+pnpm build
+```
+
+This will create:
+- `dist/chrome/` - Chrome extension files
+- `dist/firefox/` - Firefox extension files
+
+4. Load the extension in your browser following the `Installation - Unpacked` instructions above
