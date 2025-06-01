@@ -1,5 +1,6 @@
 const path = require('path');
 const CopyPlugin = require('copy-webpack-plugin');
+const webpack = require('webpack');
 
 module.exports = [
   // Chrome build configuration
@@ -56,9 +57,24 @@ module.exports = [
     output: {
       filename: '[name].bundle.js',
       path: path.resolve(__dirname, 'dist/firefox'),
+      globalObject: 'globalThis', // Explicitly set global object
+      environment: {
+        // Specify the environment capabilities
+        arrowFunction: true,
+        bigIntLiteral: false,
+        const: true,
+        destructuring: true,
+        dynamicImport: false, // Disable dynamic imports
+        forOf: true,
+        module: false,
+      }
     },
     optimization: {
-      minimize: false
+      minimize: false,
+      concatenateModules: false, // Disable module concatenation
+      providedExports: false,
+      usedExports: false,
+      sideEffects: false
     },
     module: {
       rules: [
@@ -68,7 +84,14 @@ module.exports = [
           use: {
             loader: 'babel-loader',
             options: {
-              presets: ['@babel/preset-env']
+              presets: [
+                ['@babel/preset-env', {
+                  targets: {
+                    firefox: '91' // Target Firefox ESR
+                  },
+                  modules: false // Keep ES modules
+                }]
+              ]
             }
           }
         }
@@ -82,13 +105,22 @@ module.exports = [
           { from: 'manifest-firefox.json', to: '../firefox/manifest.json' }
         ],
       }),
+      // Define global object to avoid Function constructor
+      new webpack.DefinePlugin({
+        'global': 'globalThis',
+        'window': 'globalThis'
+      })
     ],
     resolve: {
-      extensions: ['.js']
+      extensions: ['.js'],
+      fallback: {
+        // Provide empty fallbacks for node modules
+        "global": false
+      }
     },
+    target: 'webworker', // Use webworker target instead of web
     experiments: {
       outputModule: false
-    },
-    target: ['web', 'es2020']
+    }
   }
 ];

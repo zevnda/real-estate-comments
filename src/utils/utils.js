@@ -1,3 +1,5 @@
+import { restorePanelState } from '../components/commentsPanel';
+
 export function isPropertyPage() {
     return window.location.href.includes('realestate.com.au/property-');
 }
@@ -19,4 +21,20 @@ export function handleUrlChange(createCommentsPanel, loadComments) {
         const bubble = document.getElementById('property-comments-bubble');
         if (bubble) bubble.remove();
     }
+}
+
+export function createSVGElement(path) {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    const pathElement = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    
+    svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    svg.setAttribute("viewBox", "0 0 512 512");
+    svg.setAttribute("width", "32");
+    svg.setAttribute("height", "32");
+    svg.setAttribute("fill", "white");
+    
+    pathElement.setAttribute("d", path);
+    svg.appendChild(pathElement);
+    
+    return svg;
 }

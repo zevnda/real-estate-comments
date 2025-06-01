@@ -1,5 +1,5 @@
 import { createCommentsPanel } from './components/commentsPanel.js';
-import { handleUrlChange } from './utils/utils.js';
+import { handleUrlChange, isPropertyPage } from './utils/utils.js';
 import { loadComments } from './components/comments.js';
 
 // URL change detection

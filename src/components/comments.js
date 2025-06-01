@@ -50,10 +50,14 @@ export function loadComments() {
 
             const commentText = document.createElement('div');
             commentText.className = 'comment-text';
-            // Replace newlines with <br> tags and preserve whitespace
-            commentText.innerHTML = comment.text
-                .replace(/\n/g, '<br>')
-                .replace(/\s{2,}/g, match => '&nbsp;'.repeat(match.length));
+            
+            // Split text by newlines and create text nodes and br elements
+            comment.text.split('\n').forEach((line, index, array) => {
+                commentText.appendChild(document.createTextNode(line));
+                if (index < array.length - 1) {
+                    commentText.appendChild(document.createElement('br'));
+                }
+            });
 
             commentElement.appendChild(commentHeader);
             commentElement.appendChild(commentText);
