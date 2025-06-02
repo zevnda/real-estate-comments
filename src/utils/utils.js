@@ -23,12 +23,12 @@ export function handleUrlChange(createCommentsPanel, loadComments) {
     }
 }
 
-export function createSVGElement(path) {
+export function createSVGElement(path, vbWidth = 512, viewBoxHeight = 512) {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     const pathElement = document.createElementNS("http://www.w3.org/2000/svg", "path");
     
     svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    svg.setAttribute("viewBox", "0 0 512 512");
+    svg.setAttribute("viewBox", `0 0 ${vbWidth} ${viewBoxHeight}`);
     svg.setAttribute("width", "32");
     svg.setAttribute("height", "32");
     svg.setAttribute("fill", "white");
