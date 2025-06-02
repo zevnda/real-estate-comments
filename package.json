@@ -1,5 +1,5 @@
 {
-  "name": "realestate-comments",
+  "name": "real-estate-comments",
   "version": "1.0.0",
   "description": "Adds a comment section on realestate.com.au property listings",
   "main": "index.js",

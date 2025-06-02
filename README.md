@@ -18,8 +18,8 @@ This browser extension adds a comment section to [https://www.realestate.com.au]
 ### Steps
 1. Clone and build the extension
 ```bash
-git clone https://github.com/zevnda/realestate-comments.git
-cd realestate-comments
+git clone https://github.com/zevnda/real-estate-comments.git
+cd real-estate-comments
 pnpm install  # or npm install
 pnpm build  # or npm run build
 ```

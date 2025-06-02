@@ -56,9 +56,9 @@ jobs:
       - name: Create ZIP files
         run: |
           cd dist/chrome
-          zip -r ../../realestate-comments-chrome-v${{ github.event.inputs.version }}.zip .
+          zip -r ../../real-estate-comments-chrome-v${{ github.event.inputs.version }}.zip .
           cd ../firefox
-          zip -r ../../realestate-comments-firefox-v${{ github.event.inputs.version }}.zip .
+          zip -r ../../real-estate-comments-firefox-v${{ github.event.inputs.version }}.zip .
 
       - name: Create GitHub Release
         id: create_release
@@ -69,7 +69,7 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            realestate-comments-chrome-v${{ github.event.inputs.version }}.zip
-            realestate-comments-firefox-v${{ github.event.inputs.version }}.zip
+            real-estate-comments-chrome-v${{ github.event.inputs.version }}.zip
+            real-estate-comments-firefox-v${{ github.event.inputs.version }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
