@@ -1,14 +1,7 @@
 import { isPropertyPage } from '../utils/utils.js'
 import { loadComments, submitComment } from './comments.js'
 import { createToSModal } from './modal.js'
-import {
-  handleOutsideClick,
-  hideCommentsPanel,
-  restorePanelState,
-  showCommentsPanel,
-  toggleCommentsPanel,
-  updatePanelAndBubbleVisibility,
-} from './panelState.js'
+import { handleOutsideClick, hideCommentsPanel, updatePanelAndBubbleVisibility } from './panelState.js'
 import { createCommentsBubble, createPanelBody, createPanelHeader } from './panelUI.js'
 
 // Re-export functions for external use
