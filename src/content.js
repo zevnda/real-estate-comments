@@ -1,4 +1,3 @@
-import browserAPI from './browser-polyfill.js'
 import { loadComments } from './components/comments.js'
 import { createCommentsPanel } from './components/commentsPanel.js'
 import { handleUrlChange, isPropertyPage } from './utils/utils.js'
@@ -17,7 +16,9 @@ function observePageChanges() {
 
   const observer = new MutationObserver(function (mutations) {
     if (isPropertyPage() && !document.getElementById('property-comments-panel')) {
-      const propertyLoaded = document.querySelector('.property-info, .listing-details, .property-features')
+      const propertyLoaded = document.querySelector(
+        '.property-info, .listing-details, .property-features, [data-testid="listing-details__summary"]',
+      )
       if (propertyLoaded) {
         createCommentsPanel()
       }

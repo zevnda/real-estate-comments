@@ -58,7 +58,7 @@ export function createPanelBody() {
   const nameInput = document.createElement('input')
   nameInput.type = 'text'
   nameInput.id = 'reacom-name'
-  nameInput.placeholder = 'Your name (optional)'
+  nameInput.placeholder = 'Username (optional)'
 
   const textarea = document.createElement('textarea')
   textarea.id = 'new-comment'

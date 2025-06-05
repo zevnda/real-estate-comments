@@ -3,10 +3,11 @@ import { hasAcceptedToS, showToSModal } from './commentsPanel.js'
 
 // Get address data from page title
 async function getAddressData() {
-  const test = document.querySelector('title')?.textContent
-  console.log(`Page title for address parsing: ${test}`)
+  const titleElement = document.querySelector('title')
+  const titleFromElement = titleElement?.textContent
+  const titleFromDocument = document.title
 
-  const title = document.querySelector('title')?.textContent || document.title
+  const title = titleFromElement || titleFromDocument
   const response = await browserAPI.runtime.sendMessage({
     action: 'parseAddress',
     title: title,
