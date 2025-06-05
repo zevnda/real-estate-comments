@@ -1,5 +1,18 @@
-import browserAPI from '../browser-polyfill.js'
-import { createSVGElement } from '../utils/utils.js'
+import { createSVGElement, getBrowserAPI } from '../utils/utils.js'
+
+const sendMessage = async message => {
+  const browserAPI = getBrowserAPI()
+
+  if (typeof browser !== 'undefined' && browser.runtime) {
+    // Firefox
+    return await browserAPI.runtime.sendMessage(message)
+  } else {
+    // Chrome
+    return new Promise(resolve => {
+      browserAPI.runtime.sendMessage(message, resolve)
+    })
+  }
+}
 
 export function createRecentCommentsModal() {
   // Check if modal already exists
@@ -85,7 +98,7 @@ async function loadRecentComments() {
   content.appendChild(loadingDiv)
 
   try {
-    const response = await browserAPI.runtime.sendMessage({
+    const response = await sendMessage({
       action: 'getRecentComments',
     })
 

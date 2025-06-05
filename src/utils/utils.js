@@ -1,12 +1,20 @@
 import { restorePanelState } from '../components/commentsPanel'
 
+// Simple browser API compatibility
+export const getBrowserAPI = () => {
+  if (typeof browser !== 'undefined' && (browser.storage || browser.runtime)) {
+    return browser
+  }
+  return chrome
+}
+
 export function isPropertyPage() {
   const url = window.location.href
   const isRealEstate = url.includes('realestate.com.au/property-') || url.includes('realestate.com.au/property/')
 
   // Domain property URLs follow pattern domain.com.au/address-suburb-state-postcode-propertyid
   const isDomain = url.includes('domain.com.au/') && url.match(/domain\.com\.au\/[^\/]+-\d+(\?|$)/) !== null
-  
+
   // Domain property-profile URLs follow pattern domain.com.au/property-profile/address-suburb-state-postcode
   const isDomainProfile = url.includes('domain.com.au/property-profile/')
 

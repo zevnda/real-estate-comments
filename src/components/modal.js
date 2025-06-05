@@ -1,4 +1,32 @@
-import browserAPI from '../browser-polyfill.js'
+import { getBrowserAPI } from '../utils/utils.js'
+
+const storageGet = async key => {
+  const browserAPI = getBrowserAPI()
+
+  if (typeof browser !== 'undefined' && browser.storage) {
+    // Firefox
+    return await browserAPI.storage.local.get(key)
+  } else {
+    // Chrome
+    return new Promise(resolve => {
+      browserAPI.storage.local.get(key, resolve)
+    })
+  }
+}
+
+const storageSet = async data => {
+  const browserAPI = getBrowserAPI()
+
+  if (typeof browser !== 'undefined' && browser.storage) {
+    // Firefox
+    await browserAPI.storage.local.set(data)
+  } else {
+    // Chrome
+    return new Promise(resolve => {
+      browserAPI.storage.local.set(data, resolve)
+    })
+  }
+}
 
 // Create ToS modal
 export function createToSModal() {
@@ -75,7 +103,7 @@ export function createToSModal() {
   // Add event listeners
   agreeBtn.addEventListener('click', async () => {
     try {
-      await browserAPI.storage.local.set({ tos_accepted: 'true' })
+      await storageSet({ tos_accepted: 'true' })
       modal.style.display = 'none'
     } catch (error) {
       console.error('Error saving ToS acceptance:', error)
@@ -103,7 +131,7 @@ export function showToSModal() {
 
 export async function hasAcceptedToS() {
   try {
-    const result = await browserAPI.storage.local.get('tos_accepted')
+    const result = await storageGet('tos_accepted')
     return result.tos_accepted === 'true'
   } catch (error) {
     console.error('Error checking ToS acceptance:', error)

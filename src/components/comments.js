@@ -1,5 +1,20 @@
-import browserAPI from '../browser-polyfill.js'
+import { getBrowserAPI } from '../utils/utils.js'
 import { hasAcceptedToS, showToSModal } from './commentsPanel.js'
+
+// Simple browser API compatibility
+const sendMessage = async message => {
+  const browserAPI = getBrowserAPI()
+
+  if (typeof browser !== 'undefined' && browser.runtime) {
+    // Firefox
+    return await browserAPI.runtime.sendMessage(message)
+  } else {
+    // Chrome
+    return new Promise(resolve => {
+      browserAPI.runtime.sendMessage(message, resolve)
+    })
+  }
+}
 
 // Get address data from page title
 async function getAddressData() {
@@ -8,7 +23,7 @@ async function getAddressData() {
   const titleFromDocument = document.title
 
   const title = titleFromElement || titleFromDocument
-  const response = await browserAPI.runtime.sendMessage({
+  const response = await sendMessage({
     action: 'parseAddress',
     title: title,
     url: window.location.href,
@@ -30,73 +45,71 @@ export async function loadComments() {
     return
   }
 
-  browserAPI.runtime
-    .sendMessage({
-      action: 'getComments',
-      addressData: addressData,
-    })
-    .then(response => {
-      const commentsList = document.getElementById('comments-list')
-      // Clear the existing comments
-      while (commentsList.firstChild) {
-        commentsList.removeChild(commentsList.firstChild)
-      }
+  sendMessage({
+    action: 'getComments',
+    addressData: addressData,
+  }).then(response => {
+    const commentsList = document.getElementById('comments-list')
+    // Clear the existing comments
+    while (commentsList.firstChild) {
+      commentsList.removeChild(commentsList.firstChild)
+    }
 
-      if (response.error) {
-        const errorPara = document.createElement('p')
-        errorPara.className = 'no-comments'
-        errorPara.textContent = `Error loading comments: ${response.error}`
-        commentsList.appendChild(errorPara)
-        return
-      }
+    if (response.error) {
+      const errorPara = document.createElement('p')
+      errorPara.className = 'no-comments'
+      errorPara.textContent = `Error loading comments: ${response.error}`
+      commentsList.appendChild(errorPara)
+      return
+    }
 
-      if (response.isEmpty || !response.comments || response.comments.length === 0) {
-        const noPara = document.createElement('p')
-        noPara.className = 'no-comments'
-        noPara.textContent = 'No comments yet. Be the first to share your insights about this property!'
-        commentsList.appendChild(noPara)
-        return
-      }
+    if (response.isEmpty || !response.comments || response.comments.length === 0) {
+      const noPara = document.createElement('p')
+      noPara.className = 'no-comments'
+      noPara.textContent = 'No comments yet. Be the first to share your insights about this property!'
+      commentsList.appendChild(noPara)
+      return
+    }
 
-      response.comments.forEach(comment => {
-        const commentElement = document.createElement('div')
-        commentElement.className = 'comment'
-        commentElement.dataset.id = comment.id
+    response.comments.forEach(comment => {
+      const commentElement = document.createElement('div')
+      commentElement.className = 'comment'
+      commentElement.dataset.id = comment.id
 
-        const date = new Date(comment.timestamp)
-        const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+      const date = new Date(comment.timestamp)
+      const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
 
-        const commentHeader = document.createElement('div')
-        commentHeader.className = 'comment-header'
+      const commentHeader = document.createElement('div')
+      commentHeader.className = 'comment-header'
 
-        const authorSpan = document.createElement('span')
-        authorSpan.className = 'comment-author'
-        authorSpan.textContent = comment.username
+      const authorSpan = document.createElement('span')
+      authorSpan.className = 'comment-author'
+      authorSpan.textContent = comment.username
 
-        const dateSpan = document.createElement('span')
-        dateSpan.className = 'comment-date'
-        dateSpan.textContent = formattedDate
+      const dateSpan = document.createElement('span')
+      dateSpan.className = 'comment-date'
+      dateSpan.textContent = formattedDate
 
-        commentHeader.appendChild(authorSpan)
-        commentHeader.appendChild(dateSpan)
+      commentHeader.appendChild(authorSpan)
+      commentHeader.appendChild(dateSpan)
 
-        const commentText = document.createElement('div')
-        commentText.className = 'comment-text'
+      const commentText = document.createElement('div')
+      commentText.className = 'comment-text'
 
-        // Split text by newlines and create text nodes and br elements
-        comment.text.split('\n').forEach((line, index, array) => {
-          commentText.appendChild(document.createTextNode(line))
-          if (index < array.length - 1) {
-            commentText.appendChild(document.createElement('br'))
-          }
-        })
-
-        commentElement.appendChild(commentHeader)
-        commentElement.appendChild(commentText)
-
-        commentsList.appendChild(commentElement)
+      // Split text by newlines and create text nodes and br elements
+      comment.text.split('\n').forEach((line, index, array) => {
+        commentText.appendChild(document.createTextNode(line))
+        if (index < array.length - 1) {
+          commentText.appendChild(document.createElement('br'))
+        }
       })
+
+      commentElement.appendChild(commentHeader)
+      commentElement.appendChild(commentText)
+
+      commentsList.appendChild(commentElement)
     })
+  })
 }
 
 export async function submitComment() {
@@ -139,13 +152,12 @@ export async function submitComment() {
     username: username || 'Anonymous',
   }
 
-  browserAPI.runtime
-    .sendMessage({
-      action: 'saveComment',
-      addressData: addressData,
-      comment: comment,
-      url: window.location.href,
-    })
+  sendMessage({
+    action: 'saveComment',
+    addressData: addressData,
+    comment: comment,
+    url: window.location.href,
+  })
     .then(response => {
       submitBtn.innerText = originalText
       submitBtn.disabled = false
