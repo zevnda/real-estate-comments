@@ -1,6 +1,12 @@
-# Real Estate Comments Extension
+<div align="center">
+<img src="./public/logo.png" width="80" alt="app logo">
+
+<h1>Real Estate Comments</h1>
 
 This browser extension adds a comment section to [realestate.com.au](https://www.realestate.com.au) and [domain.com.au](https://www.domain.com.au) property listings, allowing users to view and submit comments about properties to give potential renters an idea of what the property conditions are really like.
+
+<img src="./public/example.png" width="700" alt="example image"><br />
+</div>
 
 ## Installation - Chrome Web Store/Firefox Add-ons
 
