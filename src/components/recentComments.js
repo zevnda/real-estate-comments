@@ -33,7 +33,11 @@ export function createRecentCommentsModal() {
 
   const content = document.createElement('div')
   content.className = 'recent-comments-content'
-  content.innerHTML = '<div class="recent-comments-loading">Loading recent comments...</div>'
+
+  const loadingDiv = document.createElement('div')
+  loadingDiv.className = 'recent-comments-loading'
+  loadingDiv.textContent = 'Loading recent comments...'
+  content.appendChild(loadingDiv)
 
   modalContent.appendChild(header)
   modalContent.appendChild(content)
@@ -72,7 +76,13 @@ async function loadRecentComments() {
   if (!content) return
 
   // Show loading state
-  content.innerHTML = '<div class="recent-comments-loading">Loading recent comments...</div>'
+  while (content.firstChild) {
+    content.removeChild(content.firstChild)
+  }
+  const loadingDiv = document.createElement('div')
+  loadingDiv.className = 'recent-comments-loading'
+  loadingDiv.textContent = 'Loading recent comments...'
+  content.appendChild(loadingDiv)
 
   try {
     const response = await browserAPI.runtime.sendMessage({
@@ -80,17 +90,31 @@ async function loadRecentComments() {
     })
 
     if (response.error) {
-      content.innerHTML = `<div class="recent-comments-error">Error loading comments: ${response.error}</div>`
+      while (content.firstChild) {
+        content.removeChild(content.firstChild)
+      }
+      const errorDiv = document.createElement('div')
+      errorDiv.className = 'recent-comments-error'
+      errorDiv.textContent = `Error loading comments: ${response.error}`
+      content.appendChild(errorDiv)
       return
     }
 
     if (response.isEmpty || !response.comments || response.comments.length === 0) {
-      content.innerHTML = '<div class="recent-comments-empty">No recent comments found.</div>'
+      while (content.firstChild) {
+        content.removeChild(content.firstChild)
+      }
+      const emptyDiv = document.createElement('div')
+      emptyDiv.className = 'recent-comments-empty'
+      emptyDiv.textContent = 'No recent comments found.'
+      content.appendChild(emptyDiv)
       return
     }
 
     // Clear content and add comments
-    content.innerHTML = ''
+    while (content.firstChild) {
+      content.removeChild(content.firstChild)
+    }
 
     response.comments.forEach(comment => {
       const commentElement = document.createElement('div')
@@ -158,6 +182,12 @@ async function loadRecentComments() {
       content.appendChild(commentElement)
     })
   } catch (error) {
-    content.innerHTML = `<div class="recent-comments-error">Failed to load recent comments: ${error.message}</div>`
+    while (content.firstChild) {
+      content.removeChild(content.firstChild)
+    }
+    const errorDiv = document.createElement('div')
+    errorDiv.className = 'recent-comments-error'
+    errorDiv.textContent = `Failed to load recent comments: ${error.message}`
+    content.appendChild(errorDiv)
   }
 }
