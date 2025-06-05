@@ -1,4 +1,5 @@
 import browserAPI from '../browser-polyfill.js'
+import { hasAcceptedToS, showToSModal } from './commentsPanel.js'
 
 // Get address data from page title
 async function getAddressData() {
@@ -98,6 +99,12 @@ export async function loadComments() {
 }
 
 export async function submitComment() {
+  // Check if user has accepted ToS
+  if (!hasAcceptedToS()) {
+    showToSModal()
+    return
+  }
+
   const addressData = await getAddressData()
 
   if (!addressData) {

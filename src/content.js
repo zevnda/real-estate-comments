@@ -1,3 +1,4 @@
+import browserAPI from './browser-polyfill.js'
 import { loadComments } from './components/comments.js'
 import { createCommentsPanel } from './components/commentsPanel.js'
 import { handleUrlChange, isPropertyPage } from './utils/utils.js'
