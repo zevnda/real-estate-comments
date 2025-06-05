@@ -24,6 +24,12 @@ const browserAPI = (() => {
         },
         sendMessage: message => browser.runtime.sendMessage(message),
       },
+      storage: {
+        local: {
+          get: key => browser.storage.local.get(key),
+          set: data => browser.storage.local.set(data),
+        },
+      },
     }
   } else if (typeof chrome !== 'undefined') {
     // Chrome
@@ -72,6 +78,32 @@ const browserAPI = (() => {
               reject(err)
             }
           })
+        },
+      },
+      storage: {
+        local: {
+          get: key => {
+            return new Promise((resolve, reject) => {
+              chrome.storage.local.get(key, result => {
+                if (chrome.runtime.lastError) {
+                  reject(new Error(chrome.runtime.lastError.message))
+                } else {
+                  resolve(result)
+                }
+              })
+            })
+          },
+          set: data => {
+            return new Promise((resolve, reject) => {
+              chrome.storage.local.set(data, () => {
+                if (chrome.runtime.lastError) {
+                  reject(new Error(chrome.runtime.lastError.message))
+                } else {
+                  resolve()
+                }
+              })
+            })
+          },
         },
       },
     }
