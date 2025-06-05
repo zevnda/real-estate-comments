@@ -1,10 +1,12 @@
 import browserAPI from './browser-polyfill.js'
 import firebaseConfig from './firebase-config.js'
 import { initializeApp } from 'firebase/app'
+import { getAuth, signInAnonymously } from 'firebase/auth'
 import { addDoc, collection, getDocs, getFirestore, limit, orderBy, query, where } from 'firebase/firestore'
 
 const app = initializeApp(firebaseConfig)
 const db = getFirestore(app)
+const auth = getAuth(app)
 
 // Rate limiting config
 const RATE_LIMIT = {
@@ -158,6 +160,20 @@ function parseAddressFromTitle(title) {
   return result
 }
 
+// Ensure user is authenticated
+async function ensureAuthenticated() {
+  if (!auth.currentUser) {
+    try {
+      await signInAnonymously(auth)
+      console.log('Signed in anonymously')
+    } catch (error) {
+      console.error('Error signing in anonymously:', error)
+      throw error
+    }
+  }
+  return auth.currentUser
+}
+
 try {
   // Use browserAPI instead of directly using chrome
   browserAPI.runtime.onInstalled.addListener(details => {
@@ -173,17 +189,20 @@ try {
         return Promise.resolve({ comments: [], isEmpty: true, error: 'Invalid address data' })
       }
 
-      // Create a query to get comments for this address and suburb
-      const commentsRef = collection(db, 'comments')
-      const q = query(
-        commentsRef,
-        where('address', '==', addressData.address),
-        where('suburb', '==', addressData.suburb),
-        orderBy('createdAt', 'desc'),
-        limit(50),
-      )
+      return ensureAuthenticated()
+        .then(() => {
+          // Create a query to get comments for this address and suburb
+          const commentsRef = collection(db, 'comments')
+          const q = query(
+            commentsRef,
+            where('address', '==', addressData.address),
+            where('suburb', '==', addressData.suburb),
+            orderBy('createdAt', 'desc'),
+            limit(50),
+          )
 
-      return getDocs(q)
+          return getDocs(q)
+        })
         .then(querySnapshot => {
           if (querySnapshot.empty) {
             return { comments: [], isEmpty: true }
@@ -242,24 +261,29 @@ try {
           }
         }
 
-        // Use the provided username or default to Anonymous
-        const username =
-          comment.username && comment.username.trim() !== '' ? comment.username.trim().substring(0, 50) : 'Anonymous'
+        return ensureAuthenticated()
+          .then(() => {
+            // Use the provided username or default to Anonymous
+            const username =
+              comment.username && comment.username.trim() !== ''
+                ? comment.username.trim().substring(0, 50)
+                : 'Anonymous'
 
-        // Create new comment document in Firestore
-        const commentsRef = collection(db, 'comments')
-        const commentData = {
-          address: addressData.address,
-          suburb: addressData.suburb,
-          state: addressData.state,
-          postcode: addressData.postcode,
-          text: comment.text.trim(),
-          timestamp: comment.timestamp || new Date().toISOString(),
-          username: username,
-          createdAt: new Date(),
-        }
+            // Create new comment document in Firestore
+            const commentsRef = collection(db, 'comments')
+            const commentData = {
+              address: addressData.address,
+              suburb: addressData.suburb,
+              state: addressData.state,
+              postcode: addressData.postcode,
+              text: comment.text.trim(),
+              timestamp: comment.timestamp || new Date().toISOString(),
+              username: username,
+              createdAt: new Date(),
+            }
 
-        return addDoc(commentsRef, commentData)
+            return addDoc(commentsRef, commentData)
+          })
           .then(docRef => {
             // Update rate limit records
             updateRateLimitRecords(locationKey, sender.tab?.id)

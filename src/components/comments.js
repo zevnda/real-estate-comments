@@ -120,7 +120,7 @@ export async function submitComment() {
   // Loading indicator
   const submitBtn = document.getElementById('submit-comment-btn')
   const originalText = submitBtn.innerText
-  submitBtn.innerText = 'Posting...'
+  submitBtn.innerText = 'Authenticating...'
   submitBtn.disabled = true
 
   const comment = {
@@ -145,5 +145,10 @@ export async function submitComment() {
       } else {
         alert(`Failed to save comment: ${response.message || 'Unknown error'}`)
       }
+    })
+    .catch(error => {
+      submitBtn.innerText = originalText
+      submitBtn.disabled = false
+      alert(`Failed to save comment: ${error.message || 'Network error'}`)
     })
 }
