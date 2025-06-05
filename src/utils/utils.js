@@ -6,8 +6,11 @@ export function isPropertyPage() {
 
   // Domain property URLs follow pattern domain.com.au/address-suburb-state-postcode-propertyid
   const isDomain = url.includes('domain.com.au/') && url.match(/domain\.com\.au\/[^\/]+-\d+(\?|$)/) !== null
+  
+  // Domain property-profile URLs follow pattern domain.com.au/property-profile/address-suburb-state-postcode
+  const isDomainProfile = url.includes('domain.com.au/property-profile/')
 
-  return isRealEstate || isDomain
+  return isRealEstate || isDomain || isDomainProfile
 }
 
 export function handleUrlChange(createCommentsPanel, loadComments) {

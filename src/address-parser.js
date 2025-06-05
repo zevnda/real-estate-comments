@@ -4,6 +4,48 @@ export function parseAddressFromTitle(title, url) {
 
   if (!title) return null
 
+  if (url.includes('domain.com.au/property-profile/')) {
+    const pipeMatch = title.match(/^(.+?)\s+\|\s+/)
+    if (!pipeMatch) {
+      console.log('No pipe separator found in property-profile title')
+      return null
+    }
+    const addressPart = pipeMatch[1].trim()
+    console.log(`Property-profile address part extracted: ${addressPart}`)
+
+    const parts = addressPart.split(',').map(part => part.trim())
+    console.log(`Property-profile address parts: ${JSON.stringify(parts)}`)
+
+    if (parts.length !== 2) {
+      console.log(`Expected 2 parts for property-profile, got: ${parts.length}`)
+      return null
+    }
+
+    const address = parts[0].toLowerCase()
+    const suburb = parts[1].toLowerCase()
+
+    // Extract state and postcode from URL
+    const urlMatch = url.match(/-([a-z]{2,3})-(\d{4})(?:-|$)/)
+    if (!urlMatch) {
+      console.log('Could not extract state and postcode from property-profile URL')
+      return null
+    }
+
+    const state = urlMatch[1].toLowerCase()
+    const postcode = urlMatch[2]
+
+    const result = {
+      address,
+      suburb,
+      state,
+      postcode,
+      url,
+    }
+
+    console.log(`Property-profile parsed result: ${JSON.stringify(result)}`)
+    return result
+  }
+
   // Both sites use the same title structure, so use consistent parsing
   const match = title.match(/^(.+?)\s+-\s+/)
   if (!match) {
@@ -20,7 +62,6 @@ export function parseAddressFromTitle(title, url) {
   let address, suburb, state, postcode
 
   if (parts.length === 2) {
-    // Domain.com.au format: "29 Wollowra Street", "Cowra NSW 2794"
     address = parts[0].toLowerCase()
 
     // Parse the second part which contains suburb, state and postcode
@@ -36,7 +77,6 @@ export function parseAddressFromTitle(title, url) {
     state = suburbStatePostcodeMatch[2].toLowerCase()
     postcode = suburbStatePostcodeMatch[3]
   } else if (parts.length >= 3) {
-    // Realestate.com.au format: "29 Wollowra Street", "Cowra", "NSW 2794"
     address = parts[0].toLowerCase()
     suburb = parts[1].toLowerCase()
 
