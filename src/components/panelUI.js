@@ -64,6 +64,10 @@ export function createPanelBody() {
   textarea.id = 'new-comment'
   textarea.placeholder = 'Share your thoughts about this property...'
 
+  const charCounter = document.createElement('div')
+  charCounter.className = 'char-counter'
+  charCounter.textContent = '0/1200 characters'
+
   const buttonContainer = document.createElement('div')
   buttonContainer.className = 'button-container'
 
@@ -89,6 +93,7 @@ export function createPanelBody() {
 
   form.appendChild(nameInput)
   form.appendChild(textarea)
+  form.appendChild(charCounter)
   form.appendChild(buttonContainer)
 
   body.appendChild(commentsList)

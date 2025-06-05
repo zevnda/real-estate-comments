@@ -71,7 +71,7 @@ export function createCommentsPanel() {
     // Add character counter logic
     const textarea = document.getElementById('new-comment')
     const charCounter = document.querySelector('.char-counter')
-    if (textarea) {
+    if (textarea && charCounter) {
       textarea.addEventListener('input', () => {
         const count = textarea.value.length
         charCounter.textContent = `${count}/1200 characters`
