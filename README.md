@@ -11,8 +11,8 @@ This browser extension adds a comment section to [realestate.com.au](https://www
 # Installation - Chrome Web Store/Firefox Add-ons
 
 1. Download the extension from
-  - **[Chome Web Store](https://chromewebstore.google.com/detail/fpmhogbiebniapjfkbhgeacgkgpjaenn)**
-  - **[Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/real-estate-comments/)**
+    - **[Chome Web Store](https://chromewebstore.google.com/detail/fpmhogbiebniapjfkbhgeacgkgpjaenn)**
+    - **[Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/real-estate-comments/)**
 2. Refresh any open realestate.com.au tabs
 
 # Installation - Unpacked Source
