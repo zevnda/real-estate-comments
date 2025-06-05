@@ -100,7 +100,8 @@ export async function loadComments() {
 
 export async function submitComment() {
   // Check if user has accepted ToS
-  if (!hasAcceptedToS()) {
+  const hasAccepted = await hasAcceptedToS()
+  if (!hasAccepted) {
     showToSModal()
     return
   }

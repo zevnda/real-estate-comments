@@ -1,3 +1,5 @@
+import browserAPI from '../browser-polyfill.js'
+
 // Create ToS modal
 export function createToSModal() {
   // Check if modal already exists
@@ -71,9 +73,13 @@ export function createToSModal() {
   document.body.appendChild(modal)
 
   // Add event listeners
-  agreeBtn.addEventListener('click', () => {
-    localStorage.setItem('tos-accepted', 'true')
-    modal.style.display = 'none'
+  agreeBtn.addEventListener('click', async () => {
+    try {
+      await browserAPI.storage.local.set({ tos_accepted: 'true' })
+      modal.style.display = 'none'
+    } catch (error) {
+      console.error('Error saving ToS acceptance:', error)
+    }
   })
 
   declineBtn.addEventListener('click', () => {
@@ -95,6 +101,12 @@ export function showToSModal() {
   }
 }
 
-export function hasAcceptedToS() {
-  return localStorage.getItem('tos-accepted') === 'true'
+export async function hasAcceptedToS() {
+  try {
+    const result = await browserAPI.storage.local.get('tos_accepted')
+    return result.tos_accepted === 'true'
+  } catch (error) {
+    console.error('Error checking ToS acceptance:', error)
+    return false
+  }
 }
