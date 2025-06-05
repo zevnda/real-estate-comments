@@ -3,6 +3,7 @@ import { loadComments, submitComment } from './comments.js'
 import { createToSModal } from './modal.js'
 import { handleOutsideClick, hideCommentsPanel, updatePanelAndBubbleVisibility } from './panelState.js'
 import { createCommentsBubble, createPanelBody, createPanelHeader } from './panelUI.js'
+import { createRecentCommentsModal, showRecentCommentsModal } from './recentComments.js'
 
 // Re-export functions for external use
 export {
@@ -51,6 +52,9 @@ export function createCommentsPanel() {
   // Create ToS modal
   createToSModal()
 
+  // Create recent comments modal
+  createRecentCommentsModal()
+
   // Add click listener if panel starts expanded
   if (!panel.classList.contains('minimized')) {
     document.addEventListener('click', handleOutsideClick)
@@ -59,6 +63,7 @@ export function createCommentsPanel() {
   setTimeout(() => {
     const submitBtn = document.getElementById('submit-comment-btn')
     const closeBtn = document.querySelector('.panel-close-btn')
+    const recentCommentsBtn = document.querySelector('.recent-comments-btn')
 
     if (submitBtn) {
       submitBtn.addEventListener('click', submitComment)
@@ -66,6 +71,10 @@ export function createCommentsPanel() {
 
     if (closeBtn) {
       closeBtn.addEventListener('click', hideCommentsPanel)
+    }
+
+    if (recentCommentsBtn) {
+      recentCommentsBtn.addEventListener('click', showRecentCommentsModal)
     }
 
     // Add character counter logic

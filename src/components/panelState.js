@@ -2,14 +2,16 @@ export function handleOutsideClick(e) {
   const panel = document.getElementById('property-comments-panel')
   const bubble = document.getElementById('property-comments-bubble')
   const tosModal = document.getElementById('tos-modal')
+  const recentsModal = document.getElementById('recent-comments-modal')
   if (!panel || !bubble) return
 
   // Check if click is outside panel and panel is expanded
-  // Exclude ToS modal from triggering panel hide
+  // Exclude ToS modal and recents modal from triggering panel hide
   if (
     !panel.contains(e.target) &&
     !bubble.contains(e.target) &&
     (!tosModal || !tosModal.contains(e.target)) &&
+    (!recentsModal || !recentsModal.contains(e.target)) &&
     panel.classList.contains('expanded')
   ) {
     hideCommentsPanel()

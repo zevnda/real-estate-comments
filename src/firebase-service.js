@@ -104,3 +104,35 @@ export async function saveComment(addressData, comment, url, userUID) {
   const docRef = await addDoc(commentsRef, commentData)
   return docRef.id
 }
+
+// Get recent comments across all listings
+export async function getRecentComments(limitCount = 3) {
+  await ensureAuthenticated()
+
+  const commentsRef = collection(db, 'listingcomments')
+  const q = query(commentsRef, orderBy('createdAt', 'desc'), limit(limitCount))
+
+  const querySnapshot = await getDocs(q)
+
+  if (querySnapshot.empty) {
+    return { comments: [], isEmpty: true }
+  }
+
+  const comments = []
+  querySnapshot.forEach(doc => {
+    const data = doc.data()
+    comments.push({
+      id: doc.id,
+      text: data.text,
+      timestamp: data.timestamp,
+      username: data.username,
+      address: data.address,
+      suburb: data.suburb,
+      state: data.state,
+      postcode: data.postcode,
+      url: data.url,
+    })
+  })
+
+  return { comments: comments, isEmpty: false }
+}

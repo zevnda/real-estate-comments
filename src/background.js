@@ -1,7 +1,7 @@
 import { parseAddressFromTitle } from './address-parser.js'
 import browserAPI from './browser-polyfill.js'
 import { validateComment } from './comment-validator.js'
-import { getComments, isUserBanned, saveComment } from './firebase-service.js'
+import { getComments, getRecentComments, isUserBanned, saveComment } from './firebase-service.js'
 import { checkRateLimit, clearRateLimitCache, updateRateLimitRecords } from './rate-limiter.js'
 import { getUserUID } from './user-service.js'
 
@@ -22,6 +22,13 @@ try {
 
       return getComments(addressData).catch(error => {
         console.error('Error getting comments: ', error)
+        return { error: error.message }
+      })
+    }
+
+    if (request.action === 'getRecentComments') {
+      return getRecentComments(3).catch(error => {
+        console.error('Error getting recent comments: ', error)
         return { error: error.message }
       })
     }
