@@ -8,14 +8,14 @@ This browser extension adds a comment section to [realestate.com.au](https://www
 <img src="./public/example.png" width="700" alt="example image"><br />
 </div>
 
-## Installation - Chrome Web Store/Firefox Add-ons
+# Installation - Chrome Web Store/Firefox Add-ons
 
 1. Download the extension from
   - **[Chome Web Store](https://chromewebstore.google.com/detail/fpmhogbiebniapjfkbhgeacgkgpjaenn)**
   - **[Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/real-estate-comments/)**
 2. Refresh any open realestate.com.au tabs
 
-## Installation - Unpacked Source
+# Installation - Unpacked Source
 
 ### Prerequisites
 - Node 22.x
@@ -41,7 +41,7 @@ pnpm build  # or npm run build
 
 [Chrome Written Guide](https://developer.chrome.com/docs/extensions/mv3/getstarted/development-basics/#load-unpacked) | [Firefox Written Guide](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Your_first_WebExtension#installing) | [Chrome/Firefox Video Guide](https://www.youtube.com/watch?v=dhaGRJvJAII)
 
-## Usage
+# Usage
 
 - Navigate to a property listing on [realestate.com.au](https://www.realestate.com.au) or [domain.com.au](https://www.domain.com.au)
 - A blue/white comment button will appear in the bottom-right of the listing page
