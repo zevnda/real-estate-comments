@@ -21,6 +21,21 @@ export async function ensureAuthenticated() {
   return auth.currentUser
 }
 
+// Check if user is banned
+export async function isUserBanned(uid) {
+  await ensureAuthenticated()
+
+  console.log(`Checking if user ${uid} is banned...`)
+
+  const bannedUsersRef = collection(db, 'bannedUsers')
+  const q = query(bannedUsersRef, where('uid', '==', uid))
+  const querySnapshot = await getDocs(q)
+
+  console.log(`Banned users query snapshot: ${querySnapshot.empty ? 'No banned users found' : 'Banned user exists'}`)
+
+  return !querySnapshot.empty
+}
+
 // Get comments for an address
 export async function getComments(addressData) {
   await ensureAuthenticated()
@@ -58,8 +73,14 @@ export async function getComments(addressData) {
 }
 
 // Save a new comment
-export async function saveComment(addressData, comment, url) {
+export async function saveComment(addressData, comment, url, userUID) {
   await ensureAuthenticated()
+
+  // Check if user is banned first
+  const banned = await isUserBanned(userUID)
+  if (banned) {
+    throw new Error('User is banned from commenting')
+  }
 
   // Use the provided username or default to Anonymous
   const username =
@@ -76,6 +97,7 @@ export async function saveComment(addressData, comment, url) {
     text: comment.text.trim(),
     timestamp: comment.timestamp || new Date().toISOString(),
     username: username,
+    uid: userUID,
     createdAt: new Date(),
   }
 

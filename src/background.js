@@ -1,8 +1,9 @@
 import { parseAddressFromTitle } from './address-parser.js'
 import browserAPI from './browser-polyfill.js'
 import { validateComment } from './comment-validator.js'
-import { getComments, saveComment } from './firebase-service.js'
+import { getComments, isUserBanned, saveComment } from './firebase-service.js'
 import { checkRateLimit, clearRateLimitCache, updateRateLimitRecords } from './rate-limiter.js'
+import { getUserUID } from './user-service.js'
 
 try {
   // Use browserAPI instead of directly using chrome
@@ -46,34 +47,54 @@ try {
         })
       }
 
-      // Check rate limiting using a combination of address and suburb
-      const locationKey = `${addressData.address}_${addressData.suburb}`
-      return checkRateLimit(locationKey, sender.tab?.id).then(rateLimitResult => {
-        if (!rateLimitResult.allowed) {
-          return {
-            status: 'error',
-            message: rateLimitResult.reason,
-          }
-        }
+      const userUID = getUserUID()
 
-        return saveComment(addressData, comment, request.url)
-          .then(commentId => {
-            // Update rate limit records
-            updateRateLimitRecords(locationKey, sender.tab?.id)
-
-            return {
-              status: 'success',
-              commentId: commentId,
-            }
-          })
-          .catch(error => {
-            console.error('Error adding comment: ', error)
+      // Check if user is banned
+      return isUserBanned(userUID)
+        .then(banned => {
+          if (banned) {
             return {
               status: 'error',
-              message: error.message,
+              message: 'Error 90001',
             }
+          }
+
+          // Check rate limiting using a combination of address and suburb
+          const locationKey = `${addressData.address}_${addressData.suburb}`
+          return checkRateLimit(locationKey, sender.tab?.id).then(rateLimitResult => {
+            if (!rateLimitResult.allowed) {
+              return {
+                status: 'error',
+                message: rateLimitResult.reason,
+              }
+            }
+
+            return saveComment(addressData, comment, request.url, userUID)
+              .then(commentId => {
+                // Update rate limit records
+                updateRateLimitRecords(locationKey, sender.tab?.id)
+
+                return {
+                  status: 'success',
+                  commentId: commentId,
+                }
+              })
+              .catch(error => {
+                console.error('Error adding comment: ', error)
+                return {
+                  status: 'error',
+                  message: error.message,
+                }
+              })
           })
-      })
+        })
+        .catch(error => {
+          console.error('Error checking banned status: ', error)
+          return {
+            status: 'error',
+            message: 'Error checking user status.',
+          }
+        })
     }
 
     if (request.action === 'parseAddress') {
