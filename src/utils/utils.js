@@ -2,7 +2,7 @@ import { restorePanelState } from '../components/commentsPanel'
 
 export function isPropertyPage() {
   const url = window.location.href
-  const isRealEstate = url.includes('realestate.com.au/property-')
+  const isRealEstate = url.includes('realestate.com.au/property-') || url.includes('realestate.com.au/property/')
 
   // Domain property URLs follow pattern domain.com.au/address-suburb-state-postcode-propertyid
   const isDomain = url.includes('domain.com.au/') && url.match(/domain\.com\.au\/[^\/]+-\d+(\?|$)/) !== null
