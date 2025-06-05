@@ -5,10 +5,12 @@
   "main": "index.js",
   "scripts": {
     "build": "webpack --config webpack.config.js",
-    "watch": "webpack --watch"
+    "dev": "webpack --watch"
   },
   "dependencies": {
-    "firebase": "^10.4.0"
+    "@ianvs/prettier-plugin-sort-imports": "^4.4.2",
+    "firebase": "^10.4.0",
+    "prettier": "^3.5.3"
   },
   "devDependencies": {
     "@babel/core": "^7.23.0",

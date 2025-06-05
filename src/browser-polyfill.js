@@ -8,74 +8,74 @@ const browserAPI = (() => {
           addListener: browser.runtime.onMessage.addListener,
         },
         onInstalled: {
-          addListener: (callback) => {
+          addListener: callback => {
             if (browser.storage && browser.storage.local) {
-              browser.storage.local.get('extensionInstalled').then((result) => {
+              browser.storage.local.get('extensionInstalled').then(result => {
                 if (!result.extensionInstalled) {
                   browser.storage.local.set({ extensionInstalled: true }).then(() => {
-                    callback({ reason: 'install' });
-                  });
+                    callback({ reason: 'install' })
+                  })
                 }
-              });
+              })
             } else {
-              setTimeout(() => callback({ reason: 'install' }), 0);
+              setTimeout(() => callback({ reason: 'install' }), 0)
             }
           },
         },
-        sendMessage: (message) => browser.runtime.sendMessage(message),
+        sendMessage: message => browser.runtime.sendMessage(message),
       },
-    };
+    }
   } else if (typeof chrome !== 'undefined') {
     // Chrome
     return {
       runtime: {
         onMessage: {
-          addListener: (listener) => {
+          addListener: listener => {
             chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               try {
-                const response = listener(message, sender, sendResponse);
-                
+                const response = listener(message, sender, sendResponse)
+
                 if (response && typeof response.then === 'function') {
                   response.then(sendResponse).catch(err => {
-                    console.error('Error in message handler:', err);
-                    sendResponse({ error: err.message });
-                  });
-                  return true;
+                    console.error('Error in message handler:', err)
+                    sendResponse({ error: err.message })
+                  })
+                  return true
                 }
-                
-                return response;
+
+                return response
               } catch (err) {
-                console.error('Error in runtime.onMessage handler:', err);
-                sendResponse({ error: err.message });
-                return false;
+                console.error('Error in runtime.onMessage handler:', err)
+                sendResponse({ error: err.message })
+                return false
               }
-            });
+            })
           },
         },
         onInstalled: {
-          addListener: (callback) => {
-            chrome.runtime.onInstalled.addListener(callback);
+          addListener: callback => {
+            chrome.runtime.onInstalled.addListener(callback)
           },
         },
-        sendMessage: (message) => {
+        sendMessage: message => {
           return new Promise((resolve, reject) => {
             try {
-              chrome.runtime.sendMessage(message, (response) => {
-                const lastError = chrome.runtime.lastError;
+              chrome.runtime.sendMessage(message, response => {
+                const lastError = chrome.runtime.lastError
                 if (lastError) {
-                  reject(new Error(lastError.message));
+                  reject(new Error(lastError.message))
                 } else {
-                  resolve(response);
+                  resolve(response)
                 }
-              });
+              })
             } catch (err) {
-              reject(err);
+              reject(err)
             }
-          });
+          })
         },
       },
-    };
+    }
   }
-})();
+})()
 
-export default browserAPI;
+export default browserAPI
