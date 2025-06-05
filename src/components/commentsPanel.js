@@ -93,7 +93,7 @@ export function createCommentsPanel() {
 
   const charCounter = document.createElement('div')
   charCounter.className = 'char-counter'
-  charCounter.textContent = '0/500 characters'
+  charCounter.textContent = '0/1200 characters'
 
   const buttonContainer = document.createElement('div')
   buttonContainer.className = 'button-container'
@@ -154,8 +154,8 @@ export function createCommentsPanel() {
     if (textarea) {
       textarea.addEventListener('input', () => {
         const count = textarea.value.length
-        charCounter.textContent = `${count}/500 characters`
-        charCounter.style.color = count > 500 ? '#d32f2f' : '#5f6368'
+        charCounter.textContent = `${count}/1200 characters`
+        charCounter.style.color = count > 1200 ? '#d32f2f' : '#5f6368'
       })
     }
   }, 100)

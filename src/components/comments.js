@@ -113,8 +113,8 @@ export async function submitComment() {
     return
   }
 
-  if (commentText.length > 500) {
-    alert('Comment is too long. Maximum length is 500 characters.')
+  if (commentText.length > 1200) {
+    alert('Comment is too long. Maximum length is 1200 characters.')
     return
   }
 
