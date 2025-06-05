@@ -110,7 +110,7 @@ function validateComment(text) {
 }
 
 // Parse address from meta title
-function parseAddressFromTitle(title) {
+function parseAddressFromTitle(title, url) {
   console.log(`Parsing title: ${title}`)
 
   if (!title) return null
@@ -154,6 +154,7 @@ function parseAddressFromTitle(title) {
     suburb,
     state,
     postcode,
+    url,
   }
 
   console.log(`Parsed result: ${JSON.stringify(result)}`)
@@ -192,7 +193,7 @@ try {
       return ensureAuthenticated()
         .then(() => {
           // Create a query to get comments for this address and suburb
-          const commentsRef = collection(db, 'comments')
+          const commentsRef = collection(db, 'listingcomments')
           const q = query(
             commentsRef,
             where('address', '==', addressData.address),
@@ -270,12 +271,13 @@ try {
                 : 'Anonymous'
 
             // Create new comment document in Firestore
-            const commentsRef = collection(db, 'comments')
+            const commentsRef = collection(db, 'listingcomments')
             const commentData = {
               address: addressData.address,
               suburb: addressData.suburb,
               state: addressData.state,
               postcode: addressData.postcode,
+              url: request.url || addressData.url,
               text: comment.text.trim(),
               timestamp: comment.timestamp || new Date().toISOString(),
               username: username,
@@ -305,7 +307,8 @@ try {
 
     if (request.action === 'parseAddress') {
       const title = request.title
-      const addressData = parseAddressFromTitle(title)
+      const url = request.url
+      const addressData = parseAddressFromTitle(title, url)
       return Promise.resolve({ addressData })
     }
 

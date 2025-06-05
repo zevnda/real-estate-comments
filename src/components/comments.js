@@ -9,6 +9,7 @@ async function getAddressData() {
   const response = await browserAPI.runtime.sendMessage({
     action: 'parseAddress',
     title: title,
+    url: window.location.href,
   })
 
   console.log(`Parsed address data: ${JSON.stringify(response.addressData)}`)
@@ -134,6 +135,7 @@ export async function submitComment() {
       action: 'saveComment',
       addressData: addressData,
       comment: comment,
+      url: window.location.href,
     })
     .then(response => {
       submitBtn.innerText = originalText
