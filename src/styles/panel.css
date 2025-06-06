@@ -131,3 +131,28 @@
 .property-comments-bubble.visible {
   opacity: 1;
 }
+
+.property-comments-bubble-wrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 64px;
+  height: 64px;
+}
+
+.property-comments-bubble-text {
+  position: absolute;
+  color: white;
+  font-size: 12px;
+  top: -5px;
+  right: 0;
+  background: #f74a4a;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 100px;
+  opacity: 0;
+}

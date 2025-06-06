@@ -59,6 +59,10 @@ export async function loadComments() {
     return
   }
 
+  const panelTitle = document.getElementById('property-comments-panel-title')
+  const capitalizeWords = str => str.replace(/\b\w/g, char => char.toUpperCase())
+  panelTitle.textContent = `${capitalizeWords(addressData.address)}, ${capitalizeWords(addressData.suburb)}`
+
   sendMessage({
     action: 'getComments',
     addressData: addressData,
@@ -84,6 +88,10 @@ export async function loadComments() {
       commentsList.appendChild(noPara)
       return
     }
+
+    const bubbleText = document.getElementById('property-comments-bubble-text')
+    bubbleText.textContent = response.comments.length > 99 ? '99+' : response.comments.length
+    bubbleText.style.opacity = '1'
 
     response.comments.forEach(comment => {
       const commentElement = document.createElement('div')

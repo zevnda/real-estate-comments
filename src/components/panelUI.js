@@ -7,10 +7,23 @@ export function createCommentsBubble() {
     bubble = document.createElement('div')
     bubble.id = 'property-comments-bubble'
     bubble.className = 'property-comments-bubble'
+
+    const bubbleWrapper = document.createElement('div')
+    bubbleWrapper.id = 'property-comments-bubble-wrapper'
+    bubbleWrapper.className = 'property-comments-bubble-wrapper'
+
+    const bubbleText = document.createElement('p')
+    bubbleText.id = 'property-comments-bubble-text'
+    bubbleText.className = 'property-comments-bubble-text'
+    bubbleWrapper.appendChild(bubbleText)
+
     const svgPath =
       'M512 240c0 114.9-114.6 208-256 208c-37.1 0-72.3-6.4-104.1-17.9c-11.9 8.7-31.3 20.6-54.3 30.6C73.6 471.1 44.7 480 16 480c-6.5 0-12.3-3.9-14.8-9.9c-2.5-6-1.1-12.8 3.4-17.4c0 0 0 0 0 0s0 0 0 0s0 0 0 0c0 0 0 0 0 0l.3-.3c.3-.3 .7-.7 1.3-1.4c1.1-1.2 2.8-3.1 4.9-5.7c4.1-5 9.6-12.4 15.2-21.6c10-16.6 19.5-38.4 21.4-62.9C17.7 326.8 0 285.1 0 240C0 125.1 114.6 32 256 32s256 93.1 256 208z'
-    bubble.appendChild(createSVGElement(svgPath))
+    bubbleWrapper.appendChild(createSVGElement(svgPath))
     bubble.style.display = localStorage.getItem('comments-panel-state') === 'expanded' ? 'none' : ''
+
+    bubble.appendChild(bubbleWrapper)
+
     document.body.appendChild(bubble)
     bubble.addEventListener('click', function () {
       showCommentsPanel()
@@ -24,6 +37,7 @@ export function createPanelHeader() {
   header.className = 'property-comments-header'
 
   const headerTitle = document.createElement('div')
+  headerTitle.id = 'property-comments-panel-title'
   headerTitle.className = 'header-title'
   const titleText = document.createElement('p')
   titleText.textContent = 'Property Comments'
