@@ -1,0 +1,129 @@
+.property-comments-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: #4285f4;
+  border-bottom: 1px solid #eaeaea;
+  border-radius: 16px 16px 0 0;
+  user-select: none;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.panel-close-btn {
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s;
+  margin-right: 4px;
+}
+
+.panel-close-btn:hover {
+  background: #3777dd;
+}
+
+.panel-close-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: #ffffff;
+  transform: translateX(1.5px);
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 100%;
+  transition: background 0.2s;
+}
+
+.property-comments-body {
+  display: flex;
+  height: 50vh;
+  overflow: hidden;
+}
+
+.property-comments-floating {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  width: 80vw;
+  max-width: 80vw;
+  background-color: #fff;
+  border-radius: 16px 16px 16px 16px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.18),
+    0 1.5px 8px rgba(0, 0, 0, 0.08);
+  z-index: 999;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 56vh;
+  max-height: 80vh;
+  transition: all 0.3s ease-in-out;
+  will-change: transform, opacity;
+  transform-origin: bottom right;
+}
+
+.property-comments-floating.expanded {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
+.property-comments-floating.minimized {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.95);
+  height: 0;
+  width: 0;
+}
+
+.property-comments-bubble {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  z-index: 998;
+  background: #4285f4;
+  color: #fff;
+  border-radius: 50%;
+  width: 56px;
+  height: 56px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    all 0.2s ease-in-out,
+    opacity 0.3s ease,
+    transform 0.1s ease;
+  user-select: none;
+  will-change: transform, opacity;
+}
+
+.property-comments-bubble:hover {
+  background: #3777dd;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+  transform: scale(1.02);
+}
+
+.property-comments-bubble.visible {
+  opacity: 1;
+}

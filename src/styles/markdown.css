@@ -1,0 +1,153 @@
+/* Markdown styles for comment text */
+.comment-text p {
+  margin: 0 0 8px 0;
+}
+
+.comment-text p:last-child {
+  margin-bottom: 0;
+}
+
+.comment-text strong,
+.comment-text b {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.comment-text em,
+.comment-text i {
+  font-style: italic;
+}
+
+.comment-text a {
+  color: #4285f4;
+  text-decoration: none;
+}
+
+.comment-text a:hover {
+  text-decoration: underline;
+}
+
+.comment-text code {
+  background-color: #f1f3f4;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+}
+
+.comment-text pre {
+  background-color: #f8f9fa;
+  padding: 8px;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.comment-text pre code {
+  background: none;
+  padding: 0;
+}
+
+.comment-text blockquote {
+  display: flex;
+  border-left: 3px solid #dadce0;
+  padding: 8px 0 8px 10px;
+  color: #5f6368;
+  font-style: italic;
+  background: #fbfbfb;
+}
+
+.comment-text ul {
+  display: flex;
+  flex-direction: column;
+  list-style: disc;
+  margin-left: 20px;
+  margin-top: -24px;
+}
+
+.comment-text ol {
+  display: flex;
+  flex-direction: column;
+  list-style: decimal;
+  margin-left: 20px;
+  margin-top: -24px;
+}
+
+.comment-text li {
+  margin: 4px 0;
+}
+
+.recent-comment-text p {
+  margin: 0 0 6px 0;
+}
+
+.recent-comment-text p:last-child {
+  margin-bottom: 0;
+}
+
+.recent-comment-text strong,
+.recent-comment-text b {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.recent-comment-text em,
+.recent-comment-text i {
+  font-style: italic;
+}
+
+.recent-comment-text a {
+  color: #4285f4;
+  text-decoration: none;
+}
+
+.recent-comment-text a:hover {
+  text-decoration: underline;
+}
+
+.recent-comment-text code {
+  background-color: #f1f3f4;
+  padding: 1px 3px;
+  border-radius: 2px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+}
+
+.recent-comment-text pre {
+  background-color: #f8f9fa;
+  padding: 8px;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.recent-comment-text pre code {
+  background: none;
+  padding: 0;
+}
+
+.recent-comment-text blockquote {
+  border-left: 3px solid #dadce0;
+  margin: 8px 0;
+  padding-left: 12px;
+  color: #5f6368;
+  font-style: italic;
+}
+
+.recent-comment-text ul {
+  display: flex;
+  flex-direction: column;
+  list-style: disc;
+  margin-left: 20px;
+}
+
+.recent-comment-text ol {
+  display: flex;
+  flex-direction: column;
+  list-style: decimal;
+  margin-left: 20px;
+}
+
+.recent-comment-text li {
+  margin: 4px 0;
+}
