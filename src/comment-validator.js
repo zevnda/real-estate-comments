@@ -1,3 +1,5 @@
+import { validateMarkdownContent } from './utils/markdown.js'
+
 // Validation config
 const VALIDATION_RULES = {
   MIN_COMMENT_LENGTH: 5,
@@ -28,6 +30,12 @@ export function validateComment(text) {
       valid: false,
       reason: 'Comment contains too many repeated characters.',
     }
+  }
+
+  // Validate markdown content
+  const markdownValidation = validateMarkdownContent(text)
+  if (!markdownValidation.valid) {
+    return markdownValidation
   }
 
   return { valid: true }

@@ -74,7 +74,16 @@ export function createPanelBody() {
 
   const textarea = document.createElement('textarea')
   textarea.id = 'new-comment'
-  textarea.placeholder = 'Share your thoughts about this property...'
+  textarea.placeholder = `Share your thoughts about this property..
+
+Markdown supported:
+**bold**
+*italic*
+[link text](url)
+> quote
+\`inline code\`
+\`\`\`code block\`\`\`
+`
 
   const charCounter = document.createElement('div')
   charCounter.className = 'char-counter'

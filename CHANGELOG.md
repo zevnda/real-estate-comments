@@ -1,0 +1,1 @@
+- added GitHub flavored markdown support

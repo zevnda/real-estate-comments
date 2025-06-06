@@ -1,3 +1,4 @@
+import { parseMarkdown } from '../utils/markdown.js'
 import { getBrowserAPI } from '../utils/utils.js'
 import { hasAcceptedToS, showToSModal } from './commentsPanel.js'
 
@@ -66,7 +67,7 @@ export async function loadComments() {
     if (response.isEmpty || !response.comments || response.comments.length === 0) {
       const noPara = document.createElement('p')
       noPara.className = 'no-comments'
-      noPara.textContent = 'No comments yet. Be the first to share your insights about this property!'
+      noPara.textContent = 'No comments yet. Be the first to share your thoughts about this property!'
       commentsList.appendChild(noPara)
       return
     }
@@ -96,13 +97,9 @@ export async function loadComments() {
       const commentText = document.createElement('div')
       commentText.className = 'comment-text'
 
-      // Split text by newlines and create text nodes and br elements
-      comment.text.split('\n').forEach((line, index, array) => {
-        commentText.appendChild(document.createTextNode(line))
-        if (index < array.length - 1) {
-          commentText.appendChild(document.createElement('br'))
-        }
-      })
+      // Parse markdown and set as innerHTML
+      const parsedHtml = parseMarkdown(comment.text)
+      commentText.innerHTML = parsedHtml
 
       commentElement.appendChild(commentHeader)
       commentElement.appendChild(commentText)

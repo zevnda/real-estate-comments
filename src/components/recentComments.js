@@ -1,3 +1,4 @@
+import { parseMarkdown } from '../utils/markdown.js'
 import { createSVGElement, getBrowserAPI } from '../utils/utils.js'
 
 const sendMessage = async message => {
@@ -174,20 +175,24 @@ async function loadRecentComments() {
       const commentText = document.createElement('div')
       commentText.className = 'recent-comment-text'
 
-      // Truncate long comments
-      const maxLength = 200
-      let displayText = comment.text
-      if (comment.text.length > maxLength) {
-        displayText = comment.text.substring(0, maxLength) + '...'
-      }
+      // Parse markdown first
+      const parsedHtml = parseMarkdown(comment.text)
 
-      // Split text by newlines and create text nodes and br elements
-      displayText.split('\n').forEach((line, index, array) => {
-        commentText.appendChild(document.createTextNode(line))
-        if (index < array.length - 1) {
-          commentText.appendChild(document.createElement('br'))
-        }
-      })
+      // Create temporary element to measure rendered content length
+      const tempDiv = document.createElement('div')
+      tempDiv.innerHTML = parsedHtml
+      const renderedText = tempDiv.textContent || tempDiv.innerText || ''
+
+      // Truncate based on rendered text length
+      const maxLength = 200
+      if (renderedText.length > maxLength) {
+        // Find truncation point and re-parse truncated markdown
+        const truncatedMarkdown =
+          comment.text.substring(0, Math.floor(comment.text.length * (maxLength / renderedText.length))) + '...'
+        commentText.innerHTML = parseMarkdown(truncatedMarkdown)
+      } else {
+        commentText.innerHTML = parsedHtml
+      }
 
       commentElement.appendChild(commentHeader)
       commentElement.appendChild(commentText)

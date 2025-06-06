@@ -9,7 +9,9 @@
   },
   "dependencies": {
     "@ianvs/prettier-plugin-sort-imports": "^4.4.2",
+    "dompurify": "^3.2.6",
     "firebase": "^10.4.0",
+    "marked": "^15.0.12",
     "prettier": "^3.5.3",
     "uuid": "^11.1.0"
   },
