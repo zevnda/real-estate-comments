@@ -117,6 +117,9 @@ function createVoteControls(comment) {
   const voteContainer = document.createElement('div')
   voteContainer.className = 'vote-controls'
 
+  const voteBtnWrapper = document.createElement('div')
+  voteBtnWrapper.className = 'vote-btn-wrapper'
+
   const upvoteBtn = document.createElement('button')
   upvoteBtn.className = 'vote-btn upvote-btn'
   upvoteBtn.dataset.commentId = comment.id
@@ -155,9 +158,11 @@ function createVoteControls(comment) {
   upvoteBtn.addEventListener('click', handleVote)
   downvoteBtn.addEventListener('click', handleVote)
 
-  voteContainer.appendChild(upvoteBtn)
-  voteContainer.appendChild(voteScore)
-  voteContainer.appendChild(downvoteBtn)
+  voteBtnWrapper.appendChild(upvoteBtn)
+  voteBtnWrapper.appendChild(voteScore)
+  voteBtnWrapper.appendChild(downvoteBtn)
+
+  voteContainer.appendChild(voteBtnWrapper)
 
   return voteContainer
 }

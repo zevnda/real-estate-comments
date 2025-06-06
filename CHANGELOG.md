@@ -1,1 +1,2 @@
+- added a comment voting system
 - added GitHub flavored markdown support

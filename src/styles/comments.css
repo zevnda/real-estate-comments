@@ -9,6 +9,7 @@
 .comment {
   margin-bottom: 16px;
   padding: 14px;
+  padding-bottom: 8px;
   background-color: white;
   border-radius: 0 8px 8px 0;
   border-left: 3px solid #4285f4;
@@ -58,57 +59,90 @@
 .vote-controls {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  padding-top: 8px;
+  border-radius: 4px;
   border-top: 1px solid #f0f0f0;
+  margin-top: 10px;
+}
+
+.vote-btn-wrapper {
+  display: flex;
+  align-items: center;
+  background: #f2f2f2;
+  padding: 2px;
+  border-radius: 100px;
+  margin-top: 6px;
 }
 
 .vote-btn {
   background: none;
   border: none;
-  padding: 6px;
   cursor: pointer;
-  border-radius: 4px;
+  padding: 4px;
+  border-radius: 2px;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 100px;
+}
+
+.vote-btn:hover {
+  background-color: #e1e1e1;
 }
 
 .vote-btn svg {
-  width: 16px;
-  height: 16px;
-  fill: #80868b;
+  width: 20px;
+  height: 20px;
   transition: fill 0.2s ease;
 }
 
-.vote-btn:hover svg {
-  fill: #5f6368;
+.upvote-btn svg {
+  fill: #818384;
 }
 
-.upvote-btn:hover svg,
+.downvote-btn svg {
+  fill: #818384;
+}
+
 .upvote-btn.active svg {
-  fill: #ff6b35;
+  fill: #4285f4;
 }
 
-.downvote-btn:hover svg,
 .downvote-btn.active svg {
-  fill: #7c4dff;
+  fill: #ff4500;
 }
 
-.upvote-btn.active {
-  background-color: rgba(255, 107, 53, 0.1);
+.upvote-btn:hover svg {
+  fill: #4285f4;
 }
 
-.downvote-btn.active {
-  background-color: rgba(124, 77, 255, 0.1);
+.downvote-btn:hover svg {
+  fill: #ff4500;
+}
+
+.upvote-btn.active:hover svg {
+  fill: #5f9afa;
+}
+
+.downvote-btn.active:hover svg {
+  fill: #fa7c4e;
 }
 
 .vote-score {
   font-size: 14px;
-  font-weight: 600;
-  color: #202124;
-  min-width: 20px;
+  font-weight: 700;
+  color: #818384;
   text-align: center;
+  user-select: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.vote-controls:has(.upvote-btn.active) .vote-score {
+  color: #4285f4;
+}
+
+.vote-controls:has(.downvote-btn.active) .vote-score {
+  color: #ff4500;
 }
