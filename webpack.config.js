@@ -35,7 +35,7 @@ module.exports = [
     plugins: [
       new CopyPlugin({
         patterns: [
-          { from: 'src/styles.css', to: '../chrome/src' },
+          { from: 'src/styles', to: '../chrome/src/styles' },
           { from: 'icons', to: '../chrome/icons' },
           { from: 'manifest-chrome.json', to: '../chrome/manifest.json' },
         ],
@@ -103,7 +103,7 @@ module.exports = [
     plugins: [
       new CopyPlugin({
         patterns: [
-          { from: 'src/styles.css', to: '../firefox/src' },
+          { from: 'src/styles', to: '../firefox/src/styles' },
           { from: 'icons', to: '../firefox/icons' },
           { from: 'manifest-firefox.json', to: '../firefox/manifest.json' },
         ],

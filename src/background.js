@@ -1,6 +1,6 @@
 import { parseAddressFromTitle } from './address-parser.js'
 import { validateComment } from './comment-validator.js'
-import { getComments, getRecentComments, isUserBanned, saveComment } from './firebase-service.js'
+import { getComments, getRecentComments, isUserBanned, saveComment, voteOnComment } from './firebase-service.js'
 import { checkRateLimit, clearRateLimitCache, updateRateLimitRecords } from './rate-limiter.js'
 import { getUserUID } from './user-service.js'
 import { getBrowserAPI } from './utils/utils.js'
@@ -122,6 +122,44 @@ try {
             })
         }
 
+        if (request.action === 'voteComment') {
+          const { commentId, voteType } = request
+
+          if (!commentId || !voteType || !['up', 'down'].includes(voteType)) {
+            return Promise.resolve({
+              status: 'error',
+              message: 'Invalid vote parameters',
+            })
+          }
+
+          return getUserUID()
+            .then(userUID => {
+              return isUserBanned(userUID).then(banned => {
+                if (banned) {
+                  return {
+                    status: 'error',
+                    message: 'Error 90001',
+                  }
+                }
+
+                return voteOnComment(commentId, voteType, userUID)
+                  .then(result => ({
+                    status: 'success',
+                    votes: result.votes,
+                    userVote: result.userVote,
+                  }))
+                  .catch(error => ({
+                    status: 'error',
+                    message: error.message,
+                  }))
+              })
+            })
+            .catch(error => ({
+              status: 'error',
+              message: 'Error checking user status',
+            }))
+        }
+
         if (request.action === 'parseAddress') {
           const title = request.title
           const url = request.url
@@ -228,6 +266,44 @@ try {
                 message: 'Error checking user status.',
               }
             })
+        }
+
+        if (request.action === 'voteComment') {
+          const { commentId, voteType } = request
+
+          if (!commentId || !voteType || !['up', 'down'].includes(voteType)) {
+            return Promise.resolve({
+              status: 'error',
+              message: 'Invalid vote parameters',
+            })
+          }
+
+          return getUserUID()
+            .then(userUID => {
+              return isUserBanned(userUID).then(banned => {
+                if (banned) {
+                  return {
+                    status: 'error',
+                    message: 'Error 90001',
+                  }
+                }
+
+                return voteOnComment(commentId, voteType, userUID)
+                  .then(result => ({
+                    status: 'success',
+                    votes: result.votes,
+                    userVote: result.userVote,
+                  }))
+                  .catch(error => ({
+                    status: 'error',
+                    message: error.message,
+                  }))
+              })
+            })
+            .catch(error => ({
+              status: 'error',
+              message: 'Error checking user status',
+            }))
         }
 
         if (request.action === 'parseAddress') {

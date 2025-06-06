@@ -5,10 +5,8 @@ const sendMessage = async message => {
   const browserAPI = getBrowserAPI()
 
   if (typeof browser !== 'undefined' && browser.runtime) {
-    // Firefox
     return await browserAPI.runtime.sendMessage(message)
   } else {
-    // Chrome
     return new Promise(resolve => {
       browserAPI.runtime.sendMessage(message, resolve)
     })
@@ -165,9 +163,15 @@ async function loadRecentComments() {
       dateSpan.className = 'recent-comment-date'
       dateSpan.textContent = formattedDate
 
+      const voteSpan = document.createElement('span')
+      voteSpan.className = 'recent-comment-votes'
+      voteSpan.textContent = `${comment.votes || 0} votes`
+
       metaInfo.appendChild(authorSpan)
       metaInfo.appendChild(document.createTextNode(' • '))
       metaInfo.appendChild(dateSpan)
+      metaInfo.appendChild(document.createTextNode(' • '))
+      metaInfo.appendChild(voteSpan)
 
       commentHeader.appendChild(locationInfo)
       commentHeader.appendChild(metaInfo)

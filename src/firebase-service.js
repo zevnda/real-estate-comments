@@ -1,7 +1,20 @@
 import firebaseConfig from './firebase-config.js'
+import { getUserUID } from './user-service.js'
 import { initializeApp } from 'firebase/app'
 import { getAuth, signInAnonymously } from 'firebase/auth'
-import { addDoc, collection, getDocs, getFirestore, limit, orderBy, query, where } from 'firebase/firestore'
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  limit,
+  orderBy,
+  query,
+  updateDoc,
+  where,
+} from 'firebase/firestore'
 
 const app = initializeApp(firebaseConfig)
 const db = getFirestore(app)
@@ -36,6 +49,49 @@ export async function isUserBanned(uid) {
   return !querySnapshot.empty
 }
 
+// Vote on a comment
+export async function voteOnComment(commentId, voteType, userUID) {
+  await ensureAuthenticated()
+
+  const commentRef = doc(db, 'listingcomments', commentId)
+  const commentDoc = await getDoc(commentRef)
+
+  if (!commentDoc.exists()) {
+    throw new Error('Comment not found')
+  }
+
+  const commentData = commentDoc.data()
+  let currentVotes = commentData.votes || 0
+  let userVotes = commentData.userVotes || {}
+
+  // Check if user has already voted
+  const previousVote = userVotes[userUID]
+
+  if (previousVote === voteType) {
+    // User clicked same vote type - remove their vote
+    delete userVotes[userUID]
+    currentVotes -= voteType === 'up' ? 1 : -1
+  } else if (previousVote) {
+    // User had opposite vote - change it
+    userVotes[userUID] = voteType
+    currentVotes += voteType === 'up' ? 2 : -2
+  } else {
+    // New vote
+    userVotes[userUID] = voteType
+    currentVotes += voteType === 'up' ? 1 : -1
+  }
+
+  await updateDoc(commentRef, {
+    votes: currentVotes,
+    userVotes: userVotes,
+  })
+
+  return {
+    votes: currentVotes,
+    userVote: userVotes[userUID] || null,
+  }
+}
+
 // Get comments for an address
 export async function getComments(addressData) {
   await ensureAuthenticated()
@@ -55,14 +111,21 @@ export async function getComments(addressData) {
     return { comments: [], isEmpty: true }
   }
 
+  const currentUserUID = await getUserUID()
+
   const comments = []
+
   querySnapshot.forEach(doc => {
     const data = doc.data()
+    const userVotes = data.userVotes || {}
     comments.push({
       id: doc.id,
       text: data.text,
       timestamp: data.timestamp,
       username: data.username,
+      votes: data.votes || 0,
+      userVotes: userVotes,
+      currentUserVote: currentUserUID && userVotes[currentUserUID] ? userVotes[currentUserUID] : null,
     })
   })
 
@@ -118,9 +181,11 @@ export async function getRecentComments(limitCount = 3) {
     return { comments: [], isEmpty: true }
   }
 
+  const currentUserUID = await getUserUID()
   const comments = []
   querySnapshot.forEach(doc => {
     const data = doc.data()
+    const userVotes = data.userVotes || {}
     comments.push({
       id: doc.id,
       text: data.text,
@@ -131,6 +196,9 @@ export async function getRecentComments(limitCount = 3) {
       state: data.state,
       postcode: data.postcode,
       url: data.url,
+      votes: data.votes || 0,
+      userVotes: userVotes,
+      currentUserVote: currentUserUID && userVotes[currentUserUID] ? userVotes[currentUserUID] : null,
     })
   })
 

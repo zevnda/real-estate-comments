@@ -107,7 +107,6 @@
   line-height: 1.5;
   color: #202124;
   word-break: break-word;
-  white-space: pre-wrap;
 }
 
 #reacom-name {
@@ -743,4 +742,67 @@
   .recent-comments-content {
     padding: 16px;
   }
+}
+
+.vote-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.vote-btn {
+  background: none;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vote-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: #80868b;
+  transition: fill 0.2s ease;
+}
+
+.vote-btn:hover svg {
+  fill: #5f6368;
+}
+
+.upvote-btn:hover svg,
+.upvote-btn.active svg {
+  fill: #ff6b35;
+}
+
+.downvote-btn:hover svg,
+.downvote-btn.active svg {
+  fill: #7c4dff;
+}
+
+.upvote-btn.active {
+  background-color: rgba(255, 107, 53, 0.1);
+}
+
+.downvote-btn.active {
+  background-color: rgba(124, 77, 255, 0.1);
+}
+
+.vote-score {
+  font-size: 14px;
+  font-weight: 600;
+  color: #202124;
+  min-width: 20px;
+  text-align: center;
+}
+
+.recent-comment-votes {
+  color: #80868b;
+  font-size: 12px;
 }
