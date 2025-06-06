@@ -44,7 +44,7 @@ try {
         }
 
         if (request.action === 'getRecentComments') {
-          return getRecentComments(3).catch(error => {
+          return getRecentComments(5).catch(error => {
             console.error('Error getting recent comments: ', error)
             return { error: error.message }
           })
@@ -190,7 +190,7 @@ try {
         }
 
         if (request.action === 'getRecentComments') {
-          return getRecentComments(3).catch(error => {
+          return getRecentComments(5).catch(error => {
             console.error('Error getting recent comments: ', error)
             return { error: error.message }
           })

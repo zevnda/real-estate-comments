@@ -169,7 +169,7 @@ export async function saveComment(addressData, comment, url, userUID) {
 }
 
 // Get recent comments across all listings
-export async function getRecentComments(limitCount = 3) {
+export async function getRecentComments(limitCount = 5) {
   await ensureAuthenticated()
 
   const commentsRef = collection(db, 'listingcomments')
