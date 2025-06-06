@@ -27,7 +27,14 @@
         "https://domain.com.au/*"
       ],
       "js": ["content.bundle.js"],
-      "css": ["src/styles/main.css"],
+      "css": [
+        "src/styles/panel.css",
+        "src/styles/comments.css",
+        "src/styles/form.css",
+        "src/styles/markdown.css",
+        "src/styles/modals.css",
+        "src/styles/responsive.css"
+      ],
       "run_at": "document_end"
     }
   ],

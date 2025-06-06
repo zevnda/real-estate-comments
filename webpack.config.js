@@ -35,7 +35,12 @@ module.exports = [
     plugins: [
       new CopyPlugin({
         patterns: [
-          { from: 'src/styles', to: '../chrome/src/styles' },
+          { from: 'src/styles/panel.css', to: '../chrome/src/styles/panel.css' },
+          { from: 'src/styles/comments.css', to: '../chrome/src/styles/comments.css' },
+          { from: 'src/styles/form.css', to: '../chrome/src/styles/form.css' },
+          { from: 'src/styles/markdown.css', to: '../chrome/src/styles/markdown.css' },
+          { from: 'src/styles/modals.css', to: '../chrome/src/styles/modals.css' },
+          { from: 'src/styles/responsive.css', to: '../chrome/src/styles/responsive.css' },
           { from: 'icons', to: '../chrome/icons' },
           { from: 'manifest-chrome.json', to: '../chrome/manifest.json' },
         ],
