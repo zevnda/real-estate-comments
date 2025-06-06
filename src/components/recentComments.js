@@ -180,9 +180,9 @@ async function loadRecentComments() {
       const commentText = document.createElement('div')
       commentText.className = 'recent-comment-text'
 
-      // Parse markdown first
-      const parsedHtml = parseMarkdown(comment.text)
-      commentText.innerHTML = parsedHtml
+      // Parse markdown and append DOM elements
+      const parsedElements = parseMarkdown(comment.text)
+      commentText.appendChild(parsedElements)
 
       commentElement.appendChild(commentHeader)
       commentElement.appendChild(commentText)

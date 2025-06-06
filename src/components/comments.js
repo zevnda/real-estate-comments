@@ -118,9 +118,9 @@ export async function loadComments() {
       const commentText = document.createElement('div')
       commentText.className = 'comment-text'
 
-      // Parse markdown and set as innerHTML
-      const parsedHtml = parseMarkdown(comment.text)
-      commentText.innerHTML = parsedHtml
+      // Parse markdown and append DOM elements
+      const parsedElements = parseMarkdown(comment.text)
+      commentText.appendChild(parsedElements)
 
       // Create vote controls
       const voteControls = createVoteControls(comment)

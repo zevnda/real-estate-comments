@@ -16,22 +16,53 @@ const purifyConfig = {
   ADD_ATTR: ['target', 'rel'],
 }
 
-// Parse markdown to HTML
+// Create DOM elements from HTML string safely
+function createElementsFromHTML(htmlString) {
+  const tempDiv = document.createElement('div')
+  const cleanHtml = DOMPurify.sanitize(htmlString, purifyConfig)
+
+  // Use DOMParser to create elements without innerHTML
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(cleanHtml, 'text/html')
+
+  const fragment = document.createDocumentFragment()
+  Array.from(doc.body.childNodes).forEach(node => {
+    const clonedNode = node.cloneNode(true)
+
+    // Add target="_blank" and rel attributes to links
+    if (clonedNode.nodeType === Node.ELEMENT_NODE) {
+      const links = clonedNode.tagName === 'A' ? [clonedNode] : clonedNode.querySelectorAll('a')
+      links.forEach(link => {
+        link.setAttribute('target', '_blank')
+        link.setAttribute('rel', 'noopener noreferrer')
+      })
+    }
+
+    fragment.appendChild(clonedNode)
+  })
+
+  return fragment
+}
+
+// Parse markdown to DOM elements
 export function parseMarkdown(markdownText) {
-  if (!markdownText) return ''
+  if (!markdownText) return document.createDocumentFragment()
 
   try {
     const html = marked.parse(markdownText)
-
-    // Sanitize with DOMPurify and ensure links open in new tab
-    const cleanHtml = DOMPurify.sanitize(html, purifyConfig)
-
-    // Add target="_blank" and rel="noopener noreferrer" to links
-    return cleanHtml.replace(/<a /g, '<a target="_blank" rel="noopener noreferrer" ')
+    return createElementsFromHTML(html)
   } catch (error) {
     console.error('Error parsing markdown:', error)
     // Fallback to plain text with line breaks
-    return markdownText.replace(/\n/g, '<br>')
+    const fragment = document.createDocumentFragment()
+    const lines = markdownText.split('\n')
+    lines.forEach((line, index) => {
+      if (index > 0) {
+        fragment.appendChild(document.createElement('br'))
+      }
+      fragment.appendChild(document.createTextNode(line))
+    })
+    return fragment
   }
 }
 

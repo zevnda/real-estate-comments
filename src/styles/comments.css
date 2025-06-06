@@ -66,6 +66,8 @@
   align-items: center;
   margin-bottom: 12px;
   font-size: 13px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  padding-bottom: 8px;
 }
 
 .comment-author {
@@ -120,7 +122,6 @@
 }
 
 .vote-btn-wrapper:hover {
-  background: #e2e8f0;
   border-color: rgba(102, 126, 234, 0.3);
 }
 
