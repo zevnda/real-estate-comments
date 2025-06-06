@@ -18,10 +18,8 @@ const purifyConfig = {
 
 // Create DOM elements from HTML string safely
 function createElementsFromHTML(htmlString) {
-  const tempDiv = document.createElement('div')
   const cleanHtml = DOMPurify.sanitize(htmlString, purifyConfig)
 
-  // Use DOMParser to create elements without innerHTML
   const parser = new DOMParser()
   const doc = parser.parseFromString(cleanHtml, 'text/html')
 
