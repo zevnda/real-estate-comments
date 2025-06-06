@@ -80,9 +80,9 @@ export function parseAddressFromTitle(title, url) {
     address = parts[0].toLowerCase()
     suburb = parts[1].toLowerCase()
 
-    // Handle the state and postcode - they might be combined in one part
+    // Handle the state and postcode - they might be combined in one part with additional text
     const statePostcodePart = parts[2]
-    const statePostcodeMatch = statePostcodePart.match(/^(\w+)\s+(\d{4})$/)
+    const statePostcodeMatch = statePostcodePart.match(/^(\w+)\s+(\d{4})/)
 
     if (!statePostcodeMatch) {
       console.log(`Could not parse state and postcode from: ${statePostcodePart}`)
