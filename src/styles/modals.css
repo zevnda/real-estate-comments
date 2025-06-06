@@ -7,84 +7,96 @@
   top: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(8px);
   justify-content: center;
   align-items: center;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .tos-modal-content {
-  font-size: 14px;
-  background-color: white;
-  padding: 30px;
-  border-radius: 8px;
-  max-width: 650px;
+  font-size: 15px;
+  background: #ffffff;
+  padding: 32px;
+  border-radius: 20px;
+  max-width: 680px;
   max-height: 80vh;
   overflow-y: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  box-shadow:
+    0 25px 50px rgba(0, 0, 0, 0.25),
+    0 8px 25px rgba(0, 0, 0, 0.15);
   margin: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .tos-modal-content h3 {
-  margin: 0 0 20px 0;
-  color: #1a73e8;
-  font-size: 20px;
-  font-weight: 500;
+  margin: 0 0 24px 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 .tos-content {
-  margin-bottom: 25px;
-  line-height: 1.6;
-  color: #333;
+  margin-bottom: 32px;
+  line-height: 1.7;
+  color: #334155;
+  font-weight: 400;
 }
 
 .tos-content p {
-  margin: 0 0 15px 0;
+  margin: 0 0 16px 0;
 }
 
 .tos-content ul {
-  margin: 15px 0;
-  padding-left: 20px;
+  margin: 16px 0;
+  padding-left: 24px;
 }
 
 .tos-content li {
-  margin: 8px 0;
-  color: #555;
+  margin: 10px 0;
+  color: #475569;
 }
 
 .tos-buttons {
   display: flex;
-  gap: 15px;
+  gap: 16px;
   justify-content: flex-end;
 }
 
 .tos-decline-btn,
 .tos-agree-btn {
-  padding: 10px 20px;
+  padding: 12px 24px;
   border: none;
-  border-radius: 4px;
+  border-radius: 12px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
+  letter-spacing: 0.3px;
 }
 
 .tos-decline-btn {
-  background-color: #f1f3f4;
-  color: #5f6368;
+  background: #f1f5f9;
+  color: #64748b;
+  border: 2px solid #e2e8f0;
 }
 
 .tos-decline-btn:hover {
-  background-color: #e8eaed;
+  background: #e2e8f0;
+  color: #475569;
 }
 
 .tos-agree-btn {
-  background-color: #1a73e8;
+  background: #6974db;
   color: white;
 }
 
 .tos-agree-btn:hover {
-  background-color: #1557b0;
+  background: #6f61c1;
 }
 
 /* Recent Comments Modal Styles */
@@ -96,60 +108,83 @@
   top: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(8px);
   justify-content: center;
   align-items: center;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .recent-comments-modal-content {
-  background-color: white;
-  border-radius: 12px;
+  background: #ffffff;
+  border-radius: 20px;
   width: 90vw;
-  max-width: 700px;
-  min-height: 725px;
-  max-height: 80vh;
+  max-width: 800px;
+  min-height: 80vh;
+  max-height: 85vh;
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  box-shadow:
+    0 25px 50px rgba(0, 0, 0, 0.25),
+    0 8px 25px rgba(0, 0, 0, 0.15);
   margin: 20px;
   display: flex;
   flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .recent-comments-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 20px;
-  background: #4285f4;
-  border-bottom: 1px solid #eaeaea;
+  padding: 20px 28px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   user-select: none;
 }
 
 .recent-comments-header h3 {
   margin: 0;
   color: #ffffff;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 .recent-comments-content {
-  padding: 20px;
+  padding: 24px 28px;
   overflow-y: auto;
-  max-height: calc(80vh - 70px);
+  max-height: calc(85vh - 80px);
+}
+
+.recent-comments-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.recent-comments-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.recent-comments-content::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 3px;
 }
 
 .recent-comment-item {
   margin-bottom: 20px;
-  padding: 16px;
-  background-color: #fafafa;
-  border-radius: 10px;
-  border: 1px solid #dadce0;
-  transition: box-shadow 0.2s ease;
+  padding: 20px;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow:
+    0 4px 15px rgba(0, 0, 0, 0.04),
+    0 1px 6px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
 }
 
 .recent-comment-item:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 8px 25px rgba(0, 0, 0, 0.08),
+    0 3px 10px rgba(0, 0, 0, 0.06);
+  border-color: rgba(102, 126, 234, 0.2);
 }
 
 .recent-comment-item:last-child {
@@ -157,89 +192,96 @@
 }
 
 .recent-comment-header {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .recent-comment-location {
-  font-weight: 600;
-  font-size: 18px;
-  color: #202124;
-  margin-bottom: 6px;
+  font-weight: 700;
+  font-size: 16px;
+  color: #1e293b;
+  margin-bottom: 8px;
   text-transform: uppercase;
+  letter-spacing: 0.8px;
 }
 
 .recent-comment-link {
-  color: #4285f4;
+  color: #6974db;
   text-decoration: none;
-  transition: color 0.2s;
+  transition: all 0.3s ease;
+  font-weight: 600;
 }
 
 .recent-comment-link:hover {
-  color: #3777dd;
+  color: #6f61c1;
 }
 
 .recent-comment-meta {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  color: #5f6368;
+  gap: 8px;
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 500;
 }
 
 .recent-comment-author {
-  font-weight: 600;
+  font-weight: 700;
+  color: #475569;
 }
 
 .recent-comment-date {
-  color: #80868b;
+  color: #94a3b8;
 }
 
 .recent-comment-text {
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 15px;
+  line-height: 1.6;
   word-break: break-word;
-  max-height: 84px;
+  max-height: 80px;
   overflow: hidden;
   position: relative;
+  color: #334155;
+  font-weight: 400;
 }
 
 .recent-comments-loading,
 .recent-comments-error,
 .recent-comments-empty {
   text-align: center;
-  padding: 40px 20px;
-  color: #5f6368;
+  padding: 48px 20px;
   font-style: italic;
+  font-size: 16px;
+  font-weight: 500;
 }
 
 .recent-comments-error {
-  color: #d32f2f;
+  color: #ef4444;
 }
 
 .recent-comments-btn {
-  background: none;
+  background: rgba(255, 255, 255, 0.1);
   border: none;
-  padding: 8px;
+  padding: 10px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  transition: background 0.2s;
-  margin-right: 4px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
 }
 
 .recent-comments-btn:hover {
-  background: #3777dd;
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .recent-comments-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   fill: #ffffff;
 }
 
 .recent-comment-votes {
-  color: #80868b;
-  font-size: 12px;
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 600;
 }

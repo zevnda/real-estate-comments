@@ -1,3 +1,4 @@
+import { parseAddressFromTitle } from './address-parser.js'
 import { loadComments } from './components/comments.js'
 import { createCommentsPanel } from './components/commentsPanel.js'
 import { handleUrlChange, isPropertyPage } from './utils/utils.js'
@@ -16,11 +17,9 @@ function observePageChanges() {
 
   const observer = new MutationObserver(function (mutations) {
     if (isPropertyPage() && !document.getElementById('property-comments-panel')) {
-      const propertyLoaded = document.querySelector(
-        '.property-info, .listing-details, .property-features, [data-testid="listing-details__summary"]',
-      )
+      const propertyLoaded = document.querySelector('title')
       if (propertyLoaded) {
-        createCommentsPanel()
+        tryParseAddressWithRetry()
       }
     }
   })
@@ -29,6 +28,26 @@ function observePageChanges() {
     childList: true,
     subtree: true,
   })
+}
+
+async function tryParseAddressWithRetry(attempts = 0) {
+  const maxAttempts = 3
+  const title = document.title
+  const url = window.location.href
+
+  const parsedAddress = parseAddressFromTitle(title, url)
+
+  if (parsedAddress) {
+    createCommentsPanel()
+    return
+  }
+
+  if (attempts < maxAttempts - 1) {
+    setTimeout(() => {
+      tryParseAddressWithRetry(attempts + 1)
+    }, 1000)
+  } else {
+  }
 }
 
 function initialize() {

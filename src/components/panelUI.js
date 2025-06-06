@@ -45,6 +45,7 @@ export function createPanelHeader() {
   closeBtn.title = 'Close'
   const closeSvg = createSVGElement(
     'M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z',
+    384,
   )
   closeBtn.appendChild(closeSvg)
 
@@ -70,7 +71,7 @@ export function createPanelBody() {
   const nameInput = document.createElement('input')
   nameInput.type = 'text'
   nameInput.id = 'reacom-name'
-  nameInput.placeholder = 'Username (optional)'
+  nameInput.placeholder = 'Name (optional)'
 
   const textarea = document.createElement('textarea')
   textarea.id = 'new-comment'
@@ -83,6 +84,12 @@ Markdown supported:
 > quote
 \`inline code\`
 \`\`\`code block\`\`\`
+
+- list item one
+- list item two
+
+1. list item one
+2. list item two
 `
 
   const charCounter = document.createElement('div')

@@ -18,7 +18,8 @@ const sendMessage = async message => {
 }
 
 // Get address data from page title
-async function getAddressData() {
+async function getAddressData(attempts = 0) {
+  const maxAttempts = 3
   const titleElement = document.querySelector('title')
   const titleFromElement = titleElement?.textContent
   const titleFromDocument = document.title
@@ -31,7 +32,19 @@ async function getAddressData() {
   })
 
   console.log(`Parsed address data: ${JSON.stringify(response.addressData)}`)
-  return response.addressData
+
+  if (response.addressData) {
+    return response.addressData
+  }
+
+  if (attempts < maxAttempts - 1) {
+    console.log(`Address parsing failed, retrying in 1 second... (attempt ${attempts + 1}/${maxAttempts})`)
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    return getAddressData(attempts + 1)
+  }
+
+  console.log('Failed to parse address after 3 attempts')
+  return null
 }
 
 export async function loadComments() {

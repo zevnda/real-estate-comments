@@ -35,7 +35,7 @@ export function parseAddressFromTitle(title, url) {
     const postcode = urlMatch[2]
 
     const result = {
-      address,
+      address: address.replace(/\s+-\s+/g, '-'),
       suburb,
       state,
       postcode,
@@ -47,12 +47,12 @@ export function parseAddressFromTitle(title, url) {
   }
 
   // Both sites use the same title structure, so use consistent parsing
-  const match = title.match(/^(.+?)\s+-\s+/)
-  if (!match) {
-    console.log('No match found with regex')
+  const lastDashIndex = title.lastIndexOf(' - ')
+  if (lastDashIndex === -1) {
+    console.log('No dash separator found')
     return null
   }
-  const addressPart = match[1].trim()
+  const addressPart = title.substring(0, lastDashIndex).trim()
   console.log(`Address part extracted: ${addressPart}`)
 
   // Split by commas and extract components
@@ -97,7 +97,7 @@ export function parseAddressFromTitle(title, url) {
   }
 
   const result = {
-    address,
+    address: address.replace(/\s+-\s+/g, '-'), // Format address: remove spaces around dashes
     suburb,
     state,
     postcode,
