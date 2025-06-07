@@ -46,8 +46,6 @@ export function createCommentsPanel() {
 
   if (savedWidth) {
     panel.style.width = savedWidth
-    panel.style.minWidth = savedWidth
-    panel.style.maxWidth = savedWidth
   }
 
   if (savedHeight) {
@@ -64,6 +62,14 @@ export function createCommentsPanel() {
   panel.appendChild(body)
 
   document.body.appendChild(panel)
+
+  // Create backdrop element
+  if (!document.getElementById('panel-backdrop')) {
+    const backdrop = document.createElement('div')
+    backdrop.id = 'panel-backdrop'
+    backdrop.className = 'panel-backdrop'
+    document.body.appendChild(backdrop)
+  }
 
   // Create ToS modal
   createToSModal()

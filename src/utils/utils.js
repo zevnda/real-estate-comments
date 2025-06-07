@@ -37,6 +37,8 @@ export function handleUrlChange(createCommentsPanel, loadComments) {
     if (panel) panel.remove()
     const bubble = document.getElementById('property-comments-bubble')
     if (bubble) bubble.remove()
+    const backdrop = document.getElementById('panel-backdrop')
+    if (backdrop) backdrop.remove()
   }
 }
 
@@ -121,8 +123,6 @@ function addResizeHandles(panel) {
         // Apply new dimensions
         panel.style.width = `${newWidth}px`
         panel.style.height = `${newHeight}px`
-        panel.style.minWidth = `${newWidth}px`
-        panel.style.maxWidth = `${newWidth}px`
         panel.style.minHeight = `${newHeight}px`
         panel.style.maxHeight = `${newHeight}px`
         panel.style.right = `${newRight}px`
