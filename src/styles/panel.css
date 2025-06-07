@@ -79,7 +79,7 @@
   border: 1px solid #f1f5f9;
   resize: none;
   -webkit-overflow-scrolling: touch;
-  z-index: 99999;
+  z-index: 10000;
 }
 
 .property-comments-floating.expanded {
