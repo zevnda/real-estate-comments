@@ -1,5 +1,6 @@
 import { parseMarkdown } from '../utils/markdown.js'
 import { createSVGElement, getBrowserAPI } from '../utils/utils.js'
+import moment from 'moment/min/moment-with-locales'
 
 const sendMessage = async message => {
   const browserAPI = getBrowserAPI()
@@ -133,8 +134,7 @@ async function loadRecentComments() {
       const commentElement = document.createElement('div')
       commentElement.className = 'recent-comment-item'
 
-      const date = new Date(comment.timestamp)
-      const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+      const formattedDate = moment(comment.timestamp).fromNow()
 
       const commentHeader = document.createElement('div')
       commentHeader.className = 'recent-comment-header'

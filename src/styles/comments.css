@@ -1,13 +1,12 @@
 #comments-list {
   flex: 1.5;
   overflow-y: auto;
-  padding: 20px;
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-  border-right: 1px solid rgba(226, 232, 240, 0.8);
+  padding: 24px;
+  background: #fafafa;
 }
 
 #comments-list::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 
 #comments-list::-webkit-scrollbar-track {
@@ -15,49 +14,32 @@
 }
 
 #comments-list::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.3);
-  border-radius: 3px;
+  background: #cbd5e1;
+  border-radius: 2px;
 }
 
 #comments-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.5);
+  background: #94a3b8;
 }
 
 .comment {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   padding: 20px;
   background: #ffffff;
-  border-radius: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow:
-    0 4px 15px rgba(0, 0, 0, 0.04),
-    0 1px 6px rgba(0, 0, 0, 0.04);
+  border-radius: 12px;
+  border: 1px solid #f1f5f9;
   transition: all 0.2s ease;
   position: relative;
-  overflow: hidden;
-}
-
-.comment::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 4px;
-  height: 100%;
-  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
-  opacity: 0;
-  transition: opacity 0.2s ease;
+  box-shadow:
+    0 4px 6px -1px rgba(206, 206, 206, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .comment:hover {
   box-shadow:
-    0 8px 25px rgba(0, 0, 0, 0.08),
-    0 3px 10px rgba(0, 0, 0, 0.06);
-  border-color: rgba(102, 126, 234, 0.2);
-}
-
-.comment:hover::before {
-  opacity: 1;
+    0 4px 12px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-color: #e2e8f0;
 }
 
 .comment-header {
@@ -65,144 +47,137 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
-  font-size: 13px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
   padding-bottom: 8px;
+  border-bottom: 1px solid #dfdfdf;
 }
 
 .comment-author {
-  font-weight: 700;
-  color: #1e293b;
+  font-weight: 600;
+  color: #0f172a;
   font-size: 14px;
-  letter-spacing: 0.3px;
+  letter-spacing: -0.025em;
 }
 
 .comment-date {
   color: #64748b;
-  font-weight: 500;
+  font-weight: 400;
+  font-size: 13px;
 }
 
 .comment-text {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.6;
-  color: #334155;
+  color: #374151;
   word-break: break-word;
   font-weight: 400;
+  margin-bottom: 16px;
 }
 
 .no-comments {
-  color: #64748b;
+  color: #6b7280;
   font-style: italic;
   text-align: center;
-  margin: 40px 0;
-  font-size: 15px;
-  padding: 32px;
+  margin: 60px 20px;
+  font-size: 14px;
+  padding: 40px 32px;
   background: #ffffff;
-  border-radius: 16px;
-  border: 2px solid rgba(148, 163, 184, 0.3);
+  border-radius: 12px;
+  border: 1px solid #f3f4f6;
 }
 
 .vote-controls {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(226, 232, 240, 0.8);
 }
 
 .vote-btn-wrapper {
   display: flex;
   align-items: center;
-  background: #f1f5f9;
-  padding: 4px;
-  border-radius: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: #f8fafc;
+  padding: 2px;
+  border-radius: 100px;
+  border: 1px solid #dfdfdf;
   transition: all 0.2s ease;
-}
-
-.vote-btn-wrapper:hover {
-  border-color: rgba(102, 126, 234, 0.3);
 }
 
 .vote-btn {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 8px 12px;
-  border-radius: 12px;
+  padding: 6px 8px;
+  border-radius: 100px;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
 }
 
 .vote-btn:hover {
-  background-color: rgba(255, 255, 255, 0.8);
+  background: #ffffff;
 }
 
 .vote-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   transition: all 0.2s ease;
-}
-
-.upvote-btn svg {
-  fill: #64748b;
-}
-
-.downvote-btn svg {
-  fill: #64748b;
-}
-
-.upvote-btn.active {
-  background-color: rgba(34, 197, 94, 0.1);
-}
-
-.upvote-btn.active:hover {
-  background-color: rgba(255, 255, 255, 0.8);
-}
-
-.upvote-btn.active svg {
-  fill: #22c55e;
-}
-
-.downvote-btn.active {
-  background-color: rgba(239, 68, 68, 0.1);
-}
-
-.downvote-btn.active:hover {
-  background-color: rgba(255, 255, 255, 0.8);
-}
-
-.downvote-btn.active svg {
-  fill: #ef4444;
+  fill: #94a3b8;
 }
 
 .upvote-btn:hover svg {
-  fill: #22c55e;
+  fill: #408cff;
+}
+
+.upvote-btn:hover {
+  background: #dfecff;
+}
+
+.upvote-btn.active {
+  background: #d0e3ff;
+}
+
+.upvote-btn.active:hover {
+  background: #dbe9ff;
+}
+
+.upvote-btn.active svg {
+  fill: #408cff;
+}
+
+.downvote-btn:hover {
+  background: #ffe9e9;
 }
 
 .downvote-btn:hover svg {
-  fill: #ef4444;
+  fill: #dc2626;
+}
+
+.downvote-btn.active {
+  background: #fee2e2;
+}
+
+.downvote-btn.active:hover {
+  background: #ffebeb;
+}
+
+.downvote-btn.active svg {
+  fill: #dc2626;
 }
 
 .vote-score {
-  font-size: 14px;
-  font-weight: 700;
-  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
   text-align: center;
   user-select: none;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  min-width: 32px;
-  padding: 0 8px;
+  min-width: 28px;
+  padding: 0 6px;
 }
 
 .vote-controls:has(.upvote-btn.active) .vote-score {
-  color: #22c55e;
+  color: #65a30d;
 }
 
 .vote-controls:has(.downvote-btn.active) .vote-score {
-  color: #ef4444;
+  color: #dc2626;
 }

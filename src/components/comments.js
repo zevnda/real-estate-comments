@@ -1,6 +1,7 @@
 import { parseMarkdown } from '../utils/markdown.js'
 import { createSVGElement, getBrowserAPI } from '../utils/utils.js'
 import { hasAcceptedToS, showToSModal } from './commentsPanel.js'
+import moment from 'moment/min/moment-with-locales'
 
 // Simple browser API compatibility
 const sendMessage = async message => {
@@ -98,8 +99,7 @@ export async function loadComments() {
       commentElement.className = 'comment'
       commentElement.dataset.id = comment.id
 
-      const date = new Date(comment.timestamp)
-      const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+      const formattedDate = moment(comment.timestamp).fromNow()
 
       const commentHeader = document.createElement('div')
       commentHeader.className = 'comment-header'
