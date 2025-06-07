@@ -75,7 +75,7 @@
   cursor: pointer;
   font-size: 15px;
   font-weight: 600;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   letter-spacing: 0.3px;
 }
 
@@ -177,7 +177,7 @@
   box-shadow:
     0 4px 15px rgba(0, 0, 0, 0.04),
     0 1px 6px rgba(0, 0, 0, 0.04);
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .recent-comment-item:hover {
@@ -207,7 +207,7 @@
 .recent-comment-link {
   color: #6974db;
   text-decoration: none;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   font-weight: 600;
 }
 
@@ -267,7 +267,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .recent-comments-btn:hover {

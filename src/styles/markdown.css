@@ -21,10 +21,16 @@
 .comment-text a {
   color: #4285f4;
   text-decoration: none;
+  transition: color 0.2s ease;
 }
 
 .comment-text a:hover {
-  text-decoration: underline;
+  color: #1d4ed8;
+  text-decoration: none;
+}
+
+.comment-text a:focus {
+  outline: none;
 }
 
 .comment-text code {

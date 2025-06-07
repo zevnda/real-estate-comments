@@ -17,7 +17,7 @@
   font-size: 15px;
   font-weight: 500;
   background: #f8fafc;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   color: #1e293b;
 }
 
@@ -47,7 +47,7 @@
   font-size: 15px;
   font-weight: 400;
   background: #f8fafc;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   flex-grow: 1;
   color: #1e293b;
   line-height: 1.6;
@@ -85,7 +85,7 @@
   font-weight: 700;
   font-size: 15px;
   letter-spacing: 0.5px;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
 }
@@ -114,7 +114,7 @@
   font-weight: 700;
   font-size: 15px;
   letter-spacing: 0.5px;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   text-decoration: none;
   position: relative;
   overflow: hidden;
