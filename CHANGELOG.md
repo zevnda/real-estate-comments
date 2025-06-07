@@ -1,3 +1,1 @@
-- added mobile responsiveness
-- adeed panel resizing functionality
-- other misc UI tweaks
+- improve address parsing login

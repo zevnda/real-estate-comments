@@ -46,6 +46,54 @@ export function parseAddressFromTitle(title, url) {
     return result
   }
 
+  // Handle general domain.com.au URLs with pipe separator
+  if (url.includes('domain.com.au') && title.includes(' | ')) {
+    const pipeMatch = title.match(/^(.+?)\s+\|\s+/)
+    if (!pipeMatch) {
+      console.log('No pipe separator found in domain title')
+      return null
+    }
+    const addressPart = pipeMatch[1].trim()
+    console.log(`Domain address part extracted: ${addressPart}`)
+
+    // Split by commas and extract components
+    const parts = addressPart.split(',').map(part => part.trim())
+    console.log(`Domain address parts: ${JSON.stringify(parts)}`)
+
+    let address, suburb, state, postcode
+
+    if (parts.length === 2) {
+      address = parts[0].toLowerCase()
+
+      // Parse the second part which contains suburb, state and postcode
+      const suburbStatePostcode = parts[1]
+      const suburbStatePostcodeMatch = suburbStatePostcode.match(/^(.+?)\s+(\w+)\s+(\d{4})/)
+
+      if (!suburbStatePostcodeMatch) {
+        console.log(`Could not parse suburb, state and postcode from: ${suburbStatePostcode}`)
+        return null
+      }
+
+      suburb = suburbStatePostcodeMatch[1].toLowerCase()
+      state = suburbStatePostcodeMatch[2].toLowerCase()
+      postcode = suburbStatePostcodeMatch[3]
+    } else {
+      console.log(`Unexpected number of parts for domain URL: ${parts.length}`)
+      return null
+    }
+
+    const result = {
+      address: address.replace(/\s+-\s+/g, '-'),
+      suburb,
+      state,
+      postcode,
+      url,
+    }
+
+    console.log(`Domain parsed result: ${JSON.stringify(result)}`)
+    return result
+  }
+
   // Both sites use the same title structure, so use consistent parsing
   const lastDashIndex = title.lastIndexOf(' - ')
   if (lastDashIndex === -1) {

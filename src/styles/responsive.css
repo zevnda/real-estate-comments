@@ -136,6 +136,7 @@
     margin: 40px 16px;
     padding: 24px 20px;
     font-size: 14px;
+    margin-top: 0;
   }
 
   .resize-handle {
