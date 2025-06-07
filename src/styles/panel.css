@@ -77,6 +77,8 @@
   transform-origin: bottom right;
   border: 1px solid #f1f5f9;
   resize: none;
+  /* Ensure touch scrolling works on mobile */
+  -webkit-overflow-scrolling: touch;
 }
 
 .property-comments-floating.expanded {

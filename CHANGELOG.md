@@ -1,2 +1,3 @@
-- added a comment voting system
-- added GitHub flavored markdown support
+- added mobile responsiveness
+- adeed panel resizing functionality
+- other misc UI tweaks
