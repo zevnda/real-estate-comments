@@ -55,3 +55,112 @@ export function createSVGElement(path, vbWidth = 512, viewBoxHeight = 512) {
 
   return svg
 }
+
+export function initPanelResize() {
+  const panel = document.getElementById('property-comments-panel')
+  if (!panel) return
+
+  // Dimensions are now applied in createCommentsPanel before DOM insertion
+  // Add resize handles
+  addResizeHandles(panel)
+}
+
+function addResizeHandles(panel) {
+  // Minimum dimensions
+  const MIN_WIDTH = 800
+  const MIN_HEIGHT = 500
+
+  // Create resize handles - only for top and left resizing
+  const handles = ['nw', 'n', 'w']
+
+  handles.forEach(direction => {
+    const handle = document.createElement('div')
+    handle.className = `resize-handle resize-${direction}`
+    handle.dataset.direction = direction
+    panel.appendChild(handle)
+
+    let isResizing = false
+    let startX, startY, startWidth, startHeight, startRight, startBottom
+
+    handle.addEventListener('mousedown', e => {
+      e.preventDefault()
+      e.stopPropagation()
+
+      isResizing = true
+      startX = e.clientX
+      startY = e.clientY
+
+      const rect = panel.getBoundingClientRect()
+      startWidth = rect.width
+      startHeight = rect.height
+      startRight = window.innerWidth - rect.right
+      startBottom = window.innerHeight - rect.bottom
+
+      document.body.style.cursor = getResizeCursor(direction)
+      document.body.style.userSelect = 'none'
+
+      const handleMouseMove = e => {
+        if (!isResizing) return
+
+        const deltaX = e.clientX - startX
+        const deltaY = e.clientY - startY
+
+        let newWidth = startWidth
+        let newHeight = startHeight
+        let newRight = startRight
+        let newBottom = startBottom
+
+        // Calculate new dimensions based on handle direction
+        if (direction.includes('w')) {
+          newWidth = Math.max(MIN_WIDTH, Math.min(window.innerWidth * 0.9, startWidth - deltaX))
+        }
+        if (direction.includes('n')) {
+          newHeight = Math.max(MIN_HEIGHT, Math.min(window.innerHeight * 0.9, startHeight - deltaY))
+        }
+
+        // Apply new dimensions
+        panel.style.width = `${newWidth}px`
+        panel.style.height = `${newHeight}px`
+        panel.style.minWidth = `${newWidth}px`
+        panel.style.maxWidth = `${newWidth}px`
+        panel.style.minHeight = `${newHeight}px`
+        panel.style.maxHeight = `${newHeight}px`
+        panel.style.right = `${newRight}px`
+        panel.style.bottom = `${newBottom}px`
+      }
+
+      const handleMouseUp = () => {
+        if (isResizing) {
+          isResizing = false
+          document.body.style.cursor = ''
+          document.body.style.userSelect = ''
+
+          // Save dimensions
+          const rect = panel.getBoundingClientRect()
+          localStorage.setItem('comments-panel-width', `${rect.width}px`)
+          localStorage.setItem('comments-panel-height', `${rect.height}px`)
+
+          document.removeEventListener('mousemove', handleMouseMove)
+          document.removeEventListener('mouseup', handleMouseUp)
+        }
+      }
+
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+    })
+  })
+}
+
+function getResizeCursor(direction) {
+  const cursors = {
+    n: 'n-resize',
+    s: 's-resize',
+    e: 'e-resize',
+    w: 'w-resize',
+    ne: 'ne-resize',
+    nw: 'nw-resize',
+    se: 'se-resize',
+    sw: 'sw-resize',
+  }
+  return cursors[direction] || 'default'
+}

@@ -1,4 +1,4 @@
-import { isPropertyPage } from '../utils/utils.js'
+import { initPanelResize, isPropertyPage } from '../utils/utils.js'
 import { loadComments, submitComment } from './comments.js'
 import { createToSModal } from './modal.js'
 import { handleOutsideClick, hideCommentsPanel, updatePanelAndBubbleVisibility } from './panelState.js'
@@ -40,6 +40,22 @@ export function createCommentsPanel() {
   panel.className =
     savedState === 'minimized' ? 'property-comments-floating minimized' : 'property-comments-floating expanded'
 
+  // Apply saved dimensions BEFORE adding to DOM
+  const savedWidth = localStorage.getItem('comments-panel-width')
+  const savedHeight = localStorage.getItem('comments-panel-height')
+
+  if (savedWidth) {
+    panel.style.width = savedWidth
+    panel.style.minWidth = savedWidth
+    panel.style.maxWidth = savedWidth
+  }
+
+  if (savedHeight) {
+    panel.style.height = savedHeight
+    panel.style.minHeight = savedHeight
+    panel.style.maxHeight = savedHeight
+  }
+
   // Create panel components
   const header = createPanelHeader()
   const body = createPanelBody()
@@ -60,34 +76,36 @@ export function createCommentsPanel() {
     document.addEventListener('click', handleOutsideClick)
   }
 
-  setTimeout(() => {
-    const submitBtn = document.getElementById('submit-comment-btn')
-    const closeBtn = document.querySelector('.panel-close-btn')
-    const recentCommentsBtn = document.querySelector('.recent-comments-btn')
+  // Initialize immediately without setTimeout
+  const submitBtn = document.getElementById('submit-comment-btn')
+  const closeBtn = document.querySelector('.panel-close-btn')
+  const recentCommentsBtn = document.querySelector('.recent-comments-btn')
 
-    if (submitBtn) {
-      submitBtn.addEventListener('click', submitComment)
-    }
+  if (submitBtn) {
+    submitBtn.addEventListener('click', submitComment)
+  }
 
-    if (closeBtn) {
-      closeBtn.addEventListener('click', hideCommentsPanel)
-    }
+  if (closeBtn) {
+    closeBtn.addEventListener('click', hideCommentsPanel)
+  }
 
-    if (recentCommentsBtn) {
-      recentCommentsBtn.addEventListener('click', showRecentCommentsModal)
-    }
+  if (recentCommentsBtn) {
+    recentCommentsBtn.addEventListener('click', showRecentCommentsModal)
+  }
 
-    // Add character counter logic
-    const textarea = document.getElementById('new-comment')
-    const charCounter = document.querySelector('.char-counter')
-    if (textarea && charCounter) {
-      textarea.addEventListener('input', () => {
-        const count = textarea.value.length
-        charCounter.textContent = `${count}/1200 characters`
-        charCounter.style.color = count > 1200 ? '#d32f2f' : '#5f6368'
-      })
-    }
-  }, 100)
+  // Add character counter logic
+  const textarea = document.getElementById('new-comment')
+  const charCounter = document.querySelector('.char-counter')
+  if (textarea && charCounter) {
+    textarea.addEventListener('input', () => {
+      const count = textarea.value.length
+      charCounter.textContent = `${count}/1200 characters`
+      charCounter.style.color = count > 1200 ? '#d32f2f' : '#5f6368'
+    })
+  }
+
+  // Initialize resize functionality
+  initPanelResize()
 
   // Show/hide panel or bubble based on state
   updatePanelAndBubbleVisibility()

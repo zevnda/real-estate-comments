@@ -76,6 +76,7 @@
   will-change: transform, opacity;
   transform-origin: bottom right;
   border: 1px solid #f1f5f9;
+  resize: none;
 }
 
 .property-comments-floating.expanded {
@@ -154,4 +155,52 @@
   border-radius: 9px;
   opacity: 0;
   border: 2px solid #ffffff;
+}
+
+/* Resize handles - only top and left */
+.resize-handle {
+  position: absolute;
+  background: transparent;
+  z-index: 1000;
+}
+
+.resize-n {
+  top: -3px;
+  left: 10px;
+  right: 10px;
+  height: 8px;
+  cursor: n-resize;
+}
+
+.resize-w {
+  top: 10px;
+  left: -3px;
+  bottom: 10px;
+  width: 8px;
+  cursor: w-resize;
+}
+
+.resize-nw {
+  top: -3px;
+  left: -3px;
+  width: 12px;
+  height: 12px;
+  cursor: nw-resize;
+}
+
+.resize-handle:hover {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+/* Visual resize indicators */
+.resize-n:hover {
+  background: linear-gradient(to right, transparent 20%, rgb(127, 177, 255) 50%, transparent 80%);
+}
+
+.resize-w:hover {
+  background: linear-gradient(to bottom, transparent 20%, rgba(59, 130, 246, 0.6) 50%, transparent 80%);
+}
+
+.resize-nw:hover {
+  background: radial-gradient(circle, rgb(127, 177, 255) 30%, transparent 70%);
 }

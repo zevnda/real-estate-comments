@@ -1,0 +1,31 @@
+/* Responsive styles for the property comments panel */
+
+/* Ensure panel stays within viewport bounds */
+@media (max-width: 768px) {
+  .property-comments-floating {
+    /* On mobile, disable resize and use full available space */
+    min-width: 95vw !important;
+    max-width: 95vw !important;
+    min-height: 85vh !important;
+    max-height: 85vh !important;
+    width: 95vw !important;
+    height: 85vh !important;
+    bottom: 2.5vh;
+    right: 2.5vw;
+    left: 2.5vw;
+  }
+
+  .resize-handle {
+    display: none; /* Hide resize handles on mobile */
+  }
+}
+
+@media (min-width: 769px) {
+  .property-comments-floating {
+    /* Ensure minimum and maximum bounds on desktop */
+    min-width: 300px;
+    min-height: 400px;
+    max-width: 90vw;
+    max-height: 90vh;
+  }
+}
