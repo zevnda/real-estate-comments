@@ -203,6 +203,12 @@
   letter-spacing: 0.05em;
 }
 
+.recent-comment-location a {
+  color: #3b82f6;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
 .recent-comment-link {
   color: #3b82f6;
   text-decoration: none;
@@ -284,6 +290,34 @@
   color: #9ca3af;
   font-size: 12px;
   font-weight: 500;
+}
+
+/* Alert styles for recent comments header */
+.recent-comments-panel-header.alert-info {
+  background-color: #e3f2fd;
+  border: 1px solid #2196f3;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recent-comments-panel-header.alert-info p {
+  color: #1565c0;
+  font-size: 14px;
+  line-height: 1.4;
+  margin: 0;
+  font-weight: 500;
+  flex: 1;
+}
+
+.alert-info svg {
+  width: 18px;
+  height: 18px;
+  fill: #3e83d2;
 }
 
 @media (max-width: 768px) {

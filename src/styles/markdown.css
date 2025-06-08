@@ -26,7 +26,6 @@
 
 .comment-text a:hover {
   color: #2563eb;
-  text-decoration: underline;
 }
 
 .comment-text a:focus {
@@ -105,10 +104,11 @@
 .recent-comment-text a {
   color: #3b82f6;
   text-decoration: none;
+  transition: all 0.2s ease;
 }
 
 .recent-comment-text a:hover {
-  text-decoration: underline;
+  color: #2563eb;
 }
 
 .recent-comment-text code {

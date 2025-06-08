@@ -21,11 +21,16 @@ export function isPropertyPage() {
   return isRealEstate || isDomain || isDomainProfile
 }
 
+export function isSupportedDomain() {
+  const url = window.location.href
+  return url.includes('realestate.com.au') || url.includes('domain.com.au')
+}
+
 export function handleUrlChange(createCommentsPanel, loadComments) {
-  if (isPropertyPage()) {
+  if (isSupportedDomain()) {
     if (!document.getElementById('property-comments-panel')) {
       createCommentsPanel()
-    } else {
+    } else if (isPropertyPage()) {
       loadComments()
     }
     if (!document.getElementById('property-comments-bubble')) {

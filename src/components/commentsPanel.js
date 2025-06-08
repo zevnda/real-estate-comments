@@ -1,9 +1,9 @@
-import { initPanelResize, isPropertyPage } from '../utils/utils.js'
+import { initPanelResize, isPropertyPage, isSupportedDomain } from '../utils/utils.js'
 import { loadComments, submitComment } from './comments.js'
 import { createToSModal } from './modal.js'
 import { handleOutsideClick, hideCommentsPanel, updatePanelAndBubbleVisibility } from './panelState.js'
-import { createCommentsBubble, createPanelBody, createPanelHeader } from './panelUI.js'
-import { createRecentCommentsModal, showRecentCommentsModal } from './recentComments.js'
+import { createCommentsBubble, createPanelBody, createPanelHeader, createRecentCommentsBody } from './panelUI.js'
+import { createRecentCommentsModal, showRecentCommentsInPanel, showRecentCommentsModal } from './recentComments.js'
 
 // Re-export functions for external use
 export {
@@ -23,8 +23,8 @@ export function createCommentsPanel() {
   if (document.getElementById('property-comments-panel')) {
     return
   }
-  // Only create panel if we're on a property page
-  if (!isPropertyPage()) {
+  // Only create panel if we're on a supported domain
+  if (!isSupportedDomain()) {
     return
   }
 
@@ -54,9 +54,9 @@ export function createCommentsPanel() {
     panel.style.maxHeight = savedHeight
   }
 
-  // Create panel components
+  // Create panel components based on page type
   const header = createPanelHeader()
-  const body = createPanelBody()
+  const body = isPropertyPage() ? createPanelBody() : createRecentCommentsBody()
 
   panel.appendChild(header)
   panel.appendChild(body)
@@ -74,8 +74,10 @@ export function createCommentsPanel() {
   // Create ToS modal
   createToSModal()
 
-  // Create recent comments modal
-  createRecentCommentsModal()
+  // Create recent comments modal (only for property pages)
+  if (isPropertyPage()) {
+    createRecentCommentsModal()
+  }
 
   // Add click listener if panel starts expanded
   if (!panel.classList.contains('minimized')) {
@@ -99,15 +101,17 @@ export function createCommentsPanel() {
     recentCommentsBtn.addEventListener('click', showRecentCommentsModal)
   }
 
-  // Add character counter logic
-  const textarea = document.getElementById('new-comment')
-  const charCounter = document.querySelector('.char-counter')
-  if (textarea && charCounter) {
-    textarea.addEventListener('input', () => {
-      const count = textarea.value.length
-      charCounter.textContent = `${count}/1200 characters`
-      charCounter.style.color = count > 1200 ? '#d32f2f' : '#5f6368'
-    })
+  // Add character counter logic (only for property pages)
+  if (isPropertyPage()) {
+    const textarea = document.getElementById('new-comment')
+    const charCounter = document.querySelector('.char-counter')
+    if (textarea && charCounter) {
+      textarea.addEventListener('input', () => {
+        const count = textarea.value.length
+        charCounter.textContent = `${count}/1200 characters`
+        charCounter.style.color = count > 1200 ? '#d32f2f' : '#5f6368'
+      })
+    }
   }
 
   // Initialize resize functionality
@@ -116,6 +120,10 @@ export function createCommentsPanel() {
   // Show/hide panel or bubble based on state
   updatePanelAndBubbleVisibility()
 
-  // Load comments for this page
-  loadComments()
+  // Load appropriate content
+  if (isPropertyPage()) {
+    loadComments()
+  } else {
+    showRecentCommentsInPanel()
+  }
 }
