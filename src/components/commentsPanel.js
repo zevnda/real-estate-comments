@@ -152,6 +152,15 @@ export function refreshPanelContent() {
     }
   }
 
+  // Update recent comments button visibility
+  const recentCommentsBtn = document.querySelector('.recent-comments-btn')
+  if (recentCommentsBtn) {
+    recentCommentsBtn.style.display = isPropertyPage() ? '' : 'none'
+    // Re-bind event listener
+    recentCommentsBtn.removeEventListener('click', showRecentCommentsModal)
+    recentCommentsBtn.addEventListener('click', showRecentCommentsModal)
+  }
+
   // Re-bind event listeners for property pages
   if (isPropertyPage()) {
     const submitBtn = document.getElementById('submit-comment-btn')

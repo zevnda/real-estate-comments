@@ -1,1 +1,3 @@
-- improve address parsing login
+- REC button is now shown on all Domain and RE pages
+  - show recent comments on non-proparty listing pages
+- removed comment downvoting 
