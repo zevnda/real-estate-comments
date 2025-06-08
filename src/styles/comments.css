@@ -145,26 +145,6 @@
   fill: #408cff;
 }
 
-.downvote-btn:hover {
-  background: #ffe9e9;
-}
-
-.downvote-btn:hover svg {
-  fill: #dc2626;
-}
-
-.downvote-btn.active {
-  background: #fee2e2;
-}
-
-.downvote-btn.active:hover {
-  background: #ffebeb;
-}
-
-.downvote-btn.active svg {
-  fill: #dc2626;
-}
-
 .vote-score {
   font-size: 13px;
   font-weight: 600;
@@ -173,12 +153,4 @@
   user-select: none;
   min-width: 28px;
   padding: 0 6px;
-}
-
-.vote-controls:has(.upvote-btn.active) .vote-score {
-  color: #65a30d;
-}
-
-.vote-controls:has(.downvote-btn.active) .vote-score {
-  color: #dc2626;
 }

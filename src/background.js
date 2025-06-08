@@ -125,7 +125,7 @@ try {
         if (request.action === 'voteComment') {
           const { commentId, voteType } = request
 
-          if (!commentId || !voteType || !['up', 'down'].includes(voteType)) {
+          if (!commentId || voteType !== 'up') {
             return Promise.resolve({
               status: 'error',
               message: 'Invalid vote parameters',
@@ -271,7 +271,7 @@ try {
         if (request.action === 'voteComment') {
           const { commentId, voteType } = request
 
-          if (!commentId || !voteType || !['up', 'down'].includes(voteType)) {
+          if (!commentId || voteType !== 'up') {
             return Promise.resolve({
               status: 'error',
               message: 'Invalid vote parameters',

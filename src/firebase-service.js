@@ -53,6 +53,11 @@ export async function isUserBanned(uid) {
 export async function voteOnComment(commentId, voteType, userUID) {
   await ensureAuthenticated()
 
+  // Only allow upvotes
+  if (voteType !== 'up') {
+    throw new Error('Only upvotes are allowed')
+  }
+
   const commentRef = doc(db, 'listingcomments', commentId)
   const commentDoc = await getDoc(commentRef)
 
@@ -67,18 +72,14 @@ export async function voteOnComment(commentId, voteType, userUID) {
   // Check if user has already voted
   const previousVote = userVotes[userUID]
 
-  if (previousVote === voteType) {
-    // User clicked same vote type - remove their vote
+  if (previousVote === 'up') {
+    // User clicked upvote again - remove their vote
     delete userVotes[userUID]
-    currentVotes -= voteType === 'up' ? 1 : -1
-  } else if (previousVote) {
-    // User had opposite vote - change it
-    userVotes[userUID] = voteType
-    currentVotes += voteType === 'up' ? 2 : -2
+    currentVotes -= 1
   } else {
-    // New vote
-    userVotes[userUID] = voteType
-    currentVotes += voteType === 'up' ? 1 : -1
+    // New upvote
+    userVotes[userUID] = 'up'
+    currentVotes += 1
   }
 
   await updateDoc(commentRef, {
