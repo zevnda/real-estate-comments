@@ -292,6 +292,12 @@
   font-weight: 500;
 }
 
+.recent-comment-domain {
+  color: #9ca3af;
+  font-size: 12px;
+  font-weight: 500;
+}
+
 /* Alert styles for recent comments header */
 .recent-comments-panel-header.alert-info {
   background-color: #e3f2fd;

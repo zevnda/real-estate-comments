@@ -14,6 +14,26 @@ const sendMessage = async message => {
   }
 }
 
+function getCommentDomainName(url) {
+  if (!url) return null
+
+  let domainNameText = ''
+
+  if (url.includes('realestate.com.au')) {
+    domainNameText = 'realestate.com.au'
+  } else if (url.includes('domain.com.au')) {
+    domainNameText = 'domain.com.au'
+  } else {
+    return null
+  }
+
+  const domainName = document.createElement('span')
+  domainName.className = 'recent-comment-domain'
+  domainName.textContent = domainNameText
+
+  return domainName
+}
+
 export function createRecentCommentsModal() {
   // Check if modal already exists
   if (document.getElementById('recent-comments-modal')) {
@@ -217,6 +237,12 @@ async function loadRecentComments() {
       metaInfo.appendChild(document.createTextNode(' • '))
       metaInfo.appendChild(voteSpan)
 
+      const websiteChip = getCommentDomainName(comment.url)
+      if (websiteChip) {
+        metaInfo.appendChild(document.createTextNode(' • '))
+        metaInfo.appendChild(websiteChip)
+      }
+
       commentHeader.appendChild(locationInfo)
       commentHeader.appendChild(metaInfo)
 
@@ -318,6 +344,12 @@ async function loadRecentCommentsForPanel() {
       metaInfo.appendChild(dateSpan)
       metaInfo.appendChild(document.createTextNode(' • '))
       metaInfo.appendChild(voteSpan)
+
+      const websiteChip = getCommentDomainName(comment.url)
+      if (websiteChip) {
+        metaInfo.appendChild(document.createTextNode(' • '))
+        metaInfo.appendChild(websiteChip)
+      }
 
       commentHeader.appendChild(locationInfo)
       commentHeader.appendChild(metaInfo)
