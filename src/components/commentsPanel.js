@@ -127,3 +127,54 @@ export function createCommentsPanel() {
     showRecentCommentsInPanel()
   }
 }
+
+// Add new function to refresh panel content
+export function refreshPanelContent() {
+  const panel = document.getElementById('property-comments-panel')
+  if (!panel) return
+
+  // Remove existing body
+  const existingBody = panel.querySelector('.property-comments-body')
+  if (existingBody) {
+    existingBody.remove()
+  }
+
+  // Create new body based on current page type
+  const newBody = isPropertyPage() ? createPanelBody() : createRecentCommentsBody()
+  panel.appendChild(newBody)
+
+  // Update panel title
+  const panelTitle = document.getElementById('property-comments-panel-title')
+  if (panelTitle) {
+    const titleText = panelTitle.querySelector('p')
+    if (titleText) {
+      titleText.textContent = isPropertyPage() ? 'Property Comments' : 'Recent Comments'
+    }
+  }
+
+  // Re-bind event listeners for property pages
+  if (isPropertyPage()) {
+    const submitBtn = document.getElementById('submit-comment-btn')
+    if (submitBtn) {
+      submitBtn.addEventListener('click', submitComment)
+    }
+
+    // Add character counter logic
+    const textarea = document.getElementById('new-comment')
+    const charCounter = document.querySelector('.char-counter')
+    if (textarea && charCounter) {
+      textarea.addEventListener('input', () => {
+        const count = textarea.value.length
+        charCounter.textContent = `${count}/1200 characters`
+        charCounter.style.color = count > 1200 ? '#d32f2f' : '#5f6368'
+      })
+    }
+  }
+
+  // Load appropriate content
+  if (isPropertyPage()) {
+    loadComments()
+  } else {
+    showRecentCommentsInPanel()
+  }
+}

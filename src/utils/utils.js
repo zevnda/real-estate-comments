@@ -1,4 +1,4 @@
-import { restorePanelState } from '../components/commentsPanel'
+import { refreshPanelContent, restorePanelState } from '../components/commentsPanel'
 
 // Simple browser API compatibility
 export const getBrowserAPI = () => {
@@ -28,13 +28,14 @@ export function isSupportedDomain() {
 
 export function handleUrlChange(createCommentsPanel, loadComments) {
   if (isSupportedDomain()) {
-    if (!document.getElementById('property-comments-panel')) {
+    const panelExists = document.getElementById('property-comments-panel')
+    const bubbleExists = document.getElementById('property-comments-bubble')
+
+    if (!panelExists || !bubbleExists) {
       createCommentsPanel()
-    } else if (isPropertyPage()) {
-      loadComments()
-    }
-    if (!document.getElementById('property-comments-bubble')) {
-      createCommentsPanel()
+    } else {
+      // Panel exists, but we need to check if page type changed
+      refreshPanelContent()
     }
     restorePanelState()
   } else {
