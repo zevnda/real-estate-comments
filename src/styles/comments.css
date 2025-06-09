@@ -51,6 +51,18 @@
   border-bottom: 1px solid #dfdfdf;
 }
 
+.comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .comment-author {
   font-weight: 600;
   color: #0f172a;
@@ -153,4 +165,38 @@
   user-select: none;
   min-width: 28px;
   padding: 0 6px;
+}
+
+.comment-delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+}
+
+.comment-delete-btn:hover {
+  background: #fee2e2;
+  opacity: 1;
+}
+
+.comment-delete-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.3;
+}
+
+.comment-delete-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: #dc2626;
+  transition: all 0.2s ease;
+}
+
+.comment-delete-btn:hover svg {
+  fill: #b91c1c;
 }

@@ -1,3 +1,1 @@
-- REC button is now shown on all Domain and RE pages
-  - show recent comments on non-proparty listing pages
-- removed comment downvoting 
+- added a button to delete own comments

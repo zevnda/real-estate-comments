@@ -1,6 +1,13 @@
 import { parseAddressFromTitle } from './address-parser.js'
 import { validateComment } from './comment-validator.js'
-import { getComments, getRecentComments, isUserBanned, saveComment, voteOnComment } from './firebase-service.js'
+import {
+  deleteComment,
+  getComments,
+  getRecentComments,
+  isUserBanned,
+  saveComment,
+  voteOnComment,
+} from './firebase-service.js'
 import { checkRateLimit, clearRateLimitCache, updateRateLimitRecords } from './rate-limiter.js'
 import { getUserUID } from './user-service.js'
 import { getBrowserAPI } from './utils/utils.js'
@@ -160,6 +167,42 @@ try {
             }))
         }
 
+        if (request.action === 'deleteComment') {
+          const { commentId } = request
+
+          if (!commentId) {
+            return Promise.resolve({
+              status: 'error',
+              message: 'Invalid comment ID',
+            })
+          }
+
+          return getUserUID()
+            .then(userUID => {
+              return isUserBanned(userUID).then(banned => {
+                if (banned) {
+                  return {
+                    status: 'error',
+                    message: 'Error 90001',
+                  }
+                }
+
+                return deleteComment(commentId, userUID)
+                  .then(result => ({
+                    status: 'success',
+                  }))
+                  .catch(error => ({
+                    status: 'error',
+                    message: error.message,
+                  }))
+              })
+            })
+            .catch(error => ({
+              status: 'error',
+              message: 'Error checking user status',
+            }))
+        }
+
         if (request.action === 'parseAddress') {
           const title = request.title
           const url = request.url
@@ -293,6 +336,42 @@ try {
                     status: 'success',
                     votes: result.votes,
                     userVote: result.userVote,
+                  }))
+                  .catch(error => ({
+                    status: 'error',
+                    message: error.message,
+                  }))
+              })
+            })
+            .catch(error => ({
+              status: 'error',
+              message: 'Error checking user status',
+            }))
+        }
+
+        if (request.action === 'deleteComment') {
+          const { commentId } = request
+
+          if (!commentId) {
+            return Promise.resolve({
+              status: 'error',
+              message: 'Invalid comment ID',
+            })
+          }
+
+          return getUserUID()
+            .then(userUID => {
+              return isUserBanned(userUID).then(banned => {
+                if (banned) {
+                  return {
+                    status: 'error',
+                    message: 'Error 90001',
+                  }
+                }
+
+                return deleteComment(commentId, userUID)
+                  .then(result => ({
+                    status: 'success',
                   }))
                   .catch(error => ({
                     status: 'error',

@@ -5,6 +5,7 @@ import { getAuth, signInAnonymously } from 'firebase/auth'
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -93,6 +94,28 @@ export async function voteOnComment(commentId, voteType, userUID) {
   }
 }
 
+// Delete a comment
+export async function deleteComment(commentId, userUID) {
+  await ensureAuthenticated()
+
+  const commentRef = doc(db, 'listingcomments', commentId)
+  const commentDoc = await getDoc(commentRef)
+
+  if (!commentDoc.exists()) {
+    throw new Error('Comment not found')
+  }
+
+  const commentData = commentDoc.data()
+
+  // Check if user owns the comment
+  if (commentData.uid !== userUID) {
+    throw new Error('You can only delete your own comments')
+  }
+
+  await deleteDoc(commentRef)
+  return { success: true }
+}
+
 // Get comments for an address
 export async function getComments(addressData) {
   await ensureAuthenticated()
@@ -124,6 +147,7 @@ export async function getComments(addressData) {
       text: data.text,
       timestamp: data.timestamp,
       username: data.username,
+      uid: data.uid, // Include comment owner UID
       votes: data.votes || 0,
       userVotes: userVotes,
       currentUserVote: currentUserUID && userVotes[currentUserUID] ? userVotes[currentUserUID] : null,
