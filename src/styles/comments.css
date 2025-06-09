@@ -101,7 +101,7 @@
 .vote-controls {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
 }
 
 .vote-btn-wrapper {
@@ -168,20 +168,19 @@
 }
 
 .comment-delete-btn {
-  background: none;
-  border: none;
+  background: #fee2e2;
+  padding: 8px;
   cursor: pointer;
-  padding: 6px;
-  border-radius: 6px;
-  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.6;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  border: none;
 }
 
 .comment-delete-btn:hover {
-  background: #fee2e2;
+  background: #ffcece;
   opacity: 1;
 }
 
@@ -191,8 +190,8 @@
 }
 
 .comment-delete-btn svg {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   fill: #dc2626;
   transition: all 0.2s ease;
 }
