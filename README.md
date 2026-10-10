@@ -17,11 +17,11 @@ This browser extension adds a comment section to [realestate.com.au](https://www
 
 # Usage
 
-- Open a property listing on [realestate.com.au](https://www.realestate.com.au) or [domain.com.au](https://www.domain.com.au)
-- A comment button appears in the bottom-right corner, showing how many comments the property has
-- Click it to read comments, upvote helpful ones and post your own
-- Comments are shared between both sites, so a property has the same comments wherever you view it
-- Use the **Search** tab to find comments by address, street, suburb or postcode, without opening the listing
+1. Open a property listing on [realestate.com.au](https://www.realestate.com.au) or [domain.com.au](https://www.domain.com.au)
+2. A comment button appears in the bottom-right corner, showing how many comments the property has
+3. Click it to read comments, upvote helpful ones and post your own
+4. Comments are shared between both sites, so a property has the same comments wherever you view it
+5. Use the **Search** tab to find comments by address, street, suburb or postcode, without opening the listing
 
 # Building from source
 
