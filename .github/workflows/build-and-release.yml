@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version number (e.g., 1.0.1)'
+        description: 'Version number (e.g. 2.0.1)'
         required: true
         default: ''
 
@@ -18,58 +18,50 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-        
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-      
+        uses: actions/checkout@v4
+
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          version: latest
-          run_install: false
-          
+          node-version: 24
+          cache: pnpm
+
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
-      - name: Update version in manifest files
-        run: |
-          sed -i 's/"version": "[^"]*"/"version": "${{ github.event.inputs.version }}"/' manifest-chrome.json
-          sed -i 's/"version": "[^"]*"/"version": "${{ github.event.inputs.version }}"/' manifest-firefox.json
+      # The manifests are generated from package.json's version at build time
+      - name: Set version
+        run: npm pkg set version=${{ github.event.inputs.version }}
 
-      - name: Configure Git
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-
-      - name: Commit version changes
-        run: |
-          git add manifest-chrome.json manifest-firefox.json
-          git commit -m "chore: bump version to ${{ github.event.inputs.version }}"
-          git push origin HEAD:${{ github.ref }}
-
-      - name: Build extensions
-        run: pnpm build
+      - name: Check and build
+        run: pnpm check
 
       - name: Create ZIP files
         run: |
-          cd dist/chrome
-          zip -r ../../real-estate-comments-chrome-v${{ github.event.inputs.version }}.zip .
-          cd ../firefox
-          zip -r ../../real-estate-comments-firefox-v${{ github.event.inputs.version }}.zip .
+          VERSION=${{ github.event.inputs.version }}
+          (cd dist/chrome && zip -r ../../real-estate-comments-chrome-v$VERSION.zip .)
+          (cd dist/firefox && zip -r ../../real-estate-comments-firefox-v$VERSION.zip .)
+          # Firefox Add-ons asks for the source code of bundled extensions
+          git archive --format zip -o real-estate-comments-source-v$VERSION.zip HEAD
+
+      - name: Commit version bump
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add package.json
+          git commit -m "chore: bump version to ${{ github.event.inputs.version }}"
+          git push origin HEAD:${{ github.ref }}
 
       - name: Create GitHub Release
-        id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.event.inputs.version }}
           name: Release v${{ github.event.inputs.version }}
-          draft: false
-          prerelease: false
+          body_path: CHANGELOG.md
           files: |
             real-estate-comments-chrome-v${{ github.event.inputs.version }}.zip
             real-estate-comments-firefox-v${{ github.event.inputs.version }}.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            real-estate-comments-source-v${{ github.event.inputs.version }}.zip
