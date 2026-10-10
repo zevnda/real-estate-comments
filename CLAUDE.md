@@ -239,6 +239,8 @@ pnpm format         # Prettier
 pnpm check          # all of the above + build; what CI runs
 pnpm e2e            # browser smoke test against dist/chrome, on fake pages (see below)
 pnpm live-check     # the built extension on the real sites (see "Checking the live sites")
+pnpm lint:firefox   # web-ext lint (AMO's validator) on dist/firefox
+pnpm sign           # signed Firefox .xpi for testing; uploads to AMO, only when asked (see below)
 ```
 
 **Loading locally** (the maintainer keeps `dist/chrome` loaded unpacked, which is why every change ends with `pnpm build`):
@@ -251,6 +253,18 @@ pnpm live-check     # the built extension on the real sites (see "Checking the l
 **`pnpm e2e`** (first run: `pnpm exec playwright install chromium`) loads `dist/chrome` into Chromium and serves fake pages at real listing URLs, because the real sites block automated browsers. The extension runs for real, including Firebase sign-in and **reads from production**. It never posts, votes or deletes; keep it that way. It checks: comment count badge, panel, a 1.x irregular key (`97  yates ave`), domain.com.au, stale titles after `pushState`, the terms prompt, recent comments, and a phone-sized viewport. It relies on a few production comments existing (listed in the script); if one is deleted, pick another property. `--screenshots <dir>` saves light and dark screenshots of each step. It doesn't cover Firefox or the real sites' markup; `pnpm live-check` covers the real sites.
 
 **Before claiming something works**, run `pnpm check`. For UI or page-detection changes, also run `pnpm e2e` (look at the screenshots) and `pnpm live-check`. Say which you ran and what wasn't tested: usually Firefox, and posting, voting and deleting, which no automated check does against production.
+
+### Signed Firefox build (`pnpm sign`)
+
+`pnpm sign` gets a permanently installable, Mozilla-signed `.xpi` for testing in Firefox (temporary add-ons from `about:debugging` disappear on restart). It bumps the patch version in `package.json` (`scripts/bump-version.ts`), builds, and submits `dist/firefox` to Firefox Add-ons as **unlisted** (signed for self-distribution, not published), saving the `.xpi` to `web-ext-artifacts/`. Install it from `about:addons` → gear → "Install Add-on From File".
+
+- **Credentials:** `WEB_EXT_API_KEY` / `WEB_EXT_API_SECRET` in `.env` (git-ignored; see `.env.example`), from https://addons.mozilla.org/developers/addon/api/key/.
+- **Don't run it unless asked.** It uploads to AMO and changes the version.
+- **Version numbers are spent:** AMO never accepts the same version twice for an add-on, listed or unlisted, and this add-on is also listed publicly under the same ID. Every `pnpm sign` uses up a patch version, so the next public release must use a higher version than the last signed one, or AMO rejects it. The release workflow takes its version as an input, so pick one above the latest signed build.
+
+`pnpm lint:firefox` (also the last step of `pnpm check`) runs `web-ext lint`, AMO's own validator, on `dist/firefox`. It must stay at 0 errors. Known warnings: `MISSING_DATA_COLLECTION_PERMISSIONS` (see below) and two `UNSAFE_VAR_ASSIGNMENT`s for `innerHTML` inside bundled libraries (Preact's `dangerouslySetInnerHTML` support, which we don't use, and DOMPurify's parser), which are expected.
+
+**Firefox data collection declaration (to do):** Firefox now requires new extensions to declare what data they send in `browser_specific_settings.gecko.data_collection_permissions`, and will require it for updates to existing ones. The extension sends the addresses of listings the user views (to look up comments) and the comments and names users post. Choosing the categories is a store-policy decision for the maintainer; add it in `src/manifest.ts` once decided.
 
 ## Releasing
 
@@ -270,4 +284,4 @@ pnpm live-check     # the built extension on the real sites (see "Checking the l
 - **Manifests:** edit `src/manifest.ts` only. Chrome uses `background.service_worker`; Firefox uses `background.scripts` (event page) and must keep `browser_specific_settings.gecko.id = real-estate-comments@zevnda.com`.
 - **Bundles are not minified** so store reviewers can read them.
 - **TypeScript version:** pinned to 6.0 because typescript-eslint doesn't support 7.x yet.
-- **Line endings:** the maintainer's Windows machine uses `core.autocrlf=true`; Git's CRLF warnings are expected.
+- **Line endings:** LF everywhere, enforced by `.gitattributes` (`* text=auto eol=lf`). Without it, `core.autocrlf=true` on the maintainer's Windows machine checked files out as CRLF and Prettier flagged every file.

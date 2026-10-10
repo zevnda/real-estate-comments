@@ -1,0 +1,3 @@
+# Keep LF line endings in working copies on every platform, so Prettier and CI agree regardless of core.autocrlf
+* text=auto eol=lf
+*.png binary
