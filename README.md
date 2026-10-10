@@ -5,7 +5,7 @@
 
 This browser extension adds a comment section to [realestate.com.au](https://www.realestate.com.au) and [domain.com.au](https://www.domain.com.au) listings, so real renters and buyers can share their honest experiences and thoughts of a property, not just the agent's sales pitch.
 
-<img src="./public/example.png" width="700" alt="example image"><br />
+<img src="./public/example.png" height="400" alt="example image"><br />
 </div>
 
 # Installation
