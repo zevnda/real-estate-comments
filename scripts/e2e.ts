@@ -1,0 +1,272 @@
+// End-to-end smoke test: loads dist/chrome into Chromium and serves fake listing pages at real realestate.com.au and
+// domain.com.au URLs (the real sites block automated browsers). The extension itself runs for real, including
+// Firebase sign-in and Firestore reads against production. It never posts, votes or deletes.
+//
+//   pnpm build && pnpm e2e            (first time: pnpm exec playwright install chromium)
+//   pnpm e2e --screenshots <dir>      also saves screenshots of each step, in light and dark mode
+import assert from 'node:assert/strict'
+import { mkdir } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
+import { chromium } from 'playwright'
+
+// Lets Playwright see the background service worker's requests (used to check the cache)
+process.env.PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS = '1'
+
+const EXTENSION = resolve('dist/chrome')
+const screenshotArg = process.argv.indexOf('--screenshots')
+const screenshotDir = screenshotArg > -1 ? process.argv[screenshotArg + 1] : undefined
+
+// Pages for properties that have comments in production (see tests/property.test.ts)
+const PAGES: Record<string, string> = {
+  'https://www.realestate.com.au/property-house-qld-hendra-444861312':
+    '65 Newmarket Street, Hendra, Qld 4011 - House for Sale - realestate.com.au',
+  'https://www.realestate.com.au/property-house-nsw-dundas+valley-442858264':
+    '97  Yates Ave, Dundas Valley, NSW 2117 - House for Rent - realestate.com.au',
+  'https://www.realestate.com.au/property-house-nsw-concord-434909539':
+    '9 Warbrick Street, Concord, NSW 2137 - House for Sale - realestate.com.au',
+  'https://www.domain.com.au/3-42-kent-street-epping-nsw-2121-17650798': '3/42 Kent Street, Epping NSW 2121 | Domain',
+  'https://www.realestate.com.au/buy': 'Real Estate & Property for Sale - realestate.com.au',
+}
+
+function fakePage(title: string): string {
+  const filler = 'Lorem ipsum dolor sit amet. '.repeat(40)
+  return `<!doctype html><html><head><title>${title}</title></head><body style="margin:0;font-family:Arial">
+    <div style="height:64px;background:#e4002b"></div>
+    <main style="padding:24px;max-width:1100px"><h1>${title}</h1>
+    <div style="height:340px;background:#ddd;border-radius:8px"></div><p>${filler}</p></main></body></html>`
+}
+
+async function run(colorScheme: 'light' | 'dark') {
+  const context = await chromium.launchPersistentContext('', {
+    channel: 'chromium',
+    headless: true,
+    colorScheme,
+    viewport: { width: 1280, height: 800 },
+    args: [`--disable-extensions-except=${EXTENSION}`, `--load-extension=${EXTENSION}`],
+  })
+  // Wait for the background service worker to start
+  if (!context.serviceWorkers().length) await context.waitForEvent('serviceworker')
+
+  const page = await context.newPage()
+  // Firestore queries sent by the background script, to check the cache (needs the service worker network events)
+  let firestoreQueries = 0
+  context.on('request', request => {
+    if (request.url().includes('firestore.googleapis.com') && request.url().includes(':runQuery')) firestoreQueries++
+  })
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
+  await page.route(/^https:\/\/(www\.)?(realestate|domain)\.com\.au\//, route => {
+    const url = route.request().url().split(/[?#]/)[0]!
+    return route.fulfill({ status: 200, contentType: 'text/html', body: fakePage(PAGES[url] ?? 'Not found') })
+  })
+
+  const ui = (selector: string) => page.locator(`real-estate-comments >> css=${selector}`)
+  const step = async (name: string, check: () => Promise<void>) => {
+    await check()
+    if (screenshotDir) {
+      await page.waitForTimeout(300)
+      await page.screenshot({ path: join(screenshotDir, `${colorScheme}-${name}.png`) })
+    }
+    console.log(`  ✓ ${name}`)
+  }
+  const waitForComments = () => ui('.comment').first().waitFor({ timeout: 20_000 })
+  const panelTitle = () => ui('.panel-title').textContent()
+
+  console.log(`${colorScheme} mode:`)
+  await page.goto('https://www.realestate.com.au/property-house-qld-hendra-444861312')
+  await step('launcher shows the comment count', async () => {
+    await ui('.launcher-badge').waitFor({ timeout: 20_000 })
+  })
+
+  await ui('.launcher').click()
+  await step('panel lists the property’s comments', async () => {
+    await waitForComments()
+    assert.equal(await panelTitle(), '65 Newmarket Street')
+  })
+
+  await step('prefills a GitHub issue from “Report a problem”', async () => {
+    const href = (await ui('.panel-footer a:has-text("Report a problem")').getAttribute('href')) ?? ''
+    const url = new URL(href)
+    assert.equal(url.origin + url.pathname, 'https://github.com/zevnda/real-estate-comments/issues/new')
+    const body = url.searchParams.get('body') ?? ''
+    assert.match(body, /Extension version: \d+\.\d+\.\d+/)
+    assert.match(body, /Browser: Chrome \d+/)
+    assert.ok(body.includes('Page: https://www.realestate.com.au/property-house-qld-hendra-444861312\n'), body)
+    assert.ok(body.includes('Property detected: 65 Newmarket Street, Hendra QLD 4011'), body)
+  })
+
+  await step('serves a revisited property from the cache, and absorbs refresh spam', async () => {
+    assert.ok(firestoreQueries > 0, 'saw the first load reach Firestore')
+    const before = firestoreQueries
+    await page.reload()
+    await waitForComments()
+    assert.equal(firestoreQueries, before, 'revisiting the property queried Firestore again')
+
+    // Within 30 s of the last fetch, refreshes are answered from the cache (a refresh after that fetches; see
+    // tests/cache.test.ts). The button also rests for 2 s after each click.
+    const refresh = ui('button[aria-label="Check for new comments"]')
+    for (let i = 0; i < 3; i++) {
+      await refresh.click()
+      assert.ok(await refresh.isDisabled(), 'the button rests after a click')
+      await page.waitForFunction(
+        () =>
+          !document
+            .querySelector('real-estate-comments')
+            ?.shadowRoot?.querySelector('button[aria-label="Check for new comments"]:disabled'),
+        undefined,
+        { timeout: 5_000 },
+      )
+    }
+    assert.equal(firestoreQueries, before, 'refreshing straight after a fetch queried Firestore')
+  })
+
+  await step('explains formatting in a popup, closed with Esc without closing the panel', async () => {
+    await ui('.link-button:text("Formatting help")').click()
+    await ui('.overlay .dialog').waitFor()
+    assert.ok((await ui('.formatting-table .markdown strong').count()) > 0)
+  })
+  await page.keyboard.press('Escape')
+  await ui('.overlay').waitFor({ state: 'detached' })
+  assert.ok(await ui('.panel').isVisible(), 'panel still open after closing the popup')
+
+  await step('switches theme from the header button', async () => {
+    const host = page.locator('real-estate-comments')
+    const before = await host.getAttribute('data-theme')
+    await ui('.header-actions .icon-button').first().click()
+    await page.waitForFunction(
+      before => document.querySelector('real-estate-comments')?.getAttribute('data-theme') !== before,
+      before,
+    )
+    const after = await host.getAttribute('data-theme')
+    assert.ok(after === 'light' || after === 'dark')
+    assert.notEqual(after, before)
+  })
+  // Back to the original theme, so screenshots match the run's colour scheme
+  await ui('.header-actions .icon-button').first().click()
+
+  await page.goto('https://www.realestate.com.au/property-house-nsw-dundas+valley-442858264')
+  await step('finds comments from a listing title with irregular spacing and abbreviations', async () => {
+    await waitForComments()
+    assert.equal(await panelTitle(), '97 Yates Ave')
+  })
+
+  await page.goto('https://www.domain.com.au/3-42-kent-street-epping-nsw-2121-17650798')
+  await step('works on domain.com.au', async () => {
+    await waitForComments()
+    assert.equal(await panelTitle(), '3/42 Kent Street')
+  })
+
+  await page.goto('https://www.realestate.com.au/property-house-qld-hendra-444861312')
+  await waitForComments()
+  await step('ignores a stale title after client-side navigation', async () => {
+    await page.evaluate(() => history.pushState({}, '', '/property-house-nsw-concord-434909539'))
+    await page.waitForTimeout(700)
+    assert.notEqual(await panelTitle(), '65 Newmarket Street')
+    await page.evaluate(() => {
+      document.title = '9 Warbrick Street, Concord, NSW 2137 - House for Sale - realestate.com.au'
+    })
+    await ui('.panel-title:text("9 Warbrick Street")').waitFor({ timeout: 5_000 })
+    await waitForComments()
+  })
+
+  await step('asks to accept the terms before the first post', async () => {
+    await ui('textarea').fill('Testing the composer. This is never posted.')
+    await ui('.composer button[type=submit]').click()
+    await ui('.terms').waitFor()
+    await ui('.terms .button--ghost').click()
+  })
+
+  await page.goto('https://www.realestate.com.au/buy')
+  await step('shows recent comments off property pages', async () => {
+    if (!(await ui('.panel').isVisible())) await ui('.launcher').click()
+    await waitForComments()
+  })
+
+  await step('finds comments by address search, despite different spelling', async () => {
+    await ui('.tabs button:has-text("Search")').click()
+    await ui('#rec-search').fill('97 Yates Avenue, Dundas Valley')
+    await ui('.search-result').first().waitFor({ timeout: 20_000 })
+    assert.equal(await ui('.search-result-address').first().textContent(), '97 Yates Avenue')
+  })
+
+  await step('opens a search result’s comments', async () => {
+    await ui('.search-result').first().click()
+    await waitForComments()
+    // Profile pages on both sites (current site first), then a web search
+    const hrefs = await ui('.search-detail-heading .property-links a').evaluateAll(links =>
+      links.map(link => link.getAttribute('href')),
+    )
+    assert.deepEqual(hrefs.slice(0, 2), [
+      'https://www.realestate.com.au/property/97-yates-ave-dundas-valley-nsw-2117/',
+      'https://www.domain.com.au/property-profile/97-yates-avenue-dundas-valley-nsw-2117',
+    ])
+  })
+
+  await step('links recent comments to profile pages, not the listing they were posted on', async () => {
+    await ui('.tabs button:has-text("Recent")').click()
+    await waitForComments()
+    const hrefs = await ui('.comment-property .property-links a').evaluateAll(links =>
+      links.map(link => link.getAttribute('href') ?? ''),
+    )
+    assert.ok(hrefs.length > 0)
+    assert.ok(
+      hrefs.every(href => /\/property\/|\/property-profile\/|google\.com\/search/.test(href)),
+      hrefs.join('\n'),
+    )
+    await ui('.tabs button:has-text("Search")').click()
+  })
+
+  await step('shows no results for an address without comments', async () => {
+    await ui('#rec-search').fill('97 Nowhere Street, Faketown')
+    await ui('.notice-title:text("No comments found")').waitFor({ timeout: 20_000 })
+  })
+
+  // Searches without a street number. Concord NSW 2137 has three properties with comments in production, and North
+  // Strathfield (also 2137) one.
+  const resultAddresses = async (search: string) => {
+    await ui('#rec-search').fill(search)
+    await page.waitForFunction(
+      () =>
+        document.querySelector('real-estate-comments')?.shadowRoot?.querySelector('.search-result, .notice-title') !==
+        null,
+    )
+    await page.waitForTimeout(1500)
+    return ui('.search-result-address').allTextContents()
+  }
+
+  await step('searches by suburb, street, postcode, and misspelt suburb', async () => {
+    const bySuburb = await resultAddresses('Concord')
+    assert.ok(bySuburb.length >= 3, `suburb: ${bySuburb.join(', ')}`)
+    assert.ok(bySuburb.includes('9 Warbrick Street'))
+
+    assert.deepEqual(await resultAddresses('Warbrick St'), ['9 Warbrick Street'])
+
+    const byPostcode = await resultAddresses('2137')
+    assert.ok(
+      byPostcode.includes('1/37 Sydney Street') && byPostcode.includes('9 Warbrick Street'),
+      byPostcode.join(', '),
+    )
+
+    assert.ok((await resultAddresses('Concrd')).includes('9 Warbrick Street'))
+  })
+
+  await step('closes when clicking outside the panel', async () => {
+    await page.mouse.click(200, 400)
+    await ui('.panel').waitFor({ state: 'detached' })
+    await ui('.launcher').waitFor()
+  })
+
+  await page.setViewportSize({ width: 390, height: 760 })
+  await page.goto('https://www.realestate.com.au/property-house-qld-hendra-444861312')
+  await step('fits a phone screen', async () => {
+    if (!(await ui('.panel').isVisible())) await ui('.launcher').click()
+    await waitForComments()
+  })
+
+  assert.deepEqual(errors, [], 'page errors')
+  await context.close()
+}
+
+if (screenshotDir) await mkdir(screenshotDir, { recursive: true })
+for (const scheme of screenshotDir ? (['light', 'dark'] as const) : (['light'] as const)) await run(scheme)
+console.log('All end-to-end checks passed')

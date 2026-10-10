@@ -1,0 +1,273 @@
+# CLAUDE.md
+
+Guidance for working on Real Estate Comments. Read this before changing anything. Most of the non-obvious constraints come from data that's already in production and from how the two property sites behave, not from the code.
+
+**Keep this file up to date.** When you change behaviour, architecture, data, commands or conventions described here, update this file in the same change.
+
+**Rebuild after every change.** Whenever you change anything that ends up in the extension (`src/`, `icons/`, `package.json` version, build script), run `pnpm build` before finishing, even for small changes and even if you didn't otherwise test, so `dist/chrome` and `dist/firefox` are always current and the maintainer can reload the extension and test straight away. If the build fails, fix it or say so; never leave `dist` stale without saying. End by telling the maintainer it's rebuilt and to reload the extension and refresh the site's tabs (see "Loading locally").
+
+## What the extension does
+
+A browser extension that adds a comment section to property pages on **realestate.com.au** and **domain.com.au**, so renters and buyers can share what a property is really like. Users can read, post, upvote and delete their own comments. Off property pages, the panel shows the most recent comments across all properties.
+
+It ships for **Chrome** and **Firefox**, both **Manifest V3**, from one codebase. Published on the Chrome Web Store and Firefox Add-ons (links in README.md). Comments are stored in **Firebase** (Firestore, project `realestatecomments`) with anonymous auth.
+
+2.0 was a full rewrite of the hand-written 1.x (plain JS, webpack, page-global CSS). Comments saved by 1.x must keep working; see "Data model".
+
+## Files
+
+| Path                                          | Role                                                                                                                                                                                   |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/property.ts`                      | **Identifies the property from the page URL and title, and builds the Firestore keys.** Pure functions, heavily tested. The most important file.                                       |
+| `src/shared/messages.ts`                      | Typed message protocol between content and background scripts (`BackgroundApi`), and `callBackground()`.                                                                               |
+| `src/shared/validation.ts`                    | Comment rules (length, lines, spam) and runtime checks of incoming messages. Used by both scripts.                                                                                     |
+| `src/shared/search.ts`                        | Address search: query parsing and fuzzy scoring (see "Address search"). Pure, tested.                                                                                                  |
+| `src/shared/storage.ts`                       | Typed `storage.local` access. `StoredData` lists every key.                                                                                                                            |
+| `src/shared/ext.ts`, `log.ts`                 | Cross-browser API shim; console logging with the `[Real Estate Comments]` prefix.                                                                                                      |
+| `src/background/index.ts`                     | Message router, toolbar button, toolbar badge. All Firestore access goes through the background script.                                                                                |
+| `src/background/comments.ts`                  | Firestore queries and writes (list, recent, search, create, vote, delete, ban check), and their cache TTLs.                                                                            |
+| `src/background/cache.ts`                     | Caches Firestore reads in `storage.session` (see "Caching").                                                                                                                           |
+| `src/background/firebase.ts`                  | Firebase init (Firestore **Lite**, Auth **web-extension** build) and `ensureSignedIn()`.                                                                                               |
+| `src/background/identity.ts`, `rate-limit.ts` | The user's anonymous ID; per-user posting limits.                                                                                                                                      |
+| `src/content/index.tsx`                       | Content script entry: creates the shadow-root UI host, starts the page watcher.                                                                                                        |
+| `src/content/page-state.ts`                   | Watches URL/title changes and decides when the page's property is known (`resolvePageState`).                                                                                          |
+| `src/content/hooks.ts`                        | Data hooks: `useComments`, `useRecentComments`, `useStored`.                                                                                                                           |
+| `src/content/ui/*.tsx`, `styles.css`          | Preact UI: `App` (launcher, panel, theme, click-outside), `Panel`, `Search`, `FormattingHelp` (markdown dialog), `states` (empty/loading/error), `Comment`, `Composer`, icons, styles. |
+| `src/content/report.ts`                       | “Report a problem” link: a new GitHub issue prefilled with a template, extension version, browser, page URL (no query string) and what the extension made of the page.                 |
+| `src/content/markdown.ts`                     | Markdown → sanitized DOM (marked + DOMPurify).                                                                                                                                         |
+| `src/manifest.ts`                             | Generates both browsers' `manifest.json`. **The only manifest source**; there are no manifest files in the repo.                                                                       |
+| `scripts/build.ts`                            | esbuild bundling into `dist/chrome` and `dist/firefox`.                                                                                                                                |
+| `scripts/e2e.ts`                              | Browser smoke test on fake pages (see Testing).                                                                                                                                        |
+| `scripts/live-check.ts`                       | Runs the built extension on the real sites (see "Checking the live sites").                                                                                                            |
+| `tests/*.test.ts`                             | Vitest unit tests.                                                                                                                                                                     |
+| `CHANGELOG.md`                                | Becomes the GitHub release notes verbatim (see Releasing).                                                                                                                             |
+
+## Architecture
+
+```
+property page                                           background (service worker / event page)
+─────────────────────────────────────────────           ─────────────────────────────────────────
+content/index.tsx
+  watchPage(): URL poll + <title> observer
+  → resolvePageState(url, title)  [page-state.ts]
+     → identifyProperty()          [shared/property.ts]
+  → App (Preact, in a shadow root)
+     useComments(property.input)
+       callBackground('listComments', {property}) ───►  router checks sender + isPropertyInput()
+                                                        buildPropertyKeys() → Firestore `in` query
+                            ◄── {ok, data: CommentView[]} | {ok: false, error}
+     Composer → 'createComment'  ─────────────────────►  validate → rate limit → ban check → addDoc
+     Comment → 'toggleVote' / 'deleteComment'  ───────►  transaction / ownership check
+     'setBadge' (comment count) ──────────────────────►  action.setBadgeText for that tab
+                            ◄── 'togglePanel'            toolbar button / Alt+Shift+C
+```
+
+- **Background owns Firebase.** One signed-in session, the page can't tamper with it, and the content script never sees other users' IDs: `CommentView` only has `isOwn` and `hasVoted`.
+- **Messages:** every request is `{ type, ...payload }` from `BackgroundApi`; every response is `Result<T>` (`{ ok: true, data }` or `{ ok: false, error }`, where `error` is a user-facing message). The background listener uses `sendResponse` + `return true` because Chrome doesn't accept a returned promise. To add a request: add it to `BackgroundApi`, add a handler in `background/index.ts` (the `Handlers` type forces it), validate its payload there.
+- **Errors shown to users:** throw `UserError` in the background for messages that are safe to show; Firebase errors are mapped in `userMessage()`; anything else becomes a generic message (full error in the background console). In the content script, `callBackground` throws `ExtensionError` with that message; "Extension context invalidated" becomes "refresh the page".
+- **UI isolation:** the UI is a `<real-estate-comments>` element with an open shadow root, appended to `<html>`. `styles.css` is bundled as text and injected into the shadow root, so site CSS can't break it and it can't affect the site. Use `px`, not `rem`, in the CSS (rem follows the site's root font size).
+- **Orphaned content scripts:** after the extension is updated or reloaded, the old content script loses `ext.runtime.id`; the watcher notices and removes its UI. A newly injected copy also removes any existing host element.
+- **Firebase in MV3:** use `firebase/firestore/lite` (REST over fetch; full Firestore uses WebChannel/XHR, which doesn't exist in a service worker) and `firebase/auth/web-extension` (the default build pulls in DOM/popup code). Don't switch to the full SDK entry points.
+
+## Identifying the property (`shared/property.ts`)
+
+This is where 1.x was unreliable, so be careful here.
+
+**The goal: one comment thread per physical property**, whichever page it's left on: rent, sale or sold listing, a re-listing with a new ID, a property profile, on either site. Everything below serves that. `tests/property.test.ts` → "one property, every page" holds real URL/title sets for the same property across all of its pages; any change here must keep them producing one key.
+
+**Page types and URL formats** (`parsePropertyUrl`), checked on the live sites in October 2026:
+
+| Site              | Page               | URL                                                                                                 |
+| ----------------- | ------------------ | --------------------------------------------------------------------------------------------------- |
+| realestate.com.au | rent/sale listing  | `/property-house-nsw-epping-441106232`                                                              |
+| realestate.com.au | sold listing       | `/sold/property-house-nsw-epping-152308708`                                                         |
+| realestate.com.au | property profile   | `/property/46-stanley-rd-epping-nsw-2121/`, `/property/unit-41-10-14-hazlewood-pl-epping-nsw-2121/` |
+| realestate.com.au | off-market listing | listing URL, unchanged (a 404 page: "Looks like this page is off the market")                       |
+| domain.com.au     | rent/sale listing  | `/2-5-chester-street-epping-nsw-2121-18359019`                                                      |
+| domain.com.au     | sold listing       | same URL as the listing                                                                             |
+| domain.com.au     | property profile   | `/property-profile/46-stanley-road-epping-nsw-2121`                                                 |
+| domain.com.au     | expired listing    | redirects to the suburb's search page                                                               |
+
+**Titles** (`parseAddressFromTitle`), same pages in the same order:
+
+- realestate.com.au rent/sale: `72 Somerset St, Epping, NSW 2121 - House for Rent - realestate.com.au`
+- realestate.com.au sold: `46 Stanley Road, Epping, NSW 2121 - Property Details`
+- realestate.com.au profile: `46 Stanley Road, Epping, NSW 2121 - realestate.com.au`
+- realestate.com.au off-market: `Real Estate, Property & Homes For Sale - realestate.com.au` (no address)
+- domain.com.au rent/sale: `2/5 Chester Street, Epping NSW 2121 - Apartment For Rent | Domain`, or `3 Helen Street, Epping NSW 2121 | Domain`
+- domain.com.au sold: `Sold 46 Stanley Road, Epping NSW 2121 on 10 Oct 2026 - 2021146795 | Domain`
+- domain.com.au profile: `46 Stanley Road, Epping | Property Value Estimate & History | Domain` (no state/postcode; taken from the URL)
+
+realestate.com.au listing URLs only carry state and suburb; every other format carries the address slug, state and postcode. Anything else on those sites is a "browse" page (recent comments only).
+
+How a property's pages relate (why the key must come from the address, never a listing ID):
+
+- **realestate.com.au deletes a listing's page when it's sold or leased** and creates a sold listing with a **new ID** under `/sold/`. Old IDs 404 at both `/property-…` and `/sold/property-…`, with no address anywhere on the page, so there's nothing to show there.
+- **domain.com.au keeps the listing URL when it sells** but changes the title to "Sold … on <date> - <id>". The "Sold" prefix is stripped (`STATUS_PREFIX`). 1.x didn't strip it, so it may have saved sold-page comments under "sold <address>"; that form is still looked up (`PropertyInput.titleAddress`).
+- **Spellings differ between pages of the same site**: realestate.com.au listing "72 Somerset St", profile "72 Somerset Street", profile URL "46-stanley-rd". Normalization (see Data model) gives them one key.
+- **Comments cross sites**: comments posted through realestate.com.au show on domain.com.au's pages for the property and vice versa (verified with real comments).
+
+Other things the live sites showed:
+
+- **Both sites navigate client-side** from search results to listings. The URL changes first and the title follows (realestate.com.au ~70 ms, domain.com.au ~560 ms). Search-page titles mention the suburb ("Rental Properties and Real Estate in Epping, NSW 2121") but have no street number, so they're rejected.
+- **`og:title` isn't updated** on client-side navigation (domain.com.au keeps the search page's), so don't use it. The `<h1>` holds the address on every page type and could be a fallback if titles change. realestate.com.au pages also have schema.org `Residence` JSON-LD with a `PostalAddress` (not used; unknown whether it updates on client-side navigation).
+- Neither site links listings directly to each other, so listing-to-listing navigation only happens through search results or history.
+
+The street address is everything before the suburb, so it may contain commas (`Unit 5, 12 Smith St`). **The title is read from the `<title>` element's `textContent`, not `document.title`**, because `document.title` collapses whitespace and 1.x saved keys with the raw spacing (e.g. `97  yates ave`).
+
+**Checking the title against the URL** (`matchAddressToUrl`) is what prevents comments being shown or saved for the wrong property. Both sites navigate client-side in places, and the URL can change before the title does, so a title is only trusted when it agrees with the URL:
+
+- `full`: the URL contains the street address and it matches (compared via `comparableAddress`, so `unit-41-10-14-hazlewood-pl` matches "41/10-14 Hazlewood Place"). Trusted immediately. Unexpected words before the address in the title are trimmed off using the URL as the guide.
+- `partial`: only suburb/state/postcode could be checked (realestate.com.au listings). Trusted on first page load, or after an in-page navigation once the title has changed or has been stable for `SETTLE_MS`.
+- `none`: contradicts the URL. Keep waiting; after `GIVE_UP_MS` show "Couldn't identify this property".
+  Once a page's property is resolved it sticks until the URL path changes. Query strings and hashes are ignored (`pageKey`), since galleries and maps change them.
+
+Listings that hide the address ("Address available on request") have no street number and are rejected. Otherwise they'd all share one key per suburb. **Known limitation:** some listings give only the building address without the unit ("22-28 Cambridge Street"), so all units advertised that way share one thread. Nothing on the page identifies the unit.
+
+### Checking the live sites
+
+Both sites block automation. curl and WebFetch get 403/429, and so does any browser that has a debugger attached while the page loads (Playwright, `connectOverCDP`) or has `navigator.webdriver` set.
+
+**`pnpm live-check`** (after `pnpm build`) gets through by avoiding those two signals:
+
+- It starts the installed Chrome over `--remote-debugging-pipe` with a temporary profile and `--disable-blink-features=AutomationControlled`.
+- It loads `dist/chrome` with the `Extensions.loadUnpacked` CDP command.
+- It opens tabs without attaching, and attaches only after the page has loaded, to read the page and the extension's panel.
+
+By default it follows two listings from each site's Epping NSW rental and sold searches; pass URLs to check specific pages. It's read-only (it opens the panel but never posts), and it fails if the panel's address doesn't match what `identifyProperty` expects. A Chrome window opens while it runs. Keep the volume to a handful of pages.
+
+When a site changes its titles, run `pnpm live-check`, add the new format to `parseAddressFromTitle`, and add cases to the "live site titles" and "one property, every page" tests in `tests/property.test.ts`. Prefer adding over replacing, since old formats may still be served.
+
+## Data model (Firestore) — compatibility rules
+
+Collection **`listingcomments`**. One document per comment:
+
+| Field                | Notes                                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `address`            | Lowercase street address. **The lookup key**, with `suburb`.                                                  |
+| `suburb`             | Lowercase, single-spaced.                                                                                     |
+| `state`, `postcode`  | Lowercase state code, 4-digit postcode. Not part of the query (no index); used to filter results client-side. |
+| `url`                | Page URL without query string.                                                                                |
+| `text`, `username`   | Comment markdown (5–1200 chars, ≤ 50 lines); name (≤ 50 chars, default `Anonymous`).                          |
+| `uid`                | The poster's **anonymous extension user ID** (see below), not the Firebase Auth UID.                          |
+| `createdAt`          | Timestamp (`serverTimestamp()` from 2.0; client `Date` in 1.x). Sort key.                                     |
+| `timestamp`          | ISO string from the client. Legacy; still written.                                                            |
+| `votes`, `userVotes` | Upvote count and `{ [userId]: 'up' }`. Added on first vote.                                                   |
+
+Collection **`bannedUsers`**: documents with a `uid` field. A match blocks posting and voting ("error 90001").
+
+**Rules for changing any of this:**
+
+- **Don't add, rename or remove fields** without first checking the deployed **security rules** in the Firebase console. They aren't in this repo and may reject unknown fields, which would break posting for everyone.
+- **Queries must be served by existing indexes.** The comment lookup is `address in [...] AND suburb == x ORDER BY createdAt DESC LIMIT 100`, which uses 1.x's composite index (address, suburb, createdAt). The recent list is `ORDER BY createdAt DESC LIMIT 10`. A query needing a new composite index fails until it's created in the console.
+- **Address keys:** new comments are saved under `canonicalAddress()` (lowercase, single spaces, `unit 5, 12 x` → `5/12 x`, street type spelled out: `st` → `street`). Lookups query every spelling in `buildPropertyKeys().addressVariants`: canonical, abbreviated street type, and the **1.x key** (`legacyAddress()`: title text lowercased, `" - "` → `"-"`). That's how a house listed as "97 Yates Ave" on one site and "97 Yates Avenue" on the other shares comments, and how 1.x comments are still found. Never drop the legacy variant. Audit on 2026-10-11 (19 comments): all stored addresses are canonical. The one exception, document `EOrAimxFhGiyEyKGv6Dm` (`97  yates ave`, double space, from a sloppy 1.x title), was fixed by hand in the console; property pages other than its original listing couldn't find it, because no variant can guess stray whitespace. If old data like that turns up again, fix the record rather than adding variants. Keep the variant list ≤ 30 (Firestore's `in` limit). `tests/property.test.ts` has real stored keys; keep those tests passing.
+
+## Caching (`background/cache.ts`)
+
+Every Firestore read goes through `cached(key, ttl, load, fresh)`, so page views, tab switches and search keystrokes don't repeat the same queries. The biggest saving is listing pages: the panel loads the property's comments on every listing view (for the launcher's count), most properties have none, and those empty results are cached too.
+
+- **Where:** `storage.session`. It's shared by all tabs, survives Chrome stopping the background service worker (in-memory caches were lost after ~30 s idle), is cleared when the browser closes, and is never written to disk. It falls back to memory if `storage.session` fails. Expired entries are pruned every 50 writes; on a quota error the cache is cleared.
+- **TTLs** (`TTL` in `background/comments.ts`): property comments, Recent and search lookups 5 min; the search's 500-comment scan 10 min; the ban check 60 min. New comments are rare, so other people's comments can take up to 5 minutes to appear.
+- **Own writes are instant:** posting, voting and deleting call `invalidate('property:', 'recent', 'search:')`. A read that was already fetching when the write happened isn't cached (a generation counter), so it can't put stale data back.
+- **Refresh:** the ↻ button on the property tab and the Recent tab sends `fresh: true`, which fetches again, but **at most once per `MIN_REFRESH_INTERVAL` (30 s) per key**: a refresh sooner after the last fetch is answered from the cache, whichever tab it comes from, so spamming refresh can't hammer the database. The button also rests for 2 s after each click, and spins for at least 0.6 s so an instant cached answer still gives feedback.
+- **Deduplication:** concurrent requests for the same key (e.g. two tabs on one listing) share one fetch.
+
+`pnpm e2e` checks this against the real extension by counting the background's Firestore queries: revisiting a property sends none, and repeated refreshes straight after a fetch send none (`tests/cache.test.ts` covers refreshing after the interval). Keep new reads going through `cached()`.
+
+## Linking to a property (`propertyLinks` in `shared/property.ts`)
+
+Wherever the panel shows a property other than the current page (Recent, Search), it links to the property's **profile pages on both sites, built from the stored address**, plus a Google search for the address. It never links to the listing the comment was posted on: realestate.com.au deletes a listing's page once the property is rented or sold, so stored listing URLs go dead. Profile pages exist for essentially every address whether or not it's listed, show its history, link to any current listing, and the extension shows the comments there.
+
+- realestate.com.au: `/property/<abbreviated address>-<suburb>-<state>-<postcode>/`, units prefixed `unit-`: `/property/unit-41-10-14-hazlewood-pl-epping-nsw-2121/`
+- domain.com.au: `/property-profile/<address, street type spelled out>-<suburb>-<state>-<postcode>`
+
+The site the user is on is listed first. The Google link is the fallback for the rare address neither site has a page for (brand-new builds, lots, off-the-plan units); the comments themselves are never lost either way, since they're keyed by address and always reachable from Search. Checked on 2026-10-11 by opening both profile links for all 19 stored properties with `pnpm live-check`: 36 of 38 opened the right page. The two misses are the same unit, 6/21-25 Truganini Road, Carnegie: **street-number ranges are inconsistent** (domain.com.au lists it as 6/25, realestate.com.au under none of 6/21-25, 6/21 or 6/25), and that can't be predicted without fetching, so ranges just rely on the Search link. The links render as small buttons (`.property-links`) but stay `<a>` elements, since they navigate.
+
+The `url` field is still written on new comments (the field set is fixed by the security rules) but is no longer displayed. **Existing comments don't need migrating**: links are derived from `address`/`suburb`/`state`/`postcode` at display time.
+
+Posting doesn't depend on profile pages. A comment can be left on any page the extension can identify (listing, sold listing or profile, on either site), and it's stored by address, so a rental listing whose property has no profile page works exactly the same.
+
+## Address search (`shared/search.ts`, `searchComments` in `background/comments.ts`)
+
+The panel's **Search** tab (on every page) finds properties that already have comments, without opening a listing. It accepts a full or partial address, a street on its own, a suburb or a postcode ("46 Stanley Road, Epping", "Stanley Rd", "Epping", "2121"). Firestore has no fuzzy or full-text search, so it works in two steps:
+
+1. **Firestore fetches candidates** using whatever the query gives it (`parseSearchQuery` → `searchLookups`), each served by an automatic single-field index, so no composite index is needed (all checked against production):
+   - **Street number** (the query starts with one, after `canonicalAddress`, so "Unit 41, 10-14 Hazlewood Pl" starts "41/10-14"): `address` prefix range. Used alone, since it's already precise.
+   - Otherwise **postcode** (`postcode ==`) and **suburb**: `suburb` prefix range for the last one, two and three typed words, since the query may be "Stanley Road, Epping" or "North Strathfield".
+   - **Fallback**: if nothing scores well enough, the 500 most recent comments (`ORDER BY createdAt DESC`) are scanned instead. That covers a street on its own and misspelt suburbs ("Concrd").
+
+   Prefix ranges are `field >= prefix AND field < prefix + PREFIX_END`, where `PREFIX_END` is U+F8FF (the usual Firestore prefix bound; written as `String.fromCharCode(0xf8ff)` because an invisible literal character in source is a trap). Each lookup is cached for 60 s, since users type one character at a time, and the cache is cleared on any write.
+
+2. **The extension ranks the candidates.** Comments are grouped by property (canonical address + suburb + postcode, so legacy spellings like `97  yates ave` join their property). `scoreMatch` compares each query word other than the street number (street name, type, suburb) with the property's words using prefix matching ("stan" → "stanley") and Damerau-Levenshtein similarity (typos, swapped letters), with street types expanded on both sides ("rd" = "road"). Every word must score ≥ `MIN_WORD_SCORE` (so a wrong suburb or street rules a property out) and the average must reach `MIN_SCORE`. A typed postcode or state must match exactly. Up to 20 results, best match first, then most recently commented.
+
+Limitations: a street number, when given, must be exact (searching "10-14 Hazlewood Place" won't find unit "41/10-14"). A street-only search or misspelt suburb only reaches the 500 most recent comments. Each result links to the property's profile pages (see "Linking to a property"). Search results can be upvoted and deleted (own comments) like anywhere else, but not commented on: posting needs a page-confirmed property.
+
+Scaling: street-number, postcode and suburb lookups stay small as comments grow, since each reads only matching comments. The recent-comments fallback is the part that degrades (it costs up to 500 reads and covers less of the data over time). A dedicated search index (e.g. a `properties` collection with a street-name field, or an external search service) would be the next step; both need backend changes.
+
+## Extension storage (`storage.local`)
+
+Listed in `StoredData`. Two keys predate 2.0 and **must keep their names**:
+
+- `CTextFilterStore_strCleanPattern_1039531631`: the user's anonymous ID (UUID). Losing it means users can no longer delete their comments, and their votes stop being recognised.
+- `tos_accepted`: the string `'true'` once the terms were accepted.
+
+Others: `displayName`, `panelOpen`, `panelWidth`, `sort`, `theme` (`light`/`dark`/`system`), `postHistory` (rate limiting). 1.x also wrote some keys into the _site's_ `localStorage` (`comments-panel-*`); 2.0 doesn't use them.
+
+## Security model and known gaps
+
+Everything client-side is a courtesy, not a control: the rate limit (5 posts/hour, 3 per property per day), the ownership check before deleting, the ban check and comment validation all run in the extension, and anyone can call Firestore directly with the public config. **Real enforcement must be in the Firestore security rules.** These aren't in the repo; recommended rule changes (need the Firebase console):
+
+- Store the Firebase Auth UID on new comments (e.g. `authorAuthUid`) and only allow delete/update by that user. Today `uid` is a client-generated ID, so the rules can't verify ownership.
+- Validate field types and lengths on create; only allow `votes`/`userVotes` to change on update, by ±1 and only for the caller's own key.
+- Enforce bans in the rules rather than in the client.
+- **Enable Firebase App Check** so Firestore only accepts requests from the genuine extension. Client-side limits (the refresh interval, rate limits) can be bypassed by calling Firestore directly with the public config. Also set a budget alert in Google Cloud.
+
+Comment rendering is safe by construction: markdown goes through DOMPurify with a small allow-list, links get `rel="noopener noreferrer nofollow ugc"`, and nothing is assigned to `innerHTML`.
+
+## Build, run, test
+
+Requires Node ≥ 22.18 (runs the TypeScript scripts natively; CI uses 24) and pnpm.
+
+```sh
+pnpm install
+pnpm build          # → dist/chrome, dist/firefox (gitignored)
+pnpm dev            # rebuild on change, with inline source maps
+pnpm test           # unit tests (Vitest)
+pnpm typecheck      # tsc --noEmit
+pnpm lint           # ESLint (typescript-eslint, type-aware)
+pnpm format         # Prettier
+pnpm check          # all of the above + build; what CI runs
+pnpm e2e            # browser smoke test against dist/chrome, on fake pages (see below)
+pnpm live-check     # the built extension on the real sites (see "Checking the live sites")
+```
+
+**Loading locally** (the maintainer keeps `dist/chrome` loaded unpacked, which is why every change ends with `pnpm build`):
+
+- **Chrome:** `chrome://extensions` → Developer mode → Load unpacked → `dist/chrome`. Reload after each build.
+- **Firefox:** `about:debugging#/runtime/this-firefox` → Load Temporary Add-on → `dist/firefox/manifest.json`. Removed when Firefox restarts.
+- **After reloading the extension, refresh the site's tabs.** The old content script is orphaned.
+- Logs: page console (filter `[Real Estate Comments]`; page state changes are logged at debug level) and the background console (Chrome: "service worker" link on the extensions page; Firefox: Inspect).
+
+**`pnpm e2e`** (first run: `pnpm exec playwright install chromium`) loads `dist/chrome` into Chromium and serves fake pages at real listing URLs, because the real sites block automated browsers. The extension runs for real, including Firebase sign-in and **reads from production**. It never posts, votes or deletes; keep it that way. It checks: comment count badge, panel, a 1.x irregular key (`97  yates ave`), domain.com.au, stale titles after `pushState`, the terms prompt, recent comments, and a phone-sized viewport. It relies on a few production comments existing (listed in the script); if one is deleted, pick another property. `--screenshots <dir>` saves light and dark screenshots of each step. It doesn't cover Firefox or the real sites' markup; `pnpm live-check` covers the real sites.
+
+**Before claiming something works**, run `pnpm check`. For UI or page-detection changes, also run `pnpm e2e` (look at the screenshots) and `pnpm live-check`. Say which you ran and what wasn't tested: usually Firefox, and posting, voting and deleting, which no automated check does against production.
+
+## Releasing
+
+`.github/workflows/build-and-release.yml` runs manually with a `version` input. It sets `package.json`'s version (the manifests read it at build time), runs `pnpm check`, zips `dist/chrome` and `dist/firefox`, makes a source zip (Firefox Add-ons asks for source code of bundled extensions), commits the version bump to the branch, and creates a GitHub release `v<version>` with `CHANGELOG.md` as the body.
+
+`CHANGELOG.md` holds only the entries for the upcoming release, as a flat bullet list in plain user-facing language. Append to it; don't rewrite existing entries. Store uploads (Chrome Web Store, Firefox Add-ons) are manual.
+
+`ci.yml` runs `pnpm check` on pushes to `main` and on pull requests.
+
+## Conventions
+
+- **TypeScript, strict.** No `any`; validate anything crossing the message boundary at runtime.
+- **Style:** Prettier config in `prettier.config.js` (2 spaces, no semicolons, single quotes, 120 columns, sorted imports). Short `//` comments explain _why_, above the code they describe. No JSDoc blocks.
+- **UI:** Preact function components and hooks, plain CSS in `styles.css`. **Colours are only ever tokens** defined on `:host` as `light-dark(<light>, <dark>)` (warm neutrals, with the extension's blue as the only accent: `--accent`, the launcher's colour since 1.x; the launcher keeps the filled chat-bubble `BrandIcon`); never hard-code a colour in a rule. The theme follows the system until the user picks one with the header's sun/moon button (`theme` in storage), which sets `data-theme` on the host and with it `color-scheme`. `light-dark()` is why the minimum versions are Chrome 123 / Firefox 128. Dialogs over the panel use `.overlay` (backdrop, absolutely positioned inside `.panel`) + `.dialog`, close on backdrop click and Esc, and stop Esc from also closing the panel; see `FormattingHelp.tsx`. While the panel is open, a slight dark `.page-backdrop` covers the page; clicking it, or anywhere outside the panel, closes the panel (the backdrop handles its own clicks; a capture-phase `pointerdown` listener in `App`, checked with `composedPath()` against the shadow host, catches anything else). The panel opens at its maximum width (`MAX_WIDTH`, capped to the window) until the user drags its edge; after that their width (`panelWidth`) is used. Icons are inline Lucide paths in `icons.tsx`. **Pressing a control must never start a text selection on the page**: buttons, the launcher and the backdrop have `user-select: none`, and the launcher and backdrop also `preventDefault()` on `mousedown`. In Firefox, pressing a control that then disappears (the launcher, when the panel opens) left a selection drag pending, and the next click (on the backdrop, over page text) completed it, selecting a large part of the page. Automated input (Playwright in Chromium and Firefox, CDP in real Chrome) doesn't reproduce this; only real mouse input in Firefox does, so check changes here by hand in Firefox (the fix was confirmed that way on 2026-10-11). Never use `alert`/`confirm` (they block the page and the browser); show messages inline. Keep it keyboard accessible (Esc closes the panel, visible focus).
+- **User-facing text:** plain Australian English, sentence case, curly apostrophes (’) in UI strings.
+- **Permissions:** `storage` plus host permissions for the two sites. Keep them minimal: every permission needs justifying in store review, and adding one prompts existing users on update. Firestore and Auth endpoints don't need host permissions (they allow CORS).
+- **Manifests:** edit `src/manifest.ts` only. Chrome uses `background.service_worker`; Firefox uses `background.scripts` (event page) and must keep `browser_specific_settings.gecko.id = real-estate-comments@zevnda.com`.
+- **Bundles are not minified** so store reviewers can read them.
+- **TypeScript version:** pinned to 6.0 because typescript-eslint doesn't support 7.x yet.
+- **Line endings:** the maintainer's Windows machine uses `core.autocrlf=true`; Git's CRLF warnings are expected.
