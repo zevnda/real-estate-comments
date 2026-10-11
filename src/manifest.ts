@@ -51,8 +51,18 @@ export function createManifest(browser: Browser, version: string): Record<string
     // Firefox runs MV3 background scripts as an event page rather than a service worker
     background: { scripts: ['background.js'] },
     browser_specific_settings: {
-      // Must never change: it's how Firefox Add-ons identifies the published extension
-      gecko: { id: 'real-estate-comments@zevnda.com', strict_min_version: '128.0' },
+      gecko: {
+        // Must never change: it's how Firefox Add-ons identifies the published extension
+        id: 'real-estate-comments@zevnda.com',
+        // 140 is the first Firefox that understands data_collection_permissions (and the current ESR)
+        strict_min_version: '140.0',
+        // Shown in Firefox's install prompt. Viewing a listing sends its address to look up comments
+        // (browsingActivity), and posting sends the comment and name (personalCommunications). Adding a type
+        // later prompts every existing user to approve it when they update.
+        data_collection_permissions: { required: ['browsingActivity', 'personalCommunications'] },
+      },
+      // Firefox for Android added data_collection_permissions in 142
+      gecko_android: { strict_min_version: '142.0' },
     },
   }
 }
