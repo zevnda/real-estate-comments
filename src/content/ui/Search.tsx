@@ -166,7 +166,7 @@ export function SearchTab({ query, onQuery }: { query: string; onQuery: (query: 
             />
           </div>
           {shown.length === 0 && (
-            <Notice icon={<ImageIcon />} title='No results with photos'>
+            <Notice icon={<ImageIcon />} title='No results with images'>
               <button type='button' class='button button--ghost' onClick={() => setResultsView('match')}>
                 Show all results
               </button>

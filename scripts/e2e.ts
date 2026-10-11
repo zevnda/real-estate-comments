@@ -271,15 +271,33 @@ async function run(colorScheme: 'light' | 'dark') {
     assert.equal(await star.getAttribute('aria-pressed'), 'false')
   })
 
-  await step('sorts and filters comments from the dropdown, showing a notice when none have photos', async () => {
+  await step('sorts and filters comments from the dropdown, showing a notice when none have images', async () => {
     const select = ui('.list-toolbar .view-select select')
-    assert.deepEqual(await ui('.list-toolbar .view-select option').allTextContents(), ['Newest', 'Top', 'With photos'])
-    // None of this property's production comments link a photo
-    await select.selectOption('photos')
-    await ui('.notice-title:text("No comments with photos")').waitFor()
+    assert.deepEqual(await ui('.list-toolbar .view-select option').allTextContents(), ['Newest', 'Top', 'With images'])
+    // None of this property's production comments link an image
+    await select.selectOption('images')
+    await ui('.notice-title:text("No comments with images")').waitFor()
     await ui('.notice button:has-text("Show all comments")').click()
     await waitForComments()
     assert.equal(await select.inputValue(), 'newest')
+  })
+
+  // Only the helper: nothing is uploaded or posted
+  await step('adds an image link with the image helper, checking the link first', async () => {
+    await ui('#rec-comment').fill('Image helper test. This is never posted.')
+    await ui('.editor-image').click()
+    await ui('.add-image input').fill('https://imgur.com/a/Ab12Cd3')
+    assert.match((await ui('.add-image-status').textContent()) ?? '', /Imgur album/)
+    assert.ok(await ui('.add-image button:has-text("Add")').isDisabled())
+    await ui('.add-image input').fill('https://i.imgur.com/aB3dE5f.jpg')
+    await ui('.add-image-status--ok').waitFor()
+    await ui('.add-image button:has-text("Add")').click()
+    await ui('.add-image').waitFor({ state: 'detached' })
+    assert.equal(
+      await ui('#rec-comment').inputValue(),
+      'Image helper test. This is never posted.\n[Image](https://i.imgur.com/aB3dE5f.jpg)\n',
+    )
+    await ui('#rec-comment').fill('')
   })
 
   await step('previews a comment with its formatting, without posting', async () => {
@@ -345,7 +363,7 @@ async function run(colorScheme: 'light' | 'dark') {
     assert.equal(await ui('.search-result-address').first().textContent(), '97 Yates Avenue')
     // Results can be re-sorted or filtered
     const options = await ui('.search .view-select option').allTextContents()
-    assert.deepEqual(options, ['Best match', 'Newest', 'Most comments', 'With photos'])
+    assert.deepEqual(options, ['Best match', 'Newest', 'Most comments', 'With images'])
   })
 
   await step('opens a search result’s comments', async () => {

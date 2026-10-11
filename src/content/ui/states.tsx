@@ -52,10 +52,10 @@ export function Skeleton({ label }: { label: string }) {
   )
 }
 
-// "With photos" chosen, and none of the comments have any
-export function NoPhotos({ onShowAll }: { onShowAll: () => void }) {
+// "With images" chosen, and none of the comments have any
+export function NoImages({ onShowAll }: { onShowAll: () => void }) {
   return (
-    <Notice icon={<ImageIcon />} title='No comments with photos'>
+    <Notice icon={<ImageIcon />} title='No comments with images'>
       <button type='button' class='button button--ghost' onClick={onShowAll}>
         Show all comments
       </button>

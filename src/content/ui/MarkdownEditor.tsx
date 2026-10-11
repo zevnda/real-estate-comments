@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { COMMENT_MAX_LENGTH } from '../../shared/validation'
 import { commentImages } from '../markdown'
+import { AddImage } from './AddImage'
+import { ImageIcon } from './icons'
 import { CommentImages } from './Images'
 import { Markdown } from './Markdown'
 
@@ -29,6 +31,9 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
   // The text box's height when Preview was chosen. The preview takes exactly that height (scrolling if it's longer),
   // so switching tabs never makes the panel jump.
   const [previewHeight, setPreviewHeight] = useState<number | undefined>()
+  const [addingImage, setAddingImage] = useState(false)
+  // Shown after an image file is pasted: we can't upload it, so point to the image helper
+  const [pastedFile, setPastedFile] = useState(false)
   const ownRef = useRef<HTMLTextAreaElement>(null)
   const images = useMemo(() => (previewing ? commentImages(value) : []), [previewing, value])
 
@@ -55,6 +60,23 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
     setTimeout(() => ownRef.current?.focus(), 0)
   }
 
+  // Adds the image's link where the cursor was (on its own line), and goes back to the text
+  const insertImage = (markdown: string) => {
+    const element = ownRef.current
+    const start = element?.selectionStart ?? value.length
+    const end = element?.selectionEnd ?? value.length
+    const before = value.slice(0, start)
+    const text = `${before && !before.endsWith('\n') ? '\n' : ''}${markdown}\n`
+    onInput(before + text + value.slice(end))
+    setAddingImage(false)
+    setPastedFile(false)
+    setPreviewing(false)
+    setTimeout(() => {
+      element?.focus()
+      element?.setSelectionRange(start + text.length, start + text.length)
+    }, 0)
+  }
+
   const preview = () => {
     if (!previewing) setPreviewHeight(ownRef.current?.offsetHeight)
     setPreviewing(true)
@@ -69,7 +91,27 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
         <button type='button' role='tab' aria-selected={previewing} onClick={preview}>
           Preview
         </button>
+        <button
+          type='button'
+          class='editor-image'
+          onClick={() => setAddingImage(!addingImage)}
+          aria-expanded={addingImage}
+          title='Add an image'
+        >
+          <ImageIcon size={15} />
+          Add image
+        </button>
       </div>
+      {addingImage && <AddImage onAdd={insertImage} onClose={() => setAddingImage(false)} />}
+      {pastedFile && !addingImage && (
+        <p class='editor-hint'>
+          Images can’t be pasted in directly.{' '}
+          <button type='button' class='link-button' onClick={() => setAddingImage(true)}>
+            Add an image
+          </button>{' '}
+          by uploading it to an image host first.
+        </p>
+      )}
       <label class='visually-hidden' for={id}>
         {label}
       </label>
@@ -83,6 +125,13 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
         hidden={previewing}
         onInput={event => onInput(event.currentTarget.value)}
         onKeyDown={onKeyDown}
+        onPaste={event => {
+          if (
+            [...(event.clipboardData?.items ?? [])].some(item => item.kind === 'file' && item.type.startsWith('image/'))
+          ) {
+            setPastedFile(true)
+          }
+        }}
         aria-invalid={invalid}
         aria-describedby={describedBy}
       />

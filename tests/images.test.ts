@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { commentImages } from '../src/content/markdown'
-import { findImages, imageUrl, MAX_COMMENT_IMAGES } from '../src/shared/images'
+import { findImages, imageLinkProblem, imageUrl, MAX_COMMENT_IMAGES } from '../src/shared/images'
 
 describe('imageUrl', () => {
   it('accepts direct image links on supported hosts', () => {
@@ -81,5 +81,22 @@ describe('commentImages', () => {
 
   it('ignores URLs in code and unsupported links', () => {
     expect(commentImages('`https://i.imgur.com/aaaaaaa.jpg` [x](https://example.com/a.jpg)')).toEqual([])
+  })
+})
+
+describe('imageLinkProblem', () => {
+  it('accepts links that will show as images, and empty input', () => {
+    expect(imageLinkProblem('https://i.imgur.com/abc1234.jpg')).toBeNull()
+    expect(imageLinkProblem(' https://imgur.com/abc1234 ')).toBeNull()
+    expect(imageLinkProblem('')).toBeNull()
+  })
+
+  it('says how to fix the usual mistakes', () => {
+    expect(imageLinkProblem('https://imgur.com/a/Ab12Cd3')).toMatch(/album/)
+    expect(imageLinkProblem('https://ibb.co/x1y2z3')).toMatch(/Direct link/)
+    expect(imageLinkProblem('https://postimg.cc/abcd')).toMatch(/Direct link/)
+    expect(imageLinkProblem('https://i.imgur.com/abc1234.gifv')).toMatch(/Videos/)
+    expect(imageLinkProblem('not a link')).toMatch(/doesn’t look like a link/)
+    expect(imageLinkProblem('https://example.com/photo.jpg')).toMatch(/Only images from Imgur/)
   })
 })

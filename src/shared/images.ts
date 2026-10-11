@@ -76,3 +76,34 @@ export function findImages(links: { href: string; text: string }[]): CommentImag
   }
   return images
 }
+
+// Image hosts that take uploads without an account and give a direct image link, for the composer's image helper
+export const UPLOAD_HOSTS = [
+  { name: 'Imgur', url: 'https://imgur.com/upload' },
+  { name: 'ImgBB', url: 'https://imgbb.com/' },
+  { name: 'Postimages', url: 'https://postimages.org/' },
+]
+
+// Why a pasted link won't show as an image, in words that say what to do instead; null when it will
+export function imageLinkProblem(href: string): string | null {
+  const text = href.trim()
+  if (!text) return null
+  if (imageUrl(text)) return null
+  let url: URL
+  try {
+    url = new URL(text)
+  } catch {
+    return 'That doesn’t look like a link. Copy the image’s address from the image host.'
+  }
+  const host = url.hostname.toLowerCase().replace(/^www\.|^m\./, '')
+  const path = url.pathname
+  if (host === 'imgur.com' && /^\/(?:a|gallery)\//.test(path)) {
+    return 'That’s an Imgur album. Open the image itself and copy its link (it starts with i.imgur.com).'
+  }
+  if (host === 'ibb.co') return 'That’s ImgBB’s page for the image. Copy its “Direct link” instead (i.ibb.co/…).'
+  if (host === 'postimg.cc')
+    return 'That’s Postimages’ page for the image. Copy its “Direct link” instead (i.postimg.cc/…).'
+  if (host === 'i.imgur.com' && /\.(?:gifv|mp4)$/i.test(path))
+    return 'Videos can’t be shown. Link to a still image instead.'
+  return `Only images from ${IMAGE_HOST_NAMES.slice(0, -1).join(', ')} and ${IMAGE_HOST_NAMES.at(-1)} show as images. Upload it to one of those first.`
+}

@@ -6,7 +6,7 @@ import { useMemo, useState } from 'preact/hooks'
 import { pluralize } from '../format'
 import { COMMENT_VIEWS, viewThreads } from '../views'
 import { CommentThread } from './Comment'
-import { NoPhotos } from './states'
+import { NoImages } from './states'
 import { ViewSelect } from './ViewSelect'
 
 // A property's comments opened from Search or the Watchlist: with the same sort and filter as the property tab, but
@@ -42,7 +42,7 @@ export function DetailComments({
           ))}
         </div>
       ) : (
-        <NoPhotos onShowAll={() => setView('newest')} />
+        <NoImages onShowAll={() => setView('newest')} />
       )}
     </>
   )

@@ -1430,6 +1430,126 @@ a.text-button {
   color: var(--text);
 }
 
+/* "Add image" at the end of the Write/Preview strip, and its helper */
+.editor-tabs .editor-image {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.editor-tabs .editor-image[aria-expanded='true'] {
+  color: var(--accent-text);
+}
+
+.add-image {
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13px;
+}
+
+.add-image-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.add-image-steps {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-muted);
+}
+
+.add-image-steps li + li {
+  margin-top: 8px;
+}
+
+.add-image-hosts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.add-image-hosts a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.add-image-hosts a:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.add-image-field {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.add-image-field input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.add-image-field input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.add-image-field input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.add-image-field .button {
+  height: 32px;
+  padding: 0 14px;
+}
+
+.add-image-status {
+  margin: 8px 0 0;
+}
+
+.add-image-status--ok {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.add-image-status--ok img {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.editor-hint {
+  margin: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
 .editor textarea {
   display: block;
   width: 100%;
@@ -1758,13 +1878,6 @@ a.text-button {
   background: var(--surface-muted);
   font: 12.5px/1.5 var(--mono);
   white-space: pre-wrap;
-}
-
-.formatting-note {
-  display: block;
-  margin-top: 4px;
-  color: var(--text-muted);
-  font-size: 12px;
 }
 
 .formatting-table td .markdown {

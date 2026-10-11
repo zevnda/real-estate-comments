@@ -32,7 +32,7 @@ import {
 import { PrivacyDialog, TermsDialog } from './Legal'
 import { ReviewDialog, useReviewPrompt } from './ReviewPrompt'
 import { SearchTab } from './Search'
-import { ErrorNotice, NoPhotos, Notice, Skeleton } from './states'
+import { ErrorNotice, NoImages, Notice, Skeleton } from './states'
 import { ViewSelect } from './ViewSelect'
 import { WatchButton, watchEntry, WatchlistContext, WatchlistTab } from './Watchlist'
 import { CHANGES, WhatsNewDialog } from './WhatsNew'
@@ -76,7 +76,7 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
   const [searchQuery, setSearchQuery] = useState('')
   const [legal, setLegal] = useState<'terms' | 'privacy' | null>(null)
   const [replyTo, setReplyTo] = useState<CommentView | null>(null)
-  const [photosOnly, setPhotosOnly] = useState(false)
+  const [imagesOnly, setImagesOnly] = useState(false)
   const watchlist = useWatchlist()
   // Checked whenever the panel is open, for the tab's "new" count (cheap: the background caches each lookup)
   const watched = useWatchedComments(watchlist.items, true)
@@ -209,11 +209,11 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
             <PropertyTab
               page={page}
               comments={comments}
-              view={photosOnly ? 'photos' : sort}
+              view={imagesOnly ? 'images' : sort}
               onView={view => {
-                // Newest and Top are remembered; "With photos" is a filter for now, so it isn't
-                setPhotosOnly(view === 'photos')
-                if (view !== 'photos') setSort(view)
+                // Newest and Top are remembered; "With images" is a filter for now, so it isn't
+                setImagesOnly(view === 'images')
+                if (view !== 'images') setSort(view)
               }}
               onSearch={() => setTab('search')}
               onReply={setReplyTo}
@@ -270,10 +270,10 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
                   // Show the new reply in its thread
                   setReplyTo(null)
                   setTimeout(() => scrollToComment(panel.current?.getRootNode(), comment.id), 50)
-                } else if (sort !== 'newest' || photosOnly) {
+                } else if (sort !== 'newest' || imagesOnly) {
                   // Show the new comment at the top
                   setSort('newest')
-                  setPhotosOnly(false)
+                  setImagesOnly(false)
                 }
               }}
             />
@@ -398,7 +398,7 @@ function PropertyTab({
           ))}
         </div>
       ) : (
-        <NoPhotos onShowAll={() => onView('newest')} />
+        <NoImages onShowAll={() => onView('newest')} />
       )}
     </>
   )
