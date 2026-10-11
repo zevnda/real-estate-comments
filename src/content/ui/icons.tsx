@@ -47,6 +47,13 @@ export const TrashIcon = () => (
   </Icon>
 )
 
+export const FlagIcon = () => (
+  <Icon size={16}>
+    <path d='M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z' />
+    <path d='M4 22v-7' />
+  </Icon>
+)
+
 export const ExternalIcon = () => (
   <Icon size={14}>
     <path d='M15 3h6v6' />

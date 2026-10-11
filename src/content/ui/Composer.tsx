@@ -6,17 +6,9 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { callBackground } from '../../shared/messages'
 import { COMMENT_MAX_LENGTH, USERNAME_MAX_LENGTH, validateCommentText } from '../../shared/validation'
 import { errorMessage, useStored } from '../hooks'
+import { Dialog } from './Dialog'
 import { FormattingHelp } from './FormattingHelp'
-
-const TERMS = [
-  'Your comments must be truthful and based on your actual experience with the property.',
-  'Don’t post anything defamatory, harassing or discriminatory about any person or group.',
-  'Don’t include personal information (phone numbers, emails, addresses) of landlords, agents or tenants.',
-  'Comments must not break any local, state or federal law.',
-  'No spam, promotion or irrelevant content.',
-  'Respect others’ privacy: don’t share private conversations or documents.',
-  'Comments that break these terms may be removed.',
-]
+import { POSTING_RULES } from './Legal'
 
 interface ComposerProps {
   property: PropertyInput
@@ -27,7 +19,6 @@ export function Composer({ property, onPosted }: ComposerProps) {
   const [text, setText] = useState('')
   const [savedName, saveName] = useStored('displayName', '')
   const [name, setName] = useState('')
-  const [accepted, saveAccepted, acceptedLoaded] = useStored('tos_accepted', '')
   const [showTerms, setShowTerms] = useState(false)
   const [posting, setPosting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -75,36 +66,13 @@ export function Composer({ property, onPosted }: ComposerProps) {
   const post = () => {
     setTouched(true)
     if (invalid || posting) return
-    if (accepted === 'true') void submit()
-    else setShowTerms(true)
+    // Every post is agreed to separately, so the rules are fresh in mind each time
+    setShowTerms(true)
   }
 
   const acceptTerms = () => {
-    saveAccepted('true')
     setShowTerms(false)
     void submit()
-  }
-
-  if (showTerms) {
-    return (
-      <section class='terms' aria-labelledby='rec-terms-title'>
-        <h3 id='rec-terms-title'>Before you post</h3>
-        <p>Comments are public. Please agree to these terms:</p>
-        <ul>
-          {TERMS.map(term => (
-            <li key={term}>{term}</li>
-          ))}
-        </ul>
-        <div class='terms-actions'>
-          <button type='button' class='button button--ghost' onClick={() => setShowTerms(false)}>
-            Cancel
-          </button>
-          <button type='button' class='button button--primary' onClick={acceptTerms}>
-            I agree, post comment
-          </button>
-        </div>
-      </section>
-    )
   }
 
   return (
@@ -164,7 +132,7 @@ export function Composer({ property, onPosted }: ComposerProps) {
         <span class={`counter${length > COMMENT_MAX_LENGTH ? ' counter--over' : ''}`} aria-live='polite'>
           {length}/{COMMENT_MAX_LENGTH}
         </span>
-        <button type='submit' class='button button--primary' disabled={posting || !acceptedLoaded}>
+        <button type='submit' class='button button--primary' disabled={posting}>
           {posting ? 'Posting…' : 'Post'}
         </button>
       </div>
@@ -172,6 +140,24 @@ export function Composer({ property, onPosted }: ComposerProps) {
         <p class='inline-error' role='alert'>
           {error}
         </p>
+      )}
+      {showTerms && (
+        <Dialog id='rec-terms-title' title='Before you post' class='terms' onClose={() => setShowTerms(false)}>
+          <p class='dialog-intro'>Comments are public. Please confirm your comment follows these rules:</p>
+          <ul>
+            {POSTING_RULES.map(rule => (
+              <li key={rule}>{rule}</li>
+            ))}
+          </ul>
+          <div class='terms-actions'>
+            <button type='button' class='button button--ghost' onClick={() => setShowTerms(false)}>
+              Cancel
+            </button>
+            <button type='button' class='button button--primary' onClick={acceptTerms} data-autofocus>
+              I agree, post comment
+            </button>
+          </div>
+        </Dialog>
       )}
       {showHelp && (
         <FormattingHelp

@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { pluralize } from '../format'
 import { useRecentComments, useStored } from '../hooks'
-import { reportIssueUrl } from '../report'
+import { complaintsMailto, reportIssueUrl } from '../report'
 import { Comment } from './Comment'
 import { Composer } from './Composer'
 import {
@@ -21,6 +21,7 @@ import {
   SearchIcon,
   SunIcon,
 } from './icons'
+import { PrivacyDialog, TermsDialog } from './Legal'
 import { SearchTab } from './Search'
 import { ErrorNotice, Notice, Skeleton } from './states'
 
@@ -46,6 +47,7 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
   const [width, setWidth] = useStored('panelWidth', DEFAULT_WIDTH)
   const recent = useRecentComments(tab === 'recent')
   const [searchQuery, setSearchQuery] = useState('')
+  const [legal, setLegal] = useState<'terms' | 'privacy' | null>(null)
   const panel = useRef<HTMLDivElement>(null)
 
   useEffect(() => setTab(onPropertyPage ? 'property' : 'recent'), [onPropertyPage])
@@ -139,10 +141,21 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
           <HeartIcon />
           Support this extension
         </a>
-        <a href={reportIssueUrl(page)} target='_blank' rel='noopener noreferrer'>
-          Report a problem
-        </a>
+        <div class='panel-footer-links'>
+          <button type='button' onClick={() => setLegal('terms')}>
+            Terms
+          </button>
+          <button type='button' onClick={() => setLegal('privacy')}>
+            Privacy
+          </button>
+          <a href={complaintsMailto()}>Complaints</a>
+          <a href={reportIssueUrl(page)} target='_blank' rel='noopener noreferrer'>
+            Report a problem
+          </a>
+        </div>
       </footer>
+      {legal === 'terms' && <TermsDialog onClose={() => setLegal(null)} />}
+      {legal === 'privacy' && <PrivacyDialog onClose={() => setLegal(null)} />}
     </div>
   )
 }

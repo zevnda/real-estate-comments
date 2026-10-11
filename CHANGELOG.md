@@ -1,1 +1,3 @@
-- Fixed an issue the could allow users to delete other user's comments, which let to comment deletion being temporarily in the mean time
+- Added a terms of use, privacy policy and complaints contact to the bottom of the panel
+- Added a Report button to comments, for flagging comments that break the TOS/laws
+- Clearer posting rules, which users now agree to each time they post

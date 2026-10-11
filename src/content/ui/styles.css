@@ -59,6 +59,7 @@ button {
    disappears (the launcher opening the panel, Close, a search result) left a selection drag pending, and the next
    click anywhere completed it, selecting a large part of the page. */
 button,
+.text-button,
 .launcher,
 .page-backdrop {
   user-select: none;
@@ -563,6 +564,10 @@ button.vote:hover {
   font-weight: 600;
 }
 
+a.text-button {
+  text-decoration: none;
+}
+
 .text-button:hover {
   color: var(--text);
 }
@@ -1006,26 +1011,15 @@ button.vote:hover {
   background: var(--surface-muted);
 }
 
-.terms h3 {
-  margin: 0 0 4px;
-  font-size: 15px;
-}
-
-.terms p {
-  margin: 0 0 8px;
-  color: var(--text-muted);
-  font-size: 13px;
-}
-
-.terms ul {
-  max-height: 180px;
+.terms ul,
+.legal ul {
   margin: 0 0 12px;
   padding-left: 18px;
-  overflow-y: auto;
   font-size: 13px;
 }
 
-.terms li + li {
+.terms li + li,
+.legal li + li {
   margin-top: 4px;
 }
 
@@ -1050,7 +1044,7 @@ button.vote:hover {
   color: var(--accent-hover);
 }
 
-/* Formatting help dialog, over the panel with a backdrop */
+/* Dialogs (formatting help, terms, privacy), over the panel with a backdrop */
 
 .overlay {
   position: absolute;
@@ -1152,6 +1146,24 @@ button.vote:hover {
   font-size: 13px;
 }
 
+/* Terms of use and privacy policy */
+
+.legal h4 {
+  margin: 14px 0 4px;
+  font-size: 13.5px;
+}
+
+.legal p {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.legal a {
+  color: var(--accent-text);
+}
+
 kbd {
   padding: 0 5px;
   border: 1px solid var(--border-strong);
@@ -1165,22 +1177,34 @@ kbd {
 
 .panel-footer {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 12px;
+  gap: 4px 12px;
   padding: 8px 18px;
   border-top: 1px solid var(--border);
   font-size: 12px;
 }
 
-.panel-footer a {
+.panel-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.panel-footer a,
+.panel-footer button {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  padding: 0;
+  border: none;
+  background: none;
   color: var(--text-faint);
   text-decoration: none;
 }
 
-.panel-footer a:hover {
+.panel-footer a:hover,
+.panel-footer button:hover {
   color: var(--text-muted);
   text-decoration: underline;
 }

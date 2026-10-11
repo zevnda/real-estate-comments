@@ -95,6 +95,29 @@ async function run(colorScheme: 'light' | 'dark') {
     assert.ok(body.includes('Property detected: 65 Newmarket Street, Hendra QLD 4011'), body)
   })
 
+  await step('reports a comment without quoting it', async () => {
+    const href = (await ui('.comment a:has-text("Report")').first().getAttribute('href')) ?? ''
+    const url = new URL(href)
+    assert.equal(url.origin + url.pathname, 'https://github.com/zevnda/real-estate-comments/issues/new')
+    assert.match(url.searchParams.get('title') ?? '', /^Comment report: \w+$/)
+    assert.match(url.searchParams.get('body') ?? '', /Comment ID: \w+/)
+  })
+
+  await step('opens the terms and privacy policy, and links complaints to email', async () => {
+    for (const [link, title] of [
+      ['Terms', 'Terms of use'],
+      ['Privacy', 'Privacy policy'],
+    ]) {
+      await ui(`.panel-footer button:has-text("${link}")`).click()
+      await ui(`.dialog h3:text("${title}")`).waitFor()
+      await page.keyboard.press('Escape')
+      await ui('.dialog').waitFor({ state: 'detached' })
+      assert.ok(await ui('.panel').isVisible(), 'Esc closed only the dialog')
+    }
+    const mailto = await ui('.panel-footer a:has-text("Complaints")').getAttribute('href')
+    assert.ok(mailto?.startsWith('mailto:zevnda@gmail.com'), mailto ?? '')
+  })
+
   await step('serves a revisited property from the cache, and absorbs refresh spam', async () => {
     assert.ok(firestoreQueries > 0, 'saw the first load reach Firestore')
     const before = firestoreQueries
@@ -169,11 +192,14 @@ async function run(colorScheme: 'light' | 'dark') {
     await waitForComments()
   })
 
-  await step('asks to accept the terms before the first post', async () => {
+  await step('asks to agree to the rules before every post', async () => {
     await ui('textarea').fill('Testing the composer. This is never posted.')
-    await ui('.composer button[type=submit]').click()
-    await ui('.terms').waitFor()
-    await ui('.terms .button--ghost').click()
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await ui('.composer button[type=submit]').click()
+      await ui('.terms').waitFor()
+      await ui('.terms .button--ghost').click()
+      await ui('.terms').waitFor({ state: 'detached' })
+    }
   })
 
   await page.goto('https://www.realestate.com.au/buy')

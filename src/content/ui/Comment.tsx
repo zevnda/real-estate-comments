@@ -6,7 +6,8 @@ import { callBackground } from '../../shared/messages'
 import { avatarHue, formatAbsolute, formatRelative, initials } from '../format'
 import { errorMessage } from '../hooks'
 import { renderMarkdown } from '../markdown'
-import { TrashIcon, UpvoteIcon } from './icons'
+import { reportCommentUrl } from '../report'
+import { FlagIcon, TrashIcon, UpvoteIcon } from './icons'
 import { PropertyLinks } from './PropertyLinks'
 
 export function Markdown({ text }: { text: string }) {
@@ -103,6 +104,18 @@ export function Comment({ comment, onChange, onDelete }: CommentProps) {
               <UpvoteIcon />
               <span>{comment.votes}</span>
             </span>
+          )}
+          {!comment.isOwn && (
+            <a
+              class='text-button'
+              href={reportCommentUrl(comment)}
+              target='_blank'
+              rel='noopener noreferrer'
+              title='Report this comment'
+            >
+              <FlagIcon />
+              Report
+            </a>
           )}
           {comment.canDelete && onDelete && !confirming && (
             <button type='button' class='text-button' onClick={() => setConfirming(true)} disabled={busy}>

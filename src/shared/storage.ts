@@ -1,13 +1,11 @@
 import { ext } from './ext'
 
-// Everything the extension keeps in `storage.local`. Two keys predate 2.0 and must keep their names, or existing
-// users would lose their identity (and with it the ability to delete their comments) and have to accept the terms
-// again.
+// Everything the extension keeps in `storage.local`. The user ID predates 2.0 and must keep its name, or existing
+// users would lose their identity (and with it their votes and "You" on their comments). 1.x and early 2.x also
+// stored `tos_accepted`; the terms are now agreed to on every post, so it's no longer read.
 export interface StoredData {
   // Anonymous user ID, generated on first use. Legacy key name.
   CTextFilterStore_strCleanPattern_1039531631: string
-  // Legacy key: the string 'true' once the terms have been accepted
-  tos_accepted: string
   displayName: string
   panelOpen: boolean
   panelWidth: number
