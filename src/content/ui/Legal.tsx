@@ -193,8 +193,8 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
         only be read by us, and we keep them as a record of how complaints were handled.
       </p>
       <p>
-        “Report a problem” opens a GitHub issue that you can review before submitting. GitHub issues are public and
-        linked to your GitHub account. To raise something privately, email <ComplaintsLink />.
+        “Report a bug” opens a GitHub issue that you can review before submitting. GitHub issues are public and linked
+        to your GitHub account. To raise something privately, email <ComplaintsLink />.
       </p>
 
       <h4>How long we keep it</h4>

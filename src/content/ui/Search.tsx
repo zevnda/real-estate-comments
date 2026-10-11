@@ -1,5 +1,6 @@
 import type { CommentView, SearchResult } from '../../shared/messages'
 import type { Loadable } from '../hooks'
+import type { ResultsView } from '../views'
 
 import { useEffect, useRef, useState } from 'preact/hooks'
 
@@ -7,11 +8,12 @@ import { callBackground } from '../../shared/messages'
 import { parseSearchQuery } from '../../shared/search'
 import { formatRelative, pluralize } from '../format'
 import { errorMessage } from '../hooks'
-import { buildThreads } from '../threads'
-import { CommentThread } from './Comment'
-import { ChevronLeftIcon, ChevronRightIcon, SearchIcon } from './icons'
+import { RESULT_VIEWS, viewResults } from '../views'
+import { DetailComments } from './DetailComments'
+import { ChevronLeftIcon, ChevronRightIcon, ImageIcon, SearchIcon } from './icons'
 import { PropertyLinks } from './PropertyLinks'
 import { Notice, Skeleton } from './states'
+import { ViewSelect } from './ViewSelect'
 import { WatchButton, watchEntry } from './Watchlist'
 
 const DEBOUNCE_MS = 300
@@ -44,7 +46,9 @@ export function SearchTab({ query, onQuery }: { query: string; onQuery: (query: 
     return () => clearTimeout(timer)
   }, [trimmed, searchable])
 
+  const [resultsView, setResultsView] = useState<ResultsView>('match')
   const results = state.status === 'ready' ? state.data : []
+  const shown = viewResults(results, resultsView)
   const open = results.find(result => result.id === openId) ?? null
 
   const updateComments = (id: string, change: (comments: CommentView[]) => CommentView[]) =>
@@ -60,7 +64,6 @@ export function SearchTab({ query, onQuery }: { query: string; onQuery: (query: 
     )
 
   if (open) {
-    const byId = new Map(open.comments.map(comment => [comment.id, comment]))
     return (
       <div class='search-detail'>
         <button type='button' class='text-button back-button' onClick={() => setOpenId(null)}>
@@ -81,17 +84,7 @@ export function SearchTab({ query, onQuery }: { query: string; onQuery: (query: 
           <p>{open.displayLocality}</p>
           <PropertyLinks links={open.links} />
         </div>
-        <div class='comment-list'>
-          {buildThreads(open.comments, 'newest').map(thread => (
-            <CommentThread
-              key={thread.comment.id}
-              thread={thread}
-              byId={byId}
-              onChange={changed => updateComments(open.id, list => list.map(c => (c.id === changed.id ? changed : c)))}
-              onDelete={id => updateComments(open.id, list => list.filter(c => c.id !== id))}
-            />
-          ))}
-        </div>
+        <DetailComments comments={open.comments} onUpdate={change => updateComments(open.id, change)} />
       </div>
     )
   }
@@ -141,23 +134,41 @@ export function SearchTab({ query, onQuery }: { query: string; onQuery: (query: 
           Nobody has commented on a property matching that yet. Check the spelling, or try fewer words.
         </Notice>
       ) : (
-        <ul class='search-results' aria-label='Properties with comments'>
-          {results.map(result => (
-            <li key={result.id}>
-              <button type='button' class='search-result' onClick={() => setOpenId(result.id)}>
-                <span class='search-result-main'>
-                  <span class='search-result-address'>{result.displayAddress}</span>
-                  <span class='search-result-locality'>{result.displayLocality}</span>
-                </span>
-                <span class='search-result-meta'>
-                  {pluralize(result.comments.length, 'comment')}
-                  <span>{formatRelative(result.latestAt)}</span>
-                </span>
-                <ChevronRightIcon />
+        <>
+          <div class='list-toolbar'>
+            <span>{pluralize(results.length, 'property', 'properties')}</span>
+            <ViewSelect
+              label='Sort or filter results'
+              value={resultsView}
+              options={RESULT_VIEWS}
+              onChange={setResultsView}
+            />
+          </div>
+          {shown.length === 0 && (
+            <Notice icon={<ImageIcon />} title='No results with photos'>
+              <button type='button' class='button button--ghost' onClick={() => setResultsView('match')}>
+                Show all results
               </button>
-            </li>
-          ))}
-        </ul>
+            </Notice>
+          )}
+          <ul class='search-results' aria-label='Properties with comments'>
+            {shown.map(result => (
+              <li key={result.id}>
+                <button type='button' class='search-result' onClick={() => setOpenId(result.id)}>
+                  <span class='search-result-main'>
+                    <span class='search-result-address'>{result.displayAddress}</span>
+                    <span class='search-result-locality'>{result.displayLocality}</span>
+                  </span>
+                  <span class='search-result-meta'>
+                    {pluralize(result.comments.length, 'comment')}
+                    <span>{formatRelative(result.latestAt)}</span>
+                  </span>
+                  <ChevronRightIcon />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </div>
   )

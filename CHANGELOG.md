@@ -7,5 +7,6 @@
 - Preview your comment, with its formatting and images, before posting
 - New Watchlist tab: watch properties with ☆ and see when they get new comments
 - Redesigned tabs, which now fit four views and work better on small screens
-- Lighter, cooler borders in the light theme
 - Firefox: if site access is turned off, the toolbar button now asks for it instead of doing nothing
+- Sort and filter comments from a dropdown: newest, top, or only those with photos
+- Sort and filter search results: best match, newest, most comments, or with photos

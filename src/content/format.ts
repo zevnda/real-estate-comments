@@ -41,6 +41,6 @@ export function initials(name: string): string {
   return letters || '?'
 }
 
-export function pluralize(count: number, word: string): string {
-  return `${count} ${word}${count === 1 ? '' : 's'}`
+export function pluralize(count: number, word: string, plural = `${word}s`): string {
+  return `${count} ${count === 1 ? word : plural}`
 }

@@ -1,8 +1,8 @@
 import type { ComponentChildren } from 'preact'
 import type { CommentView, RecentCommentView } from '../../shared/messages'
-import type { CommentSort } from '../../shared/storage'
 import type { Loadable, useComments } from '../hooks'
 import type { PageState } from '../page-state'
+import type { CommentsView } from '../views'
 
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
@@ -10,7 +10,7 @@ import { newComments } from '../../shared/watchlist'
 import { pluralize } from '../format'
 import { useRecentComments, useStored, useWatchedComments, useWatchlist } from '../hooks'
 import { complaintsMailto, reportIssueUrl } from '../report'
-import { buildThreads } from '../threads'
+import { COMMENT_VIEWS, viewThreads } from '../views'
 import { Comment, CommentThread, scrollToComment } from './Comment'
 import { Composer } from './Composer'
 import {
@@ -28,7 +28,8 @@ import {
 } from './icons'
 import { PrivacyDialog, TermsDialog } from './Legal'
 import { SearchTab } from './Search'
-import { ErrorNotice, Notice, Skeleton } from './states'
+import { ErrorNotice, NoPhotos, Notice, Skeleton } from './states'
+import { ViewSelect } from './ViewSelect'
 import { WatchButton, watchEntry, WatchlistContext, WatchlistTab } from './Watchlist'
 
 const MIN_WIDTH = 340
@@ -37,6 +38,21 @@ const MAX_WIDTH = 760
 const DEFAULT_WIDTH = MAX_WIDTH
 
 type Tab = 'property' | 'recent' | 'watchlist' | 'search'
+
+// Shown in the header's eyebrow line for the selected tab
+const TAB_HEADINGS: Record<Tab, string> = {
+  property: 'Property comments',
+  recent: 'Recent comments',
+  watchlist: 'Watchlist',
+  search: 'Search',
+}
+
+function TabIcon({ tab, size = 16 }: { tab: Tab; size?: number }) {
+  if (tab === 'property') return <HomeIcon size={size} />
+  if (tab === 'recent') return <ClockIcon size={size} />
+  if (tab === 'watchlist') return <StarIcon size={size} />
+  return <SearchIcon size={size} />
+}
 
 interface PanelProps {
   page: PageState
@@ -55,6 +71,7 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
   const [searchQuery, setSearchQuery] = useState('')
   const [legal, setLegal] = useState<'terms' | 'privacy' | null>(null)
   const [replyTo, setReplyTo] = useState<CommentView | null>(null)
+  const [photosOnly, setPhotosOnly] = useState(false)
   const watchlist = useWatchlist()
   // Checked whenever the panel is open, for the tab's "new" count (cheap: the background caches each lookup)
   const watched = useWatchedComments(watchlist.items, true)
@@ -82,22 +99,24 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
     return total + (state?.status === 'ready' ? newComments(state.data, item.seenAt) : 0)
   }, 0)
 
+  const heading = headerFor(tab, page, { count: watchlist.items.length, fresh: newOnWatchlist })
+
   const tabs: { id: Tab; label: string; icon: ComponentChildren; badge?: ComponentChildren }[] = [
     ...(onPropertyPage
       ? [
           {
             id: 'property' as const,
             label: 'Property',
-            icon: <HomeIcon />,
+            icon: <TabIcon tab='property' />,
             badge: count !== null ? <span class='tab-count'>{count}</span> : null,
           },
         ]
       : []),
-    { id: 'recent', label: 'Recent', icon: <ClockIcon /> },
+    { id: 'recent', label: 'Recent', icon: <TabIcon tab='recent' /> },
     {
       id: 'watchlist',
       label: 'Watchlist',
-      icon: <StarIcon />,
+      icon: <TabIcon tab='watchlist' />,
       badge:
         newOnWatchlist > 0 ? (
           <span class='tab-count tab-count--new' title={pluralize(newOnWatchlist, 'new comment')}>
@@ -105,7 +124,7 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
           </span>
         ) : null,
     },
-    { id: 'search', label: 'Search', icon: <SearchIcon /> },
+    { id: 'search', label: 'Search', icon: <TabIcon tab='search' /> },
   ]
 
   return (
@@ -124,15 +143,16 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
         <ResizeHandle width={clampWidth(width)} onResize={setWidth} />
         <header class='panel-header'>
           <div class='panel-heading'>
+            {/* The selected tab, so it's named even when the tabs show only icons (narrow panels, phones) */}
             <p class='eyebrow'>
-              <MessageIcon size={14} />
-              {property ? 'Property comments' : 'Real Estate Comments'}
+              <TabIcon tab={tab} size={14} />
+              {TAB_HEADINGS[tab]}
             </p>
-            <h2 class='panel-title'>{property ? property.displayAddress : headingFor(page)}</h2>
-            <p class='panel-subtitle'>{property ? property.displayLocality : subheadingFor(page)}</p>
+            <h2 class='panel-title'>{heading.title}</h2>
+            <p class='panel-subtitle'>{heading.subtitle}</p>
           </div>
           <div class='header-actions'>
-            {entry && <WatchButton entry={entry} newestAt={newestAt} />}
+            {entry && tab === 'property' && <WatchButton entry={entry} newestAt={newestAt} />}
             <button
               type='button'
               class='icon-button'
@@ -172,8 +192,12 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
             <PropertyTab
               page={page}
               comments={comments}
-              sort={sort}
-              onSort={setSort}
+              view={photosOnly ? 'photos' : sort}
+              onView={view => {
+                // Newest and Top are remembered; "With photos" is a filter for now, so it isn't
+                setPhotosOnly(view === 'photos')
+                if (view !== 'photos') setSort(view)
+              }}
               onSearch={() => setTab('search')}
               onReply={setReplyTo}
             />
@@ -212,8 +236,10 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
                   // Show the new reply in its thread
                   setReplyTo(null)
                   setTimeout(() => scrollToComment(panel.current?.getRootNode(), comment.id), 50)
-                } else if (sort !== 'newest') {
+                } else if (sort !== 'newest' || photosOnly) {
+                  // Show the new comment at the top
                   setSort('newest')
+                  setPhotosOnly(false)
                 }
               }}
             />
@@ -234,7 +260,7 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
             </button>
             <a href={complaintsMailto()}>Complaints</a>
             <a href={reportIssueUrl(page)} target='_blank' rel='noopener noreferrer'>
-              Report a problem
+              Report a bug
             </a>
           </div>
         </footer>
@@ -248,22 +274,22 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
 function PropertyTab({
   page,
   comments,
-  sort,
-  onSort,
+  view,
+  onView,
   onSearch,
   onReply,
 }: {
   page: PageState
   comments: ReturnType<typeof useComments>
-  sort: CommentSort
-  onSort: (sort: CommentSort) => void
+  view: CommentsView
+  onView: (view: CommentsView) => void
   onSearch: () => void
   onReply: (comment: CommentView) => void
 }) {
   const { threads, byId } = useMemo(() => {
     const list = comments.state.status === 'ready' ? comments.state.data : []
-    return { threads: buildThreads(list, sort), byId: new Map(list.map(comment => [comment.id, comment])) }
-  }, [comments.state, sort])
+    return { threads: viewThreads(list, view), byId: new Map(list.map(comment => [comment.id, comment])) }
+  }, [comments.state, view])
 
   if (page.status === 'resolving') return <Skeleton label='Finding this property’s address…' />
   if (page.status === 'unrecognised') {
@@ -289,15 +315,8 @@ function PropertyTab({
       <span>{state.data.length ? pluralize(state.data.length, 'comment') : 'No comments yet'}</span>
       <div class='list-toolbar-actions'>
         <RefreshButton refreshing={comments.refreshing} onRefresh={comments.reload} />
-        {state.data.length > 1 && (
-          <div class='segmented' role='group' aria-label='Sort comments'>
-            <button type='button' aria-pressed={sort === 'newest'} onClick={() => onSort('newest')}>
-              Newest
-            </button>
-            <button type='button' aria-pressed={sort === 'top'} onClick={() => onSort('top')}>
-              Top
-            </button>
-          </div>
+        {state.data.length > 0 && (
+          <ViewSelect label='Sort or filter comments' value={view} options={COMMENT_VIEWS} onChange={onView} />
         )}
       </div>
     </div>
@@ -319,18 +338,22 @@ function PropertyTab({
   return (
     <>
       {toolbar}
-      <div class='comment-list'>
-        {threads.map(thread => (
-          <CommentThread
-            key={thread.comment.id}
-            thread={thread}
-            byId={byId}
-            onChange={update}
-            onDelete={remove}
-            onReply={onReply}
-          />
-        ))}
-      </div>
+      {threads.length ? (
+        <div class='comment-list'>
+          {threads.map(thread => (
+            <CommentThread
+              key={thread.comment.id}
+              thread={thread}
+              byId={byId}
+              onChange={update}
+              onDelete={remove}
+              onReply={onReply}
+            />
+          ))}
+        </div>
+      ) : (
+        <NoPhotos onShowAll={() => onView('newest')} />
+      )}
     </>
   )
 }
@@ -351,7 +374,7 @@ function RecentTab({
       {showHint && (
         <p class='hint-banner'>
           <InfoIcon />
-          The latest comments on all properties. Open a listing to comment on it, or search by address.
+          Open a listing on realestate.com.au or domain.com.au to comment on it.
         </p>
       )}
       {state.status === 'idle' || state.status === 'loading' ? (
@@ -361,7 +384,7 @@ function RecentTab({
       ) : (
         <>
           <div class='list-toolbar'>
-            <span>Latest comments on all properties</span>
+            <span>{state.data.length ? pluralize(state.data.length, 'comment') : 'No comments yet'}</span>
             <RefreshButton refreshing={refreshing} onRefresh={onRefresh} />
           </div>
           {state.data.length === 0 ? (
@@ -452,13 +475,34 @@ function clampWidth(width: number): number {
   return Math.round(Math.min(Math.max(width, MIN_WIDTH), MAX_WIDTH, window.innerWidth - 32))
 }
 
-function headingFor(page: PageState): string {
-  if (page.status === 'resolving') return 'Loading…'
-  if (page.status === 'unrecognised') return 'Unknown address'
-  return 'Property comments'
-}
-
-function subheadingFor(page: PageState): string {
-  if (page.status === 'browse') return 'Open a listing, or search by address, to see what people say about a property.'
-  return ''
+// The header describes the selected tab. Subtitles stay to one short line, so the header keeps its height (and the
+// list doesn't jump) when switching tabs.
+function headerFor(
+  tab: Tab,
+  page: PageState,
+  watching: { count: number; fresh: number },
+): { title: string; subtitle: string } {
+  switch (tab) {
+    case 'property':
+      if (page.status === 'property') {
+        return { title: page.property.displayAddress, subtitle: page.property.displayLocality }
+      }
+      if (page.status === 'unrecognised')
+        return { title: 'Unknown address', subtitle: 'Couldn’t read it from this page' }
+      return { title: 'Loading…', subtitle: 'Finding this property’s address' }
+    case 'recent':
+      return { title: 'Latest comments', subtitle: 'Newest comments across every property' }
+    case 'watchlist':
+      return {
+        title: 'Your watchlist',
+        subtitle: watching.count
+          ? [
+              pluralize(watching.count, 'property', 'properties'),
+              watching.fresh ? pluralize(watching.fresh, 'new comment') : 'nothing new',
+            ].join(' · ')
+          : 'Follow properties for new comments',
+      }
+    case 'search':
+      return { title: 'Search comments', subtitle: 'By address, street, suburb or postcode' }
+  }
 }

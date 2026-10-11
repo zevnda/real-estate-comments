@@ -84,8 +84,8 @@ async function run(colorScheme: 'light' | 'dark') {
     assert.equal(await panelTitle(), '65 Newmarket Street')
   })
 
-  await step('prefills a GitHub issue from “Report a problem”', async () => {
-    const href = (await ui('.panel-footer a:has-text("Report a problem")').getAttribute('href')) ?? ''
+  await step('prefills a GitHub issue from “Report a bug”', async () => {
+    const href = (await ui('.panel-footer a:has-text("Report a bug")').getAttribute('href')) ?? ''
     const url = new URL(href)
     assert.equal(url.origin + url.pathname, 'https://github.com/zevnda/real-estate-comments/issues/new')
     const body = url.searchParams.get('body') ?? ''
@@ -216,6 +216,17 @@ async function run(colorScheme: 'light' | 'dark') {
     assert.equal(await star.getAttribute('aria-pressed'), 'false')
   })
 
+  await step('sorts and filters comments from the dropdown, showing a notice when none have photos', async () => {
+    const select = ui('.list-toolbar .view-select select')
+    assert.deepEqual(await ui('.list-toolbar .view-select option').allTextContents(), ['Newest', 'Top', 'With photos'])
+    // None of this property's production comments link a photo
+    await select.selectOption('photos')
+    await ui('.notice-title:text("No comments with photos")').waitFor()
+    await ui('.notice button:has-text("Show all comments")').click()
+    await waitForComments()
+    assert.equal(await select.inputValue(), 'newest')
+  })
+
   await step('previews a comment with its formatting, without posting', async () => {
     await ui('#rec-comment').fill('A **preview** test. This is never posted.')
     await ui('.composer .editor-tabs button:has-text("Preview")').click()
@@ -257,6 +268,9 @@ async function run(colorScheme: 'light' | 'dark') {
     await ui('#rec-search').fill('97 Yates Avenue, Dundas Valley')
     await ui('.search-result').first().waitFor({ timeout: 20_000 })
     assert.equal(await ui('.search-result-address').first().textContent(), '97 Yates Avenue')
+    // Results can be re-sorted or filtered
+    const options = await ui('.search .view-select option').allTextContents()
+    assert.deepEqual(options, ['Best match', 'Newest', 'Most comments', 'With photos'])
   })
 
   await step('opens a search result’s comments', async () => {
@@ -275,7 +289,8 @@ async function run(colorScheme: 'light' | 'dark') {
   await step('links recent comments to profile pages, not the listing they were posted on', async () => {
     await ui('.tabs button:has-text("Recent")').click()
     await waitForComments()
-    const hrefs = await ui('.comment-property .property-links a').evaluateAll(links =>
+    // Shown with the comment's actions, next to Report
+    const hrefs = await ui('.comment-actions .property-links a').evaluateAll(links =>
       links.map(link => link.getAttribute('href') ?? ''),
     )
     assert.ok(hrefs.length > 0)

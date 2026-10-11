@@ -107,7 +107,6 @@ export function Comment({ comment, onChange, onDelete, onReply, context, nested 
             <span class='comment-property-address'>
               {recent.displayAddress}, {recent.displayLocality}
             </span>
-            {recent.links && <PropertyLinks links={recent.links} />}
           </div>
         )}
         {context && <ReplyTo context={context} />}
@@ -197,6 +196,8 @@ export function Comment({ comment, onChange, onDelete, onReply, context, nested 
                   Report
                 </button>
               ))}
+            {/* Recent: the property's pages, with the comment's other actions */}
+            {recent?.links && <PropertyLinks links={recent.links} />}
             {comment.canDelete && onDelete && !confirming && (
               <button type='button' class='text-button' onClick={() => setConfirming(true)} disabled={busy}>
                 <TrashIcon />

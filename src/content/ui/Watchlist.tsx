@@ -4,13 +4,12 @@ import type { WatchedProperty } from '../../shared/watchlist'
 import type { Loadable, useWatchedComments, WatchEntry, Watchlist } from '../hooks'
 
 import { createContext } from 'preact'
-import { useContext, useEffect, useMemo, useState } from 'preact/hooks'
+import { useContext, useEffect, useState } from 'preact/hooks'
 
 import { propertyLinks } from '../../shared/property'
 import { MAX_WATCHED, newComments, watchKey } from '../../shared/watchlist'
 import { pluralize } from '../format'
-import { buildThreads } from '../threads'
-import { CommentThread } from './Comment'
+import { DetailComments } from './DetailComments'
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, StarIcon } from './icons'
 import { PropertyLinks } from './PropertyLinks'
 import { ErrorNotice, Notice, Skeleton } from './states'
@@ -109,8 +108,8 @@ export function WatchlistTab({ watchlist, comments, toolbar }: WatchlistTabProps
   if (!watchlist.items.length) {
     return (
       <Notice icon={<StarIcon size={20} />} title='Nothing on your watchlist yet'>
-        Press the ☆ in the header while viewing a property, or on a search result, to follow its comments here. New
-        comments since you last looked are marked.
+        On a listing, press ☆ next to the address on the Property tab. You can also press Watch on a property you’ve
+        found in Search. Its comments are then followed here, with new ones since you last looked marked.
       </Notice>
     )
   }
@@ -174,10 +173,6 @@ function WatchedDetail({
   const links = propertyLinks(item)
   const data = state.status === 'ready' ? state.data : null
   const newestAt = data ? Math.max(0, ...data.map(comment => comment.createdAt)) : 0
-  const { threads, byId } = useMemo(
-    () => ({ threads: buildThreads(data ?? [], 'newest'), byId: new Map((data ?? []).map(c => [c.id, c])) }),
-    [data],
-  )
 
   // Opening it counts as seeing its comments
   useEffect(() => {
@@ -200,17 +195,7 @@ function WatchedDetail({
       </div>
       {state.status === 'ready' ? (
         state.data.length ? (
-          <div class='comment-list'>
-            {threads.map(thread => (
-              <CommentThread
-                key={thread.comment.id}
-                thread={thread}
-                byId={byId}
-                onChange={changed => onUpdate(list => list.map(c => (c.id === changed.id ? changed : c)))}
-                onDelete={id => onUpdate(list => list.filter(c => c.id !== id))}
-              />
-            ))}
-          </div>
+          <DetailComments comments={state.data} onUpdate={onUpdate} />
         ) : (
           <Notice icon={<StarIcon size={20} />} title='No comments yet'>
             You’ll see them here when someone comments. Open the property’s page to add the first one.
