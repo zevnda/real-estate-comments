@@ -73,4 +73,14 @@ describe('rateLimitReason', () => {
     expect(rateLimitReason(history, 'a', now)).toMatch(/same property/)
     expect(rateLimitReason(history, 'b', now)).toBeNull()
   })
+
+  it('lets replies continue a conversation, within the hourly limit', () => {
+    const comments = Array.from({ length: MAX_POSTS_PER_PROPERTY_PER_DAY }, (_, i) => minutesAgo(120 + i * 60))
+    expect(rateLimitReason(comments, 'a', now, true)).toBeNull()
+    // Replies don't use up the property's daily comments
+    const replies = comments.map(post => ({ ...post, reply: true }))
+    expect(rateLimitReason(replies, 'a', now)).toBeNull()
+    const busyHour = Array.from({ length: MAX_POSTS_PER_HOUR }, (_, i) => ({ ...minutesAgo(i * 5), reply: true }))
+    expect(rateLimitReason(busyHour, 'a', now, true)).toMatch(/an hour/)
+  })
 })

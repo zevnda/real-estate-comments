@@ -5,8 +5,9 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, ExternalIcon } from './icons'
 
-// Thumbnails of the images linked from a comment, under its text. Clicking one opens the lightbox.
-export function CommentImages({ images }: { images: CommentImage[] }) {
+// Thumbnails of the images linked from a comment, under its text. Clicking one opens the lightbox. `xs` is the
+// composer's preview.
+export function CommentImages({ images, size }: { images: CommentImage[]; size?: 'xs' }) {
   const [failed, setFailed] = useState<string[]>([])
   const [open, setOpen] = useState<number | null>(null)
   const gallery = useRef<HTMLDivElement>(null)
@@ -23,7 +24,7 @@ export function CommentImages({ images }: { images: CommentImage[] }) {
   // The lightbox covers the whole window, so it goes at the top of the shadow root rather than inside the panel
   const root = gallery.current?.getRootNode()
   return (
-    <div class='comment-images' ref={gallery}>
+    <div class={`comment-images${size ? ` comment-images--${size}` : ''}`} ref={gallery}>
       {visible.map((image, index) => (
         <button
           key={image.src}

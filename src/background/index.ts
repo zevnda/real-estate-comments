@@ -10,6 +10,7 @@ import { isPropertyInput, validateCommentText } from '../shared/validation'
 import {
   createComment,
   deleteComment,
+  editComment,
   listComments,
   recentComments,
   reportComment,
@@ -40,20 +41,29 @@ const handlers: Handlers = {
     return recentComments(await getUserId(), fresh === true)
   },
 
-  async createComment({ property, text, username }) {
+  async createComment({ property, text, username, replyTo }) {
     if (!isPropertyInput(property)) throw new UserError('Couldn’t read this property’s address.')
     if (typeof text !== 'string' || typeof username !== 'string') throw new UserError('Invalid comment.')
+    if (replyTo !== undefined && !isCommentId(replyTo)) throw new UserError('Invalid reply.')
     const invalid = validateCommentText(text)
     if (invalid) throw new UserError(invalid)
 
     const propertyKey = buildPropertyKeys(property)
     const rateKey = `${propertyKey.address}|${propertyKey.suburb}|${propertyKey.postcode}`
-    const limited = await checkRateLimit(rateKey)
+    const reply = replyTo !== undefined
+    const limited = await checkRateLimit(rateKey, reply)
     if (limited) throw new UserError(limited)
 
-    const comment = await createComment(property, text, username, await getUserId())
-    await recordPost(rateKey)
+    const comment = await createComment(property, text, username, await getUserId(), replyTo)
+    await recordPost(rateKey, reply)
     return comment
+  },
+
+  async editComment({ commentId, text }) {
+    if (!isCommentId(commentId) || typeof text !== 'string') throw new UserError('Invalid comment.')
+    const invalid = validateCommentText(text)
+    if (invalid) throw new UserError(invalid)
+    return editComment(commentId, text, await getUserId())
   },
 
   async toggleVote({ commentId }) {

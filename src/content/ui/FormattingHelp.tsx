@@ -1,6 +1,6 @@
 import { IMAGE_HOST_NAMES } from '../../shared/images'
-import { Markdown } from './Comment'
 import { Dialog } from './Dialog'
+import { Markdown } from './Markdown'
 
 // What you type → how it shows. Results are rendered by the same code as real comments, so they can't drift.
 const EXAMPLES: { label: string; source: string; note?: string }[] = [

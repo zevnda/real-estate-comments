@@ -17,9 +17,11 @@ service cloud.firestore {
       allow create: if request.auth != null
         && isValidComment(request.resource.data);
 
-      // Votes only: one voter added or removed, count moves by at most 1. Nothing else can be edited.
+      // A vote (one voter added or removed, count moves by at most 1), or the poster editing the text within 15
+      // minutes of posting. Nothing else can be changed.
       allow update: if request.auth != null
-        && isValidVote(request.resource.data, resource.data);
+        && (isValidVote(request.resource.data, resource.data)
+          || isValidEdit(request.resource.data, resource.data));
 
       // Only by the poster: comments record the poster's Firebase Auth UID, which can't be faked (unlike `uid`).
       // Comments from older versions don't have it, so only the maintainer can delete them, in the console.
@@ -59,7 +61,7 @@ service cloud.firestore {
     function isValidComment(data) {
       return data.keys().hasAll(['address', 'suburb', 'text', 'username', 'timestamp', 'createdAt'])
         && data.keys().hasOnly(['address', 'suburb', 'state', 'postcode', 'url', 'text', 'username',
-             'timestamp', 'createdAt', 'uid', 'authorAuthUid'])
+             'timestamp', 'createdAt', 'uid', 'authorAuthUid', 'parentId', 'replyToId'])
         && data.text is string
         && data.text.size() >= 5
         && data.text.size() <= 1200
@@ -73,7 +75,35 @@ service cloud.firestore {
         && data.createdAt is timestamp
         && data.get('uid', '') is string
         && data.get('uid', '').size() <= 64
-        && data.get('authorAuthUid', request.auth.uid) == request.auth.uid;
+        && data.get('authorAuthUid', request.auth.uid) == request.auth.uid
+        && ('parentId' in data) == ('replyToId' in data)
+        && (!('parentId' in data) || isValidReply(data));
+    }
+
+    // Replies are one level deep: the parent must be a top-level comment on the same property (same stored address
+    // and suburb). replyToId is the parent or another reply; it's only used to show what's being answered.
+    function isValidReply(data) {
+      let parent = get(/databases/$(database)/documents/listingcomments/$(data.parentId)).data;
+      return data.parentId is string
+        && data.parentId.size() <= 64
+        && data.replyToId is string
+        && data.replyToId.size() <= 64
+        && !('parentId' in parent)
+        && parent.address == data.address
+        && parent.suburb == data.suburb;
+    }
+
+    // Only the poster (by Firebase Auth UID), only the text (plus editedAt = now), and only within 15 minutes of
+    // posting (EDIT_WINDOW_MS in src/shared/validation.ts)
+    function isValidEdit(after, before) {
+      return before.get('authorAuthUid', null) == request.auth.uid
+        && after.diff(before).affectedKeys().hasOnly(['text', 'editedAt'])
+        && after.text is string
+        && after.text.size() >= 5
+        && after.text.size() <= 1200
+        && after.editedAt == request.time
+        && before.createdAt is timestamp
+        && request.time < before.createdAt + duration.value(15, 'm');
     }
 
     function isValidVote(after, before) {

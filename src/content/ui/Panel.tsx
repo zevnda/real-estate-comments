@@ -8,7 +8,8 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { pluralize } from '../format'
 import { useRecentComments, useStored } from '../hooks'
 import { complaintsMailto, reportIssueUrl } from '../report'
-import { Comment } from './Comment'
+import { buildThreads } from '../threads'
+import { Comment, CommentThread, scrollToComment } from './Comment'
 import { Composer } from './Composer'
 import {
   CloseIcon,
@@ -48,12 +49,15 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
   const recent = useRecentComments(tab === 'recent')
   const [searchQuery, setSearchQuery] = useState('')
   const [legal, setLegal] = useState<'terms' | 'privacy' | null>(null)
+  const [replyTo, setReplyTo] = useState<CommentView | null>(null)
   const panel = useRef<HTMLDivElement>(null)
 
   useEffect(() => setTab(onPropertyPage ? 'property' : 'recent'), [onPropertyPage])
   useEffect(() => panel.current?.focus(), [])
 
   const property = page.status === 'property' ? page.property : null
+  // A reply belongs to the property it was started on
+  useEffect(() => setReplyTo(null), [property?.input.url])
   const count = comments.state.status === 'ready' ? comments.state.data.length : null
 
   return (
@@ -111,7 +115,14 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
 
       <div class='panel-scroll' role='tabpanel'>
         {tab === 'property' ? (
-          <PropertyTab page={page} comments={comments} sort={sort} onSort={setSort} onSearch={() => setTab('search')} />
+          <PropertyTab
+            page={page}
+            comments={comments}
+            sort={sort}
+            onSort={setSort}
+            onSearch={() => setTab('search')}
+            onReply={setReplyTo}
+          />
         ) : tab === 'recent' ? (
           <RecentTab
             state={recent.state}
@@ -128,9 +139,17 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
         <div class='panel-composer'>
           <Composer
             property={property.input}
+            replyTo={replyTo}
+            onCancelReply={() => setReplyTo(null)}
             onPosted={comment => {
               comments.update(list => [comment, ...list])
-              if (sort !== 'newest') setSort('newest')
+              if (comment.parentId) {
+                // Show the new reply in its thread
+                setReplyTo(null)
+                setTimeout(() => scrollToComment(panel.current?.getRootNode(), comment.id), 50)
+              } else if (sort !== 'newest') {
+                setSort('newest')
+              }
             }}
           />
         </div>
@@ -166,19 +185,18 @@ function PropertyTab({
   sort,
   onSort,
   onSearch,
+  onReply,
 }: {
   page: PageState
   comments: ReturnType<typeof useComments>
   sort: CommentSort
   onSort: (sort: CommentSort) => void
   onSearch: () => void
+  onReply: (comment: CommentView) => void
 }) {
-  const sorted = useMemo(() => {
-    if (comments.state.status !== 'ready') return []
-    const list = [...comments.state.data]
-    return sort === 'top'
-      ? list.sort((a, b) => b.votes - a.votes || b.createdAt - a.createdAt)
-      : list.sort((a, b) => b.createdAt - a.createdAt)
+  const { threads, byId } = useMemo(() => {
+    const list = comments.state.status === 'ready' ? comments.state.data : []
+    return { threads: buildThreads(list, sort), byId: new Map(list.map(comment => [comment.id, comment])) }
   }, [comments.state, sort])
 
   if (page.status === 'resolving') return <Skeleton label='Finding this property’s address…' />
@@ -236,8 +254,15 @@ function PropertyTab({
     <>
       {toolbar}
       <div class='comment-list'>
-        {sorted.map(comment => (
-          <Comment key={comment.id} comment={comment} onChange={update} onDelete={remove} />
+        {threads.map(thread => (
+          <CommentThread
+            key={thread.comment.id}
+            thread={thread}
+            byId={byId}
+            onChange={update}
+            onDelete={remove}
+            onReply={onReply}
+          />
         ))}
       </div>
     </>

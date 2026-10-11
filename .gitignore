@@ -4,3 +4,5 @@
 /web-ext-artifacts
 .env
 .amo-upload-uuid
+firestore-debug.log
+firebase-debug.log

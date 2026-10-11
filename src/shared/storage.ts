@@ -2,7 +2,7 @@ import { ext } from './ext'
 
 // Everything the extension keeps in `storage.local`. The user ID predates 2.0 and must keep its name, or existing
 // users would lose their identity (and with it their votes and "You" on their comments). 1.x and early 2.x also
-// stored `tos_accepted`; the terms are now agreed to on every post, so it's no longer read.
+// stored `tos_accepted`, for older terms; it's no longer read (see postingRulesAccepted).
 export interface StoredData {
   // Anonymous user ID, generated on first use. Legacy key name.
   CTextFilterStore_strCleanPattern_1039531631: string
@@ -12,8 +12,10 @@ export interface StoredData {
   sort: CommentSort
   // Chosen with the panel's theme button; until then the system setting is followed
   theme: Theme
+  // The POSTING_RULES_VERSION the user last agreed to; the rules are shown before their first post after a change
+  postingRulesAccepted: number
   // Timestamps (ms) of this user's recent comments, for rate limiting
-  postHistory: { at: number; property: string }[]
+  postHistory: { at: number; property: string; reply?: boolean }[]
 }
 
 export type CommentSort = 'newest' | 'top'

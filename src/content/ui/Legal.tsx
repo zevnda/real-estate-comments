@@ -1,3 +1,4 @@
+import { useStored } from '../hooks'
 import { COMPLAINTS_EMAIL, complaintsMailto } from '../report'
 import { Dialog } from './Dialog'
 
@@ -16,6 +17,46 @@ export const POSTING_RULES = [
 ]
 
 const UPDATED = '12 October 2026'
+
+// Bump when the posting rules change in substance, so everyone agrees to the new ones before their next post
+export const POSTING_RULES_VERSION = 1
+
+// Whether the user still has to agree to the posting rules (before their first post, reply or edit, and again after
+// the rules change). Until storage has been read, assume they do.
+export function usePostingRules(): { needed: boolean; accept: () => void } {
+  const [accepted, save, loaded] = useStored('postingRulesAccepted', 0)
+  return { needed: !loaded || accepted < POSTING_RULES_VERSION, accept: () => save(POSTING_RULES_VERSION) }
+}
+
+// Shown before the user's first post, reply or edit (see usePostingRules)
+export function PostingRulesDialog({
+  agreeLabel,
+  onCancel,
+  onAgree,
+}: {
+  agreeLabel: string
+  onCancel: () => void
+  onAgree: () => void
+}) {
+  return (
+    <Dialog id='rec-terms-title' title='Before you post' class='terms' onClose={onCancel}>
+      <p class='dialog-intro'>Comments are public. Please confirm your comment follows these rules:</p>
+      <ul>
+        {POSTING_RULES.map(rule => (
+          <li key={rule}>{rule}</li>
+        ))}
+      </ul>
+      <div class='terms-actions'>
+        <button type='button' class='button button--ghost' onClick={onCancel}>
+          Cancel
+        </button>
+        <button type='button' class='button button--primary' onClick={onAgree} data-autofocus>
+          {agreeLabel}
+        </button>
+      </div>
+    </Dialog>
+  )
+}
 
 const ComplaintsLink = () => <a href={complaintsMailto()}>{COMPLAINTS_EMAIL}</a>
 
@@ -53,8 +94,8 @@ export function TermsDialog({ onClose }: { onClose: () => void }) {
       <p>
         You keep ownership of what you write. By posting, you give us permission to store, display and distribute it to
         users of the extension, and you confirm it follows these rules. You’re legally responsible for your comments.
-        Comments can’t be edited; you can delete your own comments from the browser you posted them in, where the
-        extension offers it.
+        You can edit a comment for 15 minutes after posting it, and delete your own comments from the browser you posted
+        them in, where the extension offers it.
       </p>
 
       <h4>Moderation and complaints</h4>
@@ -103,7 +144,8 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
       <ul>
         <li>its text, and the name you give (or “Anonymous”)</li>
         <li>the property’s address, suburb, state and postcode, and the page you posted it from</li>
-        <li>the date and time</li>
+        <li>the date and time, and when it was last edited</li>
+        <li>for a reply, which comment it answers</li>
         <li>
           two random identifiers, one made by the extension and one by its anonymous Firebase sign-in, which link the
           comment to your browser so you can delete it and so we can block abuse. They don’t contain your name, email or
@@ -125,9 +167,10 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
 
       <h4>Stored in your browser</h4>
       <p>
-        Your random identifier, your display name, your settings (theme, panel width, sort order) and which properties
-        you posted on in the last day, and when (to limit posting rate), are kept in your browser’s extension storage,
-        and never leave it except as described above. Comments are cached in your browser for a few minutes.
+        Your random identifier, your display name, your settings (theme, panel width, sort order), whether you’ve agreed
+        to the posting rules, and which properties you posted on in the last day, and when (to limit posting rate), are
+        kept in your browser’s extension storage, and never leave it except as described above. Comments are cached in
+        your browser for a few minutes.
       </p>
 
       <h4>Who holds the data</h4>

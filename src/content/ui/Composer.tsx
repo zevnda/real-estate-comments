@@ -6,20 +6,28 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { callBackground } from '../../shared/messages'
 import { COMMENT_MAX_LENGTH, USERNAME_MAX_LENGTH, validateCommentText } from '../../shared/validation'
 import { errorMessage, useStored } from '../hooks'
-import { Dialog } from './Dialog'
+import { excerpt } from '../threads'
 import { FormattingHelp } from './FormattingHelp'
-import { POSTING_RULES } from './Legal'
+import { CloseIcon, ReplyIcon } from './icons'
+import { PostingRulesDialog, usePostingRules } from './Legal'
+import { MarkdownEditor } from './MarkdownEditor'
 
 interface ComposerProps {
   property: PropertyInput
+  // The comment being replied to, chosen with its Reply button
+  replyTo: CommentView | null
+  onCancelReply: () => void
   onPosted: (comment: CommentView) => void
 }
 
-export function Composer({ property, onPosted }: ComposerProps) {
+export function Composer({ property, replyTo, onCancelReply, onPosted }: ComposerProps) {
   const [text, setText] = useState('')
   const [savedName, saveName] = useStored('displayName', '')
   const [name, setName] = useState('')
   const [showTerms, setShowTerms] = useState(false)
+  const rules = usePostingRules()
+  // Incremented after each post, which puts the editor back on Write
+  const [posts, setPosts] = useState(0)
   const [posting, setPosting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [touched, setTouched] = useState(false)
@@ -36,13 +44,10 @@ export function Composer({ property, onPosted }: ComposerProps) {
     setShowTerms(false)
   }, [property.url, property.address])
 
-  // Grow the textarea with its content, up to the CSS max-height
+  // Choosing Reply takes you to the text box
   useEffect(() => {
-    const element = textarea.current
-    if (!element) return
-    element.style.height = 'auto'
-    element.style.height = `${element.scrollHeight}px`
-  }, [text])
+    if (replyTo) textarea.current?.focus()
+  }, [replyTo?.id])
 
   const length = text.trim().length
   const invalid = validateCommentText(text)
@@ -51,10 +56,16 @@ export function Composer({ property, onPosted }: ComposerProps) {
     setPosting(true)
     setError(null)
     try {
-      const comment = await callBackground('createComment', { property, text, username: name })
+      const comment = await callBackground('createComment', {
+        property,
+        text,
+        username: name,
+        ...(replyTo && { replyTo: replyTo.id }),
+      })
       if (name.trim() !== savedName) saveName(name.trim())
       setText('')
       setTouched(false)
+      setPosts(count => count + 1)
       onPosted(comment)
     } catch (err) {
       setError(errorMessage(err))
@@ -66,13 +77,8 @@ export function Composer({ property, onPosted }: ComposerProps) {
   const post = () => {
     setTouched(true)
     if (invalid || posting) return
-    // Every post is agreed to separately, so the rules are fresh in mind each time
-    setShowTerms(true)
-  }
-
-  const acceptTerms = () => {
-    setShowTerms(false)
-    void submit()
+    if (rules.needed) setShowTerms(true)
+    else void submit()
   }
 
   return (
@@ -95,25 +101,45 @@ export function Composer({ property, onPosted }: ComposerProps) {
         autoComplete='nickname'
         onInput={event => setName(event.currentTarget.value)}
       />
-      <label class='visually-hidden' for='rec-comment'>
-        Your comment
-      </label>
-      <textarea
+      {replyTo && (
+        <div class='reply-bar'>
+          <ReplyIcon />
+          <span class='reply-bar-text'>
+            Replying to <strong>{replyTo.username}</strong>
+            <span class='reply-bar-excerpt'>{excerpt(replyTo.text)}</span>
+          </span>
+          <button
+            type='button'
+            class='icon-button icon-button--small'
+            onClick={onCancelReply}
+            aria-label='Cancel reply'
+          >
+            <CloseIcon />
+          </button>
+        </div>
+      )}
+      <MarkdownEditor
         id='rec-comment'
-        ref={textarea}
+        label={replyTo ? `Reply to ${replyTo.username}` : 'Your comment'}
         value={text}
-        rows={3}
-        maxLength={COMMENT_MAX_LENGTH + 200}
-        placeholder='Lived here, inspected it, or know the area? Share what it’s really like…'
-        onInput={event => setText(event.currentTarget.value)}
+        onInput={setText}
+        textareaRef={textarea}
+        placeholder={
+          replyTo ? 'Write a reply…' : 'Lived here, inspected it, or know the area? Share what it’s really like…'
+        }
+        invalid={touched && !!invalid}
+        describedBy='rec-composer-hint'
+        resetKey={posts}
         onKeyDown={event => {
           if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
             event.preventDefault()
             post()
+          } else if (event.key === 'Escape' && replyTo) {
+            // Cancel the reply rather than close the panel
+            event.stopPropagation()
+            onCancelReply()
           }
         }}
-        aria-invalid={touched && !!invalid}
-        aria-describedby='rec-composer-hint'
       />
       <div class='composer-row'>
         <p id='rec-composer-hint' class='composer-hint'>
@@ -133,7 +159,7 @@ export function Composer({ property, onPosted }: ComposerProps) {
           {length}/{COMMENT_MAX_LENGTH}
         </span>
         <button type='submit' class='button button--primary' disabled={posting}>
-          {posting ? 'Posting…' : 'Post'}
+          {posting ? 'Posting…' : replyTo ? 'Reply' : 'Post'}
         </button>
       </div>
       {error && (
@@ -142,22 +168,15 @@ export function Composer({ property, onPosted }: ComposerProps) {
         </p>
       )}
       {showTerms && (
-        <Dialog id='rec-terms-title' title='Before you post' class='terms' onClose={() => setShowTerms(false)}>
-          <p class='dialog-intro'>Comments are public. Please confirm your comment follows these rules:</p>
-          <ul>
-            {POSTING_RULES.map(rule => (
-              <li key={rule}>{rule}</li>
-            ))}
-          </ul>
-          <div class='terms-actions'>
-            <button type='button' class='button button--ghost' onClick={() => setShowTerms(false)}>
-              Cancel
-            </button>
-            <button type='button' class='button button--primary' onClick={acceptTerms} data-autofocus>
-              I agree, post comment
-            </button>
-          </div>
-        </Dialog>
+        <PostingRulesDialog
+          agreeLabel={replyTo ? 'I agree, post reply' : 'I agree, post comment'}
+          onCancel={() => setShowTerms(false)}
+          onAgree={() => {
+            setShowTerms(false)
+            rules.accept()
+            void submit()
+          }}
+        />
       )}
       {showHelp && (
         <FormattingHelp

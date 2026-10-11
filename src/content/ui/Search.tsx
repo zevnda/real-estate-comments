@@ -7,7 +7,8 @@ import { callBackground } from '../../shared/messages'
 import { parseSearchQuery } from '../../shared/search'
 import { formatRelative, pluralize } from '../format'
 import { errorMessage } from '../hooks'
-import { Comment } from './Comment'
+import { buildThreads } from '../threads'
+import { CommentThread } from './Comment'
 import { ChevronLeftIcon, ChevronRightIcon, SearchIcon } from './icons'
 import { PropertyLinks } from './PropertyLinks'
 import { Notice, Skeleton } from './states'
@@ -58,6 +59,7 @@ export function SearchTab({ query, onQuery }: { query: string; onQuery: (query: 
     )
 
   if (open) {
+    const byId = new Map(open.comments.map(comment => [comment.id, comment]))
     return (
       <div class='search-detail'>
         <button type='button' class='text-button back-button' onClick={() => setOpenId(null)}>
@@ -70,10 +72,11 @@ export function SearchTab({ query, onQuery }: { query: string; onQuery: (query: 
           <PropertyLinks links={open.links} />
         </div>
         <div class='comment-list'>
-          {open.comments.map(comment => (
-            <Comment
-              key={comment.id}
-              comment={comment}
+          {buildThreads(open.comments, 'newest').map(thread => (
+            <CommentThread
+              key={thread.comment.id}
+              thread={thread}
+              byId={byId}
               onChange={changed => updateComments(open.id, list => list.map(c => (c.id === changed.id ? changed : c)))}
               onDelete={id => updateComments(open.id, list => list.filter(c => c.id !== id))}
             />

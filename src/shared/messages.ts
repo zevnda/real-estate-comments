@@ -14,6 +14,13 @@ export interface CommentView {
   // Only comments that record the poster's Firebase Auth UID can be deleted (the security rules check it), so the
   // user's own comments from before that can't
   canDelete: boolean
+  // Until when (ms) the user can edit it: their own deletable comments, for EDIT_WINDOW_MS after posting
+  editableUntil?: number
+  // When it was last edited (ms)
+  editedAt?: number
+  // Replies: the top-level comment the reply is under, and the comment it answers (the same, or another reply)
+  parentId?: string
+  replyToId?: string
 }
 
 export interface RecentCommentView extends CommentView {
@@ -39,7 +46,12 @@ export interface BackgroundApi {
   // `fresh` skips the background's cache (the panel's refresh button)
   listComments: { request: { property: PropertyInput; fresh?: boolean }; response: CommentView[] }
   recentComments: { request: { fresh?: boolean }; response: RecentCommentView[] }
-  createComment: { request: { property: PropertyInput; text: string; username: string }; response: CommentView }
+  // `replyTo`: the comment being replied to, which must be on the same property
+  createComment: {
+    request: { property: PropertyInput; text: string; username: string; replyTo?: string }
+    response: CommentView
+  }
+  editComment: { request: { commentId: string; text: string }; response: { text: string; editedAt: number } }
   toggleVote: { request: { commentId: string }; response: { votes: number; hasVoted: boolean } }
   deleteComment: { request: { commentId: string }; response: null }
   reportComment: { request: { commentId: string; reason: string; details: string }; response: null }

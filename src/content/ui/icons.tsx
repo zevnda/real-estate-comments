@@ -47,6 +47,20 @@ export const TrashIcon = () => (
   </Icon>
 )
 
+export const ReplyIcon = () => (
+  <Icon size={14}>
+    <path d='M20 18v-2a4 4 0 0 0-4-4H4' />
+    <path d='m9 17-5-5 5-5' />
+  </Icon>
+)
+
+export const PencilIcon = () => (
+  <Icon size={14}>
+    <path d='M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z' />
+    <path d='m15 5 4 4' />
+  </Icon>
+)
+
 export const FlagIcon = () => (
   <Icon size={16}>
     <path d='M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z' />

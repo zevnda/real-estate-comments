@@ -7,6 +7,8 @@ export const COMMENT_MAX_LENGTH = 1200
 export const COMMENT_MAX_LINES = 50
 export const USERNAME_MAX_LENGTH = 50
 export const DEFAULT_USERNAME = 'Anonymous'
+// How long after posting a comment can be edited. The security rules enforce the same window.
+export const EDIT_WINDOW_MS = 15 * 60 * 1000
 
 // Returns a user-facing reason the comment can't be posted, or null if it's fine. Runs in the panel (for instant
 // feedback) and again in the background script (which is the one that matters).

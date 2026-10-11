@@ -2,3 +2,6 @@
 - Added a Report button to comments, for flagging comments that break the TOS/laws
 - Clearer posting rules, which users now agree to each time they post
 - Links to images on Imgur, Reddit, Gyazo, and other popular image hosts now show as thumbnails under the comment
+- Reply to comments. Replies show under the comment they’re about, and say who they’re answering
+- Edit your comment for 15 minutes after posting it
+- Preview your comment, with its formatting and images, before posting

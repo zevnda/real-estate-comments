@@ -224,7 +224,7 @@
               el(
                 'p',
                 { className: 'meta' },
-                `${comment.username} · posted ${date(comment.createdAt)} · ${comment.votes} upvotes · ID ${item.commentId}`,
+                `${comment.isReply ? 'Reply by ' : ''}${comment.username} · posted ${date(comment.createdAt)} · ${comment.votes} upvotes · ID ${item.commentId}`,
               ),
               comment.links &&
                 el(

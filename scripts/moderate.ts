@@ -53,6 +53,7 @@ interface CommentDoc {
   createdAt?: Timestamp
   timestamp?: string
   votes?: number
+  parentId?: string
 }
 
 // What the page gets: one entry per reported comment, with all its reports
@@ -68,6 +69,7 @@ interface ReportedComment {
     createdAt: number
     votes: number
     canBan: boolean
+    isReply: boolean
   } | null
   reports: {
     reason: string
@@ -128,6 +130,7 @@ async function listReports(): Promise<ReportedComment[]> {
         createdAt: data.createdAt?.toMillis() ?? (data.timestamp ? Date.parse(data.timestamp) : 0),
         votes: data.votes ?? 0,
         canBan: !!data.uid,
+        isReply: !!data.parentId,
       },
       reports,
     }

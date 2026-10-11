@@ -198,8 +198,28 @@ async function run(colorScheme: 'light' | 'dark') {
     await waitForComments()
   })
 
-  await step('asks to agree to the rules before every post', async () => {
-    await ui('textarea').fill('Testing the composer. This is never posted.')
+  await step('previews a comment with its formatting, without posting', async () => {
+    await ui('#rec-comment').fill('A **preview** test. This is never posted.')
+    await ui('.composer .editor-tabs button:has-text("Preview")').click()
+    assert.equal(await ui('.composer .editor-preview strong').textContent(), 'preview')
+    assert.ok(await ui('#rec-comment').isHidden(), 'the text box is hidden while previewing')
+    await ui('.composer .editor-tabs button:has-text("Write")').click()
+    assert.ok(await ui('#rec-comment').isVisible())
+  })
+
+  await step('starts a reply from a comment, and Esc cancels it without closing the panel', async () => {
+    await ui('.comment button:has-text("Reply")').first().click()
+    await ui('.reply-bar').waitFor()
+    assert.match((await ui('.reply-bar').textContent()) ?? '', /Replying to/)
+    assert.equal(await ui('.composer button[type=submit]').textContent(), 'Reply')
+    await ui('#rec-comment').press('Escape')
+    await ui('.reply-bar').waitFor({ state: 'detached' })
+    assert.ok(await ui('.panel').isVisible(), 'Esc cancelled only the reply')
+  })
+
+  // A fresh profile has never agreed, and cancelling doesn't count as agreeing, so it asks again
+  await step('asks to agree to the rules before a first post', async () => {
+    await ui('#rec-comment').fill('Testing the composer. This is never posted.')
     for (let attempt = 0; attempt < 2; attempt++) {
       await ui('.composer button[type=submit]').click()
       await ui('.terms').waitFor()

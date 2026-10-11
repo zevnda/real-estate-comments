@@ -18,12 +18,13 @@ import {
   runTransaction,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
 } from 'firebase/firestore/lite'
 
 import { buildPropertyKeys, canonicalAddress, propertyLinks, titleCase } from '../shared/property'
 import { MIN_SCORE, parseSearchQuery, scoreMatch, searchLookups } from '../shared/search'
-import { cleanUsername } from '../shared/validation'
+import { cleanUsername, EDIT_WINDOW_MS } from '../shared/validation'
 import { cached, invalidate } from './cache'
 import { db, ensureSignedIn } from './firebase'
 
@@ -45,6 +46,12 @@ interface CommentDoc {
   // caller's, since `uid` is visible to everyone and can't be verified. Missing on comments from older versions.
   authorAuthUid?: string
   createdAt?: Timestamp
+  // Set when the poster edits it (within EDIT_WINDOW_MS)
+  editedAt?: Timestamp
+  // Replies only: the top-level comment it's under, and the comment it answers. A reply copies its parent's
+  // address and suburb, so the property's comment query finds it (and old versions show it as a normal comment).
+  parentId?: string
+  replyToId?: string
   votes?: number
   // Voter user ID → 'up'
   userVotes?: Record<string, 'up'>
@@ -63,6 +70,9 @@ interface CommentRecord {
   authorAuthUid?: string
   // Milliseconds since the epoch, or 0 if unknown
   createdAt: number
+  editedAt?: number
+  parentId?: string
+  replyToId?: string
   votes: number
   userVotes?: Record<string, 'up'>
 }
@@ -251,14 +261,18 @@ export async function createComment(
   text: string,
   username: string,
   userId: string,
+  replyToId?: string,
 ): Promise<CommentView> {
   const authUid = await ensureSignedIn()
   if (await isBanned(userId)) throw new UserError('You can’t post comments right now (error 90001).')
 
   const keys = buildPropertyKeys(property)
+  const reply = replyToId ? await replyFields(replyToId, keys) : null
   const now = new Date()
   const data = {
-    address: keys.address,
+    // A reply is stored under its parent's address spelling (which may be an older one), so the rules can check it
+    // belongs to the same property
+    address: reply?.address ?? keys.address,
     suburb: keys.suburb,
     state: keys.state,
     postcode: keys.postcode,
@@ -269,6 +283,7 @@ export async function createComment(
     uid: userId,
     authorAuthUid: authUid,
     createdAt: serverTimestamp(),
+    ...(reply && { parentId: reply.parentId, replyToId: reply.replyToId }),
   }
   const ref = await addDoc(collection(db, COMMENTS), data)
   await invalidate(...COMMENT_CACHES)
@@ -281,7 +296,50 @@ export async function createComment(
     hasVoted: false,
     isOwn: true,
     canDelete: true,
+    editableUntil: now.getTime() + EDIT_WINDOW_MS,
+    ...(reply && { parentId: reply.parentId, replyToId: reply.replyToId }),
   }
+}
+
+// Replies are one level deep, like Discord: replying to a reply puts the new reply under the same top-level comment,
+// pointing at the reply it answers
+async function replyFields(
+  replyToId: string,
+  keys: ReturnType<typeof buildPropertyKeys>,
+): Promise<{ parentId: string; replyToId: string; address: string }> {
+  const target = await getDoc(doc(db, COMMENTS, replyToId))
+  if (!target.exists()) throw new UserError('The comment you’re replying to has been deleted.')
+  const data = target.data() as CommentDoc
+  if (data.suburb !== keys.suburb || !keys.addressVariants.includes(data.address)) {
+    throw new UserError('You can only reply to comments on this property.')
+  }
+  if (!data.parentId) return { parentId: target.id, replyToId, address: data.address }
+  const parent = await getDoc(doc(db, COMMENTS, data.parentId))
+  if (!parent.exists())
+    throw new UserError('This conversation’s first comment has been deleted, so it can’t be replied to.')
+  return { parentId: parent.id, replyToId, address: (parent.data() as CommentDoc).address }
+}
+
+// The poster can change the text for EDIT_WINDOW_MS after posting; the rules enforce the same
+export async function editComment(
+  commentId: string,
+  text: string,
+  userId: string,
+): Promise<{ text: string; editedAt: number }> {
+  const authUid = await ensureSignedIn()
+  if (await isBanned(userId)) throw new UserError('You can’t edit comments right now (error 90001).')
+  const ref = doc(db, COMMENTS, commentId)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) throw new UserError('This comment has been deleted.')
+  const data = snap.data() as CommentDoc
+  if (data.authorAuthUid !== authUid) throw new UserError('You can only edit your own comments.')
+  if (!data.createdAt || Date.now() > data.createdAt.toMillis() + EDIT_WINDOW_MS) {
+    throw new UserError('Comments can only be edited for 15 minutes after posting.')
+  }
+  const trimmed = text.trim()
+  await updateDoc(ref, { text: trimmed, editedAt: serverTimestamp() })
+  await invalidate(...COMMENT_CACHES)
+  return { text: trimmed, editedAt: Date.now() }
 }
 
 // Upvotes a comment, or removes the user's upvote if they've already voted. A transaction, so simultaneous votes
@@ -374,11 +432,15 @@ function toRecord(snap: DocumentSnapshot): CommentRecord {
   if (data.uid) record.uid = data.uid
   if (data.authorAuthUid) record.authorAuthUid = data.authorAuthUid
   if (data.userVotes) record.userVotes = data.userVotes
+  if (data.editedAt) record.editedAt = data.editedAt.toMillis()
+  if (data.parentId) record.parentId = data.parentId
+  if (data.replyToId) record.replyToId = data.replyToId
   return record
 }
 
 function toView(record: CommentRecord, userId: string, authUid: string): CommentView {
-  return {
+  const canDelete = record.authorAuthUid === authUid
+  const view: CommentView = {
     id: record.id,
     text: record.text,
     username: record.username?.trim() || 'Anonymous',
@@ -386,6 +448,11 @@ function toView(record: CommentRecord, userId: string, authUid: string): Comment
     votes: record.votes,
     hasVoted: record.userVotes?.[userId] === 'up',
     isOwn: record.uid === userId,
-    canDelete: record.authorAuthUid === authUid,
+    canDelete,
   }
+  if (canDelete && record.createdAt) view.editableUntil = record.createdAt + EDIT_WINDOW_MS
+  if (record.editedAt) view.editedAt = record.editedAt
+  if (record.parentId) view.parentId = record.parentId
+  if (record.replyToId) view.replyToId = record.replyToId
+  return view
 }
