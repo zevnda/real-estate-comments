@@ -33,6 +33,29 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Comment reports: users can file them, only you can read them (with `pnpm moderate`, which uses the Admin SDK and
+    // bypasses these rules). The ID is `<commentId>_<reporter's Auth UID>` and there's no update, so each person can
+    // report a comment once. Reasons must match REPORT_REASONS in src/shared/reports.ts.
+    match /reports/{reportId} {
+      allow create: if request.auth != null
+        && reportId == request.resource.data.commentId + '_' + request.auth.uid
+        && isValidReport(request.resource.data)
+        && exists(/databases/$(database)/documents/listingcomments/$(request.resource.data.commentId));
+      allow read, update, delete: if false;
+    }
+
+    function isValidReport(data) {
+      return data.keys().hasAll(['commentId', 'reason', 'details', 'reporterAuthUid', 'createdAt'])
+        && data.keys().hasOnly(['commentId', 'reason', 'details', 'reporterAuthUid', 'createdAt'])
+        && data.commentId is string
+        && data.commentId.size() <= 64
+        && data.reason in ['identifies-person', 'defamatory', 'harassment', 'personal-info', 'spam', 'other']
+        && data.details is string
+        && data.details.size() <= 1000
+        && data.reporterAuthUid == request.auth.uid
+        && data.createdAt == request.time;
+    }
+
     function isValidComment(data) {
       return data.keys().hasAll(['address', 'suburb', 'text', 'username', 'timestamp', 'createdAt'])
         && data.keys().hasOnly(['address', 'suburb', 'state', 'postcode', 'url', 'text', 'username',

@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Moderation · Real Estate Comments</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: light-dark(#f6f5f2, #141311);
+        --surface: light-dark(#ffffff, #1b1a18);
+        --border: light-dark(#e8e5df, #302d29);
+        --text: light-dark(#1c1917, #f3f1ee);
+        --muted: light-dark(#5c5650, #b3ada5);
+        --accent: light-dark(#2563eb, #3b82f6);
+        --danger: light-dark(#b42318, #f97066);
+        --warn-bg: light-dark(#fff4e5, #3a2a10);
+        --warn: light-dark(#9a5b00, #f5b454);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 24px 16px 48px;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.5 system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+      }
+      main {
+        max-width: 860px;
+        margin: 0 auto;
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      h1 {
+        flex: 1;
+        margin: 0;
+        font-size: 20px;
+      }
+      button {
+        padding: 6px 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--text);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button[aria-pressed='true'] {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      button.danger {
+        border-color: var(--danger);
+        color: var(--danger);
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: wait;
+      }
+      .card {
+        margin-bottom: 14px;
+        padding: 16px 18px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+      }
+      .property {
+        margin: 0 0 4px;
+        font-weight: 600;
+      }
+      .meta,
+      .links {
+        margin: 0 0 8px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .links a {
+        margin-right: 10px;
+        color: var(--accent);
+      }
+      .text {
+        margin: 0 0 12px;
+        padding: 10px 12px;
+        border-left: 3px solid var(--border);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .gone {
+        margin: 0 0 12px;
+        color: var(--muted);
+        font-style: italic;
+      }
+      ul {
+        margin: 0 0 12px;
+        padding-left: 18px;
+      }
+      li + li {
+        margin-top: 6px;
+      }
+      .details {
+        display: block;
+        color: var(--muted);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .age {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: var(--warn-bg);
+        color: var(--warn);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .status,
+      .empty,
+      .error {
+        color: var(--muted);
+      }
+      .error {
+        color: var(--danger);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Reported comments</h1>
+        <button type="button" id="show-open" aria-pressed="true">Open</button>
+        <button type="button" id="show-resolved" aria-pressed="false">Resolved</button>
+        <button type="button" id="refresh">Refresh</button>
+      </header>
+      <p class="error" id="error" hidden></p>
+      <div id="list"><p class="status">Loading…</p></div>
+    </main>
+    <script>
+      // Everything from the database (comment text, report details) is shown with textContent, never as HTML: reports
+      // are written by anyone.
+      const token = location.hash.slice(1)
+      const DAY = 24 * 60 * 60 * 1000
+      let showOpen = true
+      let items = []
+
+      const el = (tag, props = {}, ...children) => {
+        const element = Object.assign(document.createElement(tag), props)
+        element.append(...children.filter(child => child !== null && child !== undefined))
+        return element
+      }
+      const date = ms =>
+        ms ? new Date(ms).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' }) : 'unknown'
+
+      async function api(path, options = {}) {
+        const response = await fetch(path, {
+          ...options,
+          headers: { 'X-Token': token, 'Content-Type': 'application/json' },
+        })
+        const body = await response.json()
+        if (!response.ok) throw new Error(body.error ?? response.statusText)
+        return body
+      }
+
+      function showError(message) {
+        const error = document.getElementById('error')
+        error.textContent = message ?? ''
+        error.hidden = !message
+      }
+
+      async function load() {
+        showError(null)
+        try {
+          items = await api('/api/reports')
+          render()
+        } catch (error) {
+          showError(`Couldn’t load reports: ${error.message}`)
+        }
+      }
+
+      async function resolve(item, action, button) {
+        const prompts = {
+          'remove': 'Remove this comment? This can’t be undone.',
+          'remove-ban': 'Remove this comment and ban its poster from posting and voting?',
+          'dismiss': 'Dismiss these reports and keep the comment?',
+        }
+        if (!confirm(item.comment ? prompts[action] : 'Mark these reports resolved?')) return
+        button.disabled = true
+        try {
+          await api('/api/resolve', { method: 'POST', body: JSON.stringify({ commentId: item.commentId, action }) })
+          await load()
+        } catch (error) {
+          showError(`Couldn’t ${action === 'dismiss' ? 'dismiss' : 'remove'}: ${error.message}`)
+          button.disabled = false
+        }
+      }
+
+      function card(item) {
+        const { comment, reports } = item
+        const open = reports.filter(report => report.status === 'open')
+        const oldest = Math.min(...open.map(report => report.createdAt))
+        const age = open.length ? Math.floor((Date.now() - oldest) / DAY) : null
+
+        const body = comment
+          ? [
+              el('p', { className: 'property', textContent: `${comment.address}, ${comment.locality}` }),
+              el(
+                'p',
+                { className: 'meta' },
+                `${comment.username} · posted ${date(comment.createdAt)} · ${comment.votes} upvotes · ID ${item.commentId}`,
+              ),
+              comment.links &&
+                el(
+                  'p',
+                  { className: 'links' },
+                  ...[
+                    ['realestate.com.au', comment.links.realestate],
+                    ['domain.com.au', comment.links.domain],
+                  ].map(([label, href]) =>
+                    el('a', { href, target: '_blank', rel: 'noopener noreferrer', textContent: label }),
+                  ),
+                ),
+              el('p', { className: 'text', textContent: comment.text }),
+            ]
+          : [el('p', { className: 'gone', textContent: `Comment ${item.commentId} has already been deleted.` })]
+
+        const reportList = el(
+          'ul',
+          {},
+          ...reports.map(report =>
+            el(
+              'li',
+              {},
+              el('strong', { textContent: report.reason }),
+              ` · ${date(report.createdAt)}`,
+              report.status !== 'open' ? ` · ${report.status} ${date(report.resolvedAt)}` : null,
+              report.details ? el('span', { className: 'details', textContent: report.details }) : null,
+            ),
+          ),
+        )
+
+        const heading = el(
+          'p',
+          { className: 'meta' },
+          `${reports.length} report${reports.length === 1 ? '' : 's'}`,
+          age !== null && age >= 3 ? el('span', { className: 'age', textContent: `oldest ${age} days` }) : null,
+        )
+
+        const actions = el('div', { className: 'actions' })
+        if (item.open) {
+          if (comment) {
+            const remove = el('button', { type: 'button', className: 'danger', textContent: 'Remove comment' })
+            remove.onclick = () => resolve(item, 'remove', remove)
+            actions.append(remove)
+            if (comment.canBan) {
+              const ban = el('button', { type: 'button', className: 'danger', textContent: 'Remove and ban poster' })
+              ban.onclick = () => resolve(item, 'remove-ban', ban)
+              actions.append(ban)
+            }
+          }
+          const dismiss = el('button', {
+            type: 'button',
+            textContent: comment ? 'Dismiss reports' : 'Mark resolved',
+          })
+          dismiss.onclick = () => resolve(item, comment ? 'dismiss' : 'remove', dismiss)
+          actions.append(dismiss)
+        }
+
+        return el('article', { className: 'card' }, heading, ...body, reportList, actions)
+      }
+
+      function render() {
+        document.getElementById('show-open').setAttribute('aria-pressed', String(showOpen))
+        document.getElementById('show-resolved').setAttribute('aria-pressed', String(!showOpen))
+        const shown = items
+          .filter(item => item.open === showOpen)
+          // Open: oldest report first, since complaints should be dealt with within 7 days
+          .sort((a, b) => {
+            const first = item => Math.min(...item.reports.map(report => report.createdAt))
+            return showOpen ? first(a) - first(b) : first(b) - first(a)
+          })
+        const list = document.getElementById('list')
+        list.replaceChildren(
+          ...(shown.length
+            ? shown.map(card)
+            : [el('p', { className: 'empty', textContent: showOpen ? 'No open reports.' : 'No resolved reports.' })]),
+        )
+        document.title = `${items.filter(item => item.open).length} open · Moderation`
+      }
+
+      document.getElementById('show-open').onclick = () => {
+        showOpen = true
+        render()
+      }
+      document.getElementById('show-resolved').onclick = () => {
+        showOpen = false
+        render()
+      }
+      document.getElementById('refresh').onclick = load
+      if (!token) showError('Open this page from the URL printed by pnpm moderate.')
+      else load()
+    </script>
+  </body>
+</html>

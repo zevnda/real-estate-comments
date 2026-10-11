@@ -9,7 +9,7 @@ import { context } from 'esbuild'
 import { createManifest } from '../src/manifest.ts'
 
 const BROWSERS: Browser[] = ['chrome', 'firefox']
-const TARGETS: Record<Browser, string> = { chrome: 'chrome123', firefox: 'firefox140' }
+const TARGETS: Record<Browser, string> = { chrome: 'chrome123', firefox: 'firefox128' }
 
 const watch = process.argv.includes('--watch')
 const { version } = JSON.parse(await readFile('package.json', 'utf8')) as { version: string }

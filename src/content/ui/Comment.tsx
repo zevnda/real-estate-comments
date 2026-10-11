@@ -1,15 +1,16 @@
 import type { CommentView, RecentCommentView } from '../../shared/messages'
 
+import { createPortal } from 'preact'
 import { useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { callBackground } from '../../shared/messages'
 import { avatarHue, formatAbsolute, formatRelative, initials } from '../format'
 import { errorMessage } from '../hooks'
 import { commentImages, renderMarkdown } from '../markdown'
-import { reportCommentUrl } from '../report'
 import { FlagIcon, TrashIcon, UpvoteIcon } from './icons'
 import { CommentImages } from './Images'
 import { PropertyLinks } from './PropertyLinks'
+import { ReportDialog } from './ReportDialog'
 
 export function Markdown({ text }: { text: string }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -29,6 +30,9 @@ export function Comment({ comment, onChange, onDelete }: CommentProps) {
   const [busy, setBusy] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [reporting, setReporting] = useState(false)
+  const [reported, setReported] = useState(false)
+  const article = useRef<HTMLElement>(null)
   const recent = 'displayAddress' in comment ? comment : null
   const images = useMemo(() => commentImages(comment.text), [comment.text])
 
@@ -64,7 +68,7 @@ export function Comment({ comment, onChange, onDelete }: CommentProps) {
   }
 
   return (
-    <article class={`comment${comment.isOwn ? ' comment--own' : ''}`}>
+    <article ref={article} class={`comment${comment.isOwn ? ' comment--own' : ''}`}>
       <div class='avatar' style={{ '--hue': avatarHue(comment.username) }} aria-hidden='true'>
         {initials(comment.username)}
       </div>
@@ -108,18 +112,18 @@ export function Comment({ comment, onChange, onDelete }: CommentProps) {
               <span>{comment.votes}</span>
             </span>
           )}
-          {!comment.isOwn && (
-            <a
-              class='text-button'
-              href={reportCommentUrl(comment)}
-              target='_blank'
-              rel='noopener noreferrer'
-              title='Report this comment'
-            >
-              <FlagIcon />
-              Report
-            </a>
-          )}
+          {!comment.isOwn &&
+            (reported ? (
+              <span class='text-button text-button--static'>
+                <FlagIcon />
+                Reported
+              </span>
+            ) : (
+              <button type='button' class='text-button' onClick={() => setReporting(true)} title='Report this comment'>
+                <FlagIcon />
+                Report
+              </button>
+            ))}
           {comment.canDelete && onDelete && !confirming && (
             <button type='button' class='text-button' onClick={() => setConfirming(true)} disabled={busy}>
               <TrashIcon />
@@ -144,6 +148,31 @@ export function Comment({ comment, onChange, onDelete }: CommentProps) {
           </p>
         )}
       </div>
+      {reporting && (
+        <ReportPortal
+          comment={article.current}
+          id={comment.id}
+          onClose={() => setReporting(false)}
+          onReported={() => setReported(true)}
+        />
+      )}
     </article>
   )
+}
+
+// Dialogs belong inside .panel (see Dialog), not inside the scrolling list the comment is in
+function ReportPortal({
+  comment,
+  id,
+  onClose,
+  onReported,
+}: {
+  comment: HTMLElement | null
+  id: string
+  onClose: () => void
+  onReported: () => void
+}) {
+  const panel = comment?.closest('.panel')
+  if (!panel) return null
+  return createPortal(<ReportDialog commentId={id} onClose={onClose} onReported={onReported} />, panel)
 }

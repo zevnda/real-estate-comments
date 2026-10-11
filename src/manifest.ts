@@ -54,15 +54,17 @@ export function createManifest(browser: Browser, version: string): Record<string
       gecko: {
         // Must never change: it's how Firefox Add-ons identifies the published extension
         id: 'real-estate-comments@zevnda.com',
-        // 140 is the first Firefox that understands data_collection_permissions (and the current ESR)
-        strict_min_version: '140.0',
-        // Shown in Firefox's install prompt. Viewing a listing sends its address to look up comments
-        // (browsingActivity), and posting sends the comment and name (personalCommunications). Adding a type
-        // later prompts every existing user to approve it when they update.
-        data_collection_permissions: { required: ['browsingActivity', 'personalCommunications'] },
+        strict_min_version: '128.0',
+        // Firefox data collection declaration: disabled until Mozilla requires it for existing extensions, because
+        // adding it prompts every Firefox user to approve it on update, and once a version declares it every later
+        // version must. To enable: uncomment this, set strict_min_version to '140.0', uncomment gecko_android below,
+        // and set firefox140 in scripts/build.ts (see CLAUDE.md, "Firefox data collection declaration").
+        // Viewing a listing sends its address to look up comments (browsingActivity), and posting sends the comment
+        // and name (personalCommunications).
+        // data_collection_permissions: { required: ['browsingActivity', 'personalCommunications'] },
       },
       // Firefox for Android added data_collection_permissions in 142
-      gecko_android: { strict_min_version: '142.0' },
+      // gecko_android: { strict_min_version: '142.0' },
     },
   }
 }

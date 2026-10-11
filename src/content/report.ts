@@ -1,4 +1,3 @@
-import type { CommentView, RecentCommentView } from '../shared/messages'
 import type { PageState } from './page-state'
 
 import { ext } from '../shared/ext'
@@ -31,34 +30,6 @@ export function reportIssueUrl(page: PageState): string {
     `- Property detected: ${describePage(page)}`,
   ].join('\n')
   return `${NEW_ISSUE_URL}?${new URLSearchParams({ body }).toString()}`
-}
-
-// A new GitHub issue reporting one comment. GitHub issues are public, so it identifies the comment by ID rather than
-// quoting it (repeating a defamatory comment is publishing it again), and points private complaints to email.
-export function reportCommentUrl(comment: CommentView | RecentCommentView): string {
-  const property = 'displayAddress' in comment ? `${comment.displayAddress}, ${comment.displayLocality}` : null
-  const body = [
-    '<!-- This issue is public. Please don’t repeat the comment, or include names or other personal details here.',
-    `For anything private or legal (defamation, privacy), email ${COMPLAINTS_EMAIL} instead. -->`,
-    '',
-    '**Why should this comment be removed?**',
-    '- [ ] Names or identifies a private person',
-    '- [ ] Defamatory, or makes accusations about someone',
-    '- [ ] Harassing, threatening or discriminatory',
-    '- [ ] Personal information or private documents',
-    '- [ ] Spam, advertising or irrelevant',
-    '- [ ] Something else',
-    '',
-    '**Anything else we should know?**',
-    '',
-    '',
-    '---',
-    `- Comment ID: ${comment.id}`,
-    `- Posted: ${new Date(comment.createdAt).toISOString()}`,
-    property ? `- Property: ${property}` : `- Seen on: ${safePageUrl()}`,
-  ].join('\n')
-  const title = `Comment report: ${comment.id}`
-  return `${NEW_ISSUE_URL}?${new URLSearchParams({ title, labels: 'comment report', body }).toString()}`
 }
 
 function describePage(page: PageState): string {

@@ -95,12 +95,18 @@ async function run(colorScheme: 'light' | 'dark') {
     assert.ok(body.includes('Property detected: 65 Newmarket Street, Hendra QLD 4011'), body)
   })
 
-  await step('reports a comment without quoting it', async () => {
-    const href = (await ui('.comment a:has-text("Report")').first().getAttribute('href')) ?? ''
-    const url = new URL(href)
-    assert.equal(url.origin + url.pathname, 'https://github.com/zevnda/real-estate-comments/issues/new')
-    assert.match(url.searchParams.get('title') ?? '', /^Comment report: \w+$/)
-    assert.match(url.searchParams.get('body') ?? '', /Comment ID: \w+/)
+  // Opens the report dialog but never sends a report
+  await step('reports a comment privately, in a dialog', async () => {
+    await ui('.comment button:has-text("Report")').first().click()
+    await ui('.dialog h3:text("Report this comment")').waitFor()
+    const send = ui('.dialog button:has-text("Send report")')
+    assert.ok(await send.isDisabled(), 'Send is disabled until a reason is chosen')
+    assert.equal(await ui('.dialog .report-reason').count(), 6)
+    await ui('.dialog .report-reason').first().click()
+    assert.ok(await send.isEnabled(), 'Send is enabled once a reason is chosen')
+    await page.keyboard.press('Escape')
+    await ui('.dialog').waitFor({ state: 'detached' })
+    assert.ok(await ui('.panel').isVisible(), 'Esc closed only the dialog')
   })
 
   await step('opens the terms and privacy policy, and links complaints to email', async () => {

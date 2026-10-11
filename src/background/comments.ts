@@ -1,8 +1,10 @@
 import type { DocumentSnapshot, Timestamp } from 'firebase/firestore/lite'
 import type { CommentView, RecentCommentView, SearchResult } from '../shared/messages'
 import type { PropertyInput } from '../shared/property'
+import type { ReportReason } from '../shared/reports'
 import type { SearchLookup, SearchQuery } from '../shared/search'
 
+import { FirebaseError } from 'firebase/app'
 import {
   addDoc,
   collection,
@@ -15,6 +17,7 @@ import {
   query,
   runTransaction,
   serverTimestamp,
+  setDoc,
   where,
 } from 'firebase/firestore/lite'
 
@@ -66,6 +69,7 @@ interface CommentRecord {
 
 const COMMENTS = 'listingcomments'
 const BANNED_USERS = 'bannedUsers'
+const REPORTS = 'reports'
 const MAX_COMMENTS_PER_PROPERTY = 100
 const RECENT_COMMENTS = 10
 const SEARCH_SCAN_LIMIT = 300
@@ -322,6 +326,28 @@ export async function deleteComment(commentId: string, userId: string): Promise<
     await deleteDoc(ref)
   }
   await invalidate(...COMMENT_CACHES)
+}
+
+// Reports go to a collection only the maintainer can read (with `pnpm moderate`). The document ID is the comment ID and
+// the reporter's Auth UID, and the rules allow creating but never overwriting, so each person can report a comment
+// once. Comment text isn't copied: the moderator reads the comment itself.
+export async function reportComment(commentId: string, reason: ReportReason, details: string): Promise<void> {
+  const authUid = await ensureSignedIn()
+  try {
+    await setDoc(doc(db, REPORTS, `${commentId}_${authUid}`), {
+      commentId,
+      reason,
+      details,
+      reporterAuthUid: authUid,
+      createdAt: serverTimestamp(),
+    })
+  } catch (error) {
+    // Writing over an existing report counts as an update, which the rules refuse; so does a deleted comment
+    if (error instanceof FirebaseError && error.code === 'permission-denied') {
+      throw new UserError('Couldn’t send the report. You may have reported this comment already, or it’s been removed.')
+    }
+    throw error
+  }
 }
 
 function isBanned(userId: string): Promise<boolean> {

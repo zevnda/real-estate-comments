@@ -42,6 +42,7 @@ export interface BackgroundApi {
   createComment: { request: { property: PropertyInput; text: string; username: string }; response: CommentView }
   toggleVote: { request: { commentId: string }; response: { votes: number; hasVoted: boolean } }
   deleteComment: { request: { commentId: string }; response: null }
+  reportComment: { request: { commentId: string; reason: string; details: string }; response: null }
   searchComments: { request: { query: string }; response: SearchResult[] }
   setBadge: { request: { count: number | null }; response: null }
 }

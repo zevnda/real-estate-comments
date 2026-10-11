@@ -5,12 +5,14 @@ import { FirebaseError } from 'firebase/app'
 import { ext } from '../shared/ext'
 import { log } from '../shared/log'
 import { buildPropertyKeys } from '../shared/property'
+import { isReportReason, REPORT_DETAILS_MAX_LENGTH } from '../shared/reports'
 import { isPropertyInput, validateCommentText } from '../shared/validation'
 import {
   createComment,
   deleteComment,
   listComments,
   recentComments,
+  reportComment,
   searchComments,
   toggleVote,
   UserError,
@@ -62,6 +64,16 @@ const handlers: Handlers = {
   async deleteComment({ commentId }) {
     if (!isCommentId(commentId)) throw new UserError('Invalid comment.')
     await deleteComment(commentId, await getUserId())
+    return null
+  },
+
+  async reportComment({ commentId, reason, details }) {
+    if (!isCommentId(commentId)) throw new UserError('Invalid comment.')
+    if (!isReportReason(reason)) throw new UserError('Choose why you’re reporting this comment.')
+    if (typeof details !== 'string' || details.trim().length > REPORT_DETAILS_MAX_LENGTH) {
+      throw new UserError(`Details can’t be longer than ${REPORT_DETAILS_MAX_LENGTH} characters.`)
+    }
+    await reportComment(commentId, reason, details.trim())
     return null
   },
 
