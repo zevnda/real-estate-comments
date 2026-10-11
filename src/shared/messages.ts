@@ -1,4 +1,4 @@
-import type { PropertyInput, PropertyLinks } from './property'
+import type { Area, PropertyInput, PropertyLinks } from './property'
 
 import { ext } from './ext'
 
@@ -43,6 +43,12 @@ export interface SearchResult {
   comments: CommentView[]
 }
 
+export interface AreaStats {
+  comments: number
+  properties: number
+  capped: boolean
+}
+
 // Requests the content script sends to the background script, and what each one returns
 export interface BackgroundApi {
   // `fresh` skips the background's cache (the panel's refresh button)
@@ -58,6 +64,9 @@ export interface BackgroundApi {
   deleteComment: { request: { commentId: string }; response: null }
   reportComment: { request: { commentId: string; reason: string; details: string }; response: null }
   searchComments: { request: { query: string }; response: SearchResult[] }
+  // How much has been said about a suburb, for its search results pages
+  // `capped`: the suburb has more comments than one lookup reads, so the counts are a minimum
+  areaStats: { request: { area: Area }; response: AreaStats }
   setBadge: { request: { count: number | null }; response: null }
 }
 

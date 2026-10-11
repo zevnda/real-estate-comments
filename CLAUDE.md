@@ -110,7 +110,7 @@ This is where 1.x was unreliable, so be careful here.
 - domain.com.au sold: `Sold 46 Stanley Road, Epping NSW 2121 on 10 Oct 2026 - 2021146795 | Domain`
 - domain.com.au profile: `46 Stanley Road, Epping | Property Value Estimate & History | Domain` (no state/postcode; taken from the URL)
 
-realestate.com.au listing URLs only carry state and suburb; every other format carries the address slug, state and postcode. Anything else on those sites is a "browse" page (recent comments only).
+realestate.com.au listing URLs only carry state and suburb; every other format carries the address slug, state and postcode. Anything else on those sites is a "browse" page (no property). Suburb search results pages are browse pages too, with an `area` taken from the URL (`parseAreaUrl`; see "Suburb stats on search pages").
 
 How a property's pages relate (why the key must come from the address, never a listing ID):
 
@@ -184,7 +184,7 @@ Collection **`reports`** (from the release after 2.0.0): one document per report
 Every Firestore read goes through `cached(key, ttl, load, fresh)`, so page views, tab switches and search keystrokes don't repeat the same queries. The biggest saving is listing pages: the panel loads the property's comments on every listing view (for the launcher's count), most properties have none, and those empty results are cached too.
 
 - **Where:** `storage.session`. It's shared by all tabs, survives Chrome stopping the background service worker (in-memory caches were lost after ~30 s idle), is cleared when the browser closes, and is never written to disk. It falls back to memory if `storage.session` fails. Expired entries are pruned every 50 writes; on a quota error the cache is cleared.
-- **TTLs** (`TTL` in `background/comments.ts`): property comments, Recent and search lookups 5 min; the search's 500-comment scan 10 min; the ban check 60 min. New comments are rare, so other people's comments can take up to 5 minutes to appear.
+- **TTLs** (`TTL` in `background/comments.ts`): property comments, Recent and search lookups 5 min; the search's 500-comment scan and suburb stats 10 min; the ban check 60 min. New comments are rare, so other people's comments can take up to 5 minutes to appear.
 - **Own writes are instant:** posting, voting and deleting call `invalidate('property:', 'recent', 'search:')`. A read that was already fetching when the write happened isn't cached (a generation counter), so it can't put stale data back.
 - **Refresh:** the ↻ button on the property tab and the Recent tab sends `fresh: true`, which fetches again, but **at most once per `MIN_REFRESH_INTERVAL` (30 s) per key**: a refresh sooner after the last fetch is answered from the cache, whichever tab it comes from, so spamming refresh can't hammer the database. The button also rests for 2 s after each click, and spins for at least 0.6 s so an instant cached answer still gives feedback.
 - **Deduplication:** concurrent requests for the same key (e.g. two tabs on one listing) share one fetch.
@@ -194,6 +194,14 @@ Every Firestore read goes through `cached(key, ttl, load, fresh)`, so page views
 ## Sorting and filtering (`views.ts`)
 
 Comment lists (the property tab, and a property opened from Search or the Watchlist) have an always-visible dropdown (`ViewSelect`, a styled native `<select>`): **Newest**, **Top**, or **With photos** (threads where the comment or a reply links an image shown as a thumbnail, newest first). Newest and Top are remembered (`sort`); With photos is a filter for the current panel only, and posting a new comment switches back to Newest. With nothing to show, a notice offers "Show all comments". Search results have their own dropdown: **Best match** (the default ranking), **Newest**, **Most comments**, **With photos**.
+
+## Suburb stats on search pages (`parseAreaUrl`, `areaStats`)
+
+On a suburb's search results page, the Recent tab starts with a card (`AreaCard`): the suburb, how many comments and properties it has, and **See them**, which searches for the suburb and postcode (e.g. "Concord 2137", which the search's suburb and postcode lookups find). With no comments it says so.
+
+- **Which pages** (`parseAreaUrl` in `shared/property.ts`, tested): realestate.com.au `/rent|buy|sold|leased/in-<suburb>,+<state>+<postcode>/…` and domain.com.au `/rent|sale|sold-listings/<suburb>-<state>-<postcode>/` or `…/?suburb=<suburb>-<state>-<postcode>,…`. A search for several suburbs uses the first. The page state is `{ status: 'browse', area }`.
+- **The count** (`areaStats` in `background/comments.ts`): one query, `suburb ==`, served by the automatic single-field index, capped at 500 comments (shown as "500+" if reached), with postcodes checked in the extension (comments without one are counted). Cached for 10 minutes (`area:` keys, cleared by the user's own writes like the other comment caches).
+- The privacy policy says the suburb of a search page is sent to count its comments.
 
 ## Tabs and the watchlist
 
@@ -234,7 +242,7 @@ Posting doesn't depend on profile pages. A comment can be left on any page the e
 
 ## Address search (`shared/search.ts`, `searchComments` in `background/comments.ts`)
 
-The panel's **Search** tab (on every page) finds properties that already have comments, without opening a listing. It accepts a full or partial address, a street on its own, a suburb or a postcode ("46 Stanley Road, Epping", "Stanley Rd", "Epping", "2121"). Firestore has no fuzzy or full-text search, so it works in two steps:
+The panel's **Search** tab (on every page) finds properties that already have comments, without opening a listing. A ✕ in the box (our own; the browser's search-cancel button is hidden, since only Chrome has one) or Esc clears the query; Esc with an empty box closes the panel as usual. It accepts a full or partial address, a street on its own, a suburb or a postcode ("46 Stanley Road, Epping", "Stanley Rd", "Epping", "2121"). Firestore has no fuzzy or full-text search, so it works in two steps:
 
 1. **Firestore fetches candidates** using whatever the query gives it (`parseSearchQuery` → `searchLookups`), each served by an automatic single-field index, so no composite index is needed (all checked against production):
    - **Street number** (the query starts with one, after `canonicalAddress`, so "Unit 41, 10-14 Hazlewood Pl" starts "41/10-14"): `address` prefix range. Used alone, since it's already precise.
@@ -341,7 +349,7 @@ pnpm sign           # signed Firefox .xpi for testing; uploads to AMO and uses u
 - **After reloading the extension, refresh the site's tabs.** The old content script is orphaned.
 - Logs: page console (filter `[Real Estate Comments]`; page state changes are logged at debug level) and the background console (Chrome: "service worker" link on the extensions page; Firefox: Inspect).
 
-**`pnpm e2e`** (first run: `pnpm exec playwright install chromium`) loads `dist/chrome` into Chromium and serves fake pages at real listing URLs, because the real sites block automated browsers. The extension runs for real, including Firebase sign-in and **reads from production**. It never posts, votes or deletes; keep it that way. It checks: comment count badge, panel, a 1.x irregular key (`97  yates ave`), domain.com.au, stale titles after `pushState`, the posting rules prompt before a first post, Write/Preview, starting and cancelling a reply (never posted), the report dialog (opened and closed, never sent), watching and unwatching a property (storage only), the sort/filter dropdowns (With photos, and the search results' options), the terms/privacy dialogs and complaints link, recent comments, and a phone-sized viewport. It relies on a few production comments existing (listed in the script); if one is deleted, pick another property. `--screenshots <dir>` saves light and dark screenshots of each step. It doesn't cover Firefox or the real sites' markup; `pnpm live-check` covers the real sites.
+**`pnpm e2e`** (first run: `pnpm exec playwright install chromium`) loads `dist/chrome` into Chromium and serves fake pages at real listing URLs, because the real sites block automated browsers. The extension runs for real, including Firebase sign-in and **reads from production**. It never posts, votes or deletes; keep it that way. It checks: comment count badge, panel, a 1.x irregular key (`97  yates ave`), domain.com.au, stale titles after `pushState`, the posting rules prompt before a first post, Write/Preview, starting and cancelling a reply (never posted), the report dialog (opened and closed, never sent), watching and unwatching a property (storage only), the suburb card on a search page (Concord NSW 2137), the sort/filter dropdowns (With photos, and the search results' options), the terms/privacy dialogs and complaints link, recent comments, and a phone-sized viewport. It relies on a few production comments existing (listed in the script); if one is deleted, pick another property. `--screenshots <dir>` saves light and dark screenshots of each step. It doesn't cover Firefox or the real sites' markup; `pnpm live-check` covers the real sites.
 
 **Before considering a change done**, run `pnpm check`. For UI or page-detection changes, also run `pnpm e2e` (look at the screenshots) and `pnpm live-check`. For any change to `firestore.rules`, run `pnpm test:rules` and add cases to `tests/rules/firestore.test.ts` before publishing it. Note what wasn't tested: usually Firefox, and posting, voting and deleting, which no automated check does against production.
 

@@ -136,7 +136,8 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
       <p>
         The extension only runs on realestate.com.au and domain.com.au. To show comments, it reads the address of the
         property you’re viewing from the page and sends it to our database to look up comments. Searches you make in the
-        panel are sent the same way. We don’t keep a record of the properties you view or search for.
+        panel are sent the same way, and so is the suburb of a search results page you’re viewing, to count its
+        comments. We don’t keep a record of the properties or suburbs you view or search for.
       </p>
 
       <h4>When you post or vote</h4>
@@ -207,6 +208,12 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
       <p>
         To have a comment removed, or to ask about information we hold, email <ComplaintsLink />. Because there are no
         accounts, we may need you to point out the comment.
+      </p>
+      <p>
+        You can only delete your own comments from the browser you posted them in, so if you uninstall the extension or
+        change browsers, you’ll need to email us instead. Comments aren’t linked to an account, so we have no way to
+        confirm who wrote one. We treat these requests like any other request to remove a comment and decide based on
+        the comment itself, so we can’t promise to remove one just because someone says they wrote it.
       </p>
     </Dialog>
   )

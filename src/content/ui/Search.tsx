@@ -10,7 +10,7 @@ import { formatRelative, pluralize } from '../format'
 import { errorMessage } from '../hooks'
 import { RESULT_VIEWS, viewResults } from '../views'
 import { DetailComments } from './DetailComments'
-import { ChevronLeftIcon, ChevronRightIcon, ImageIcon, SearchIcon } from './icons'
+import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, ImageIcon, SearchIcon } from './icons'
 import { PropertyLinks } from './PropertyLinks'
 import { Notice, Skeleton } from './states'
 import { ViewSelect } from './ViewSelect'
@@ -47,7 +47,14 @@ export function SearchTab({ query, onQuery }: { query: string; onQuery: (query: 
   }, [trimmed, searchable])
 
   const [resultsView, setResultsView] = useState<ResultsView>('match')
+  const input = useRef<HTMLInputElement>(null)
   const results = state.status === 'ready' ? state.data : []
+
+  const clear = () => {
+    onQuery('')
+    setOpenId(null)
+    input.current?.focus()
+  }
   const shown = viewResults(results, resultsView)
   const open = results.find(result => result.id === openId) ?? null
 
@@ -105,6 +112,7 @@ export function SearchTab({ query, onQuery }: { query: string; onQuery: (query: 
         </label>
         <input
           id='rec-search'
+          ref={input}
           type='search'
           value={query}
           placeholder='Address, street, suburb or postcode'
@@ -116,12 +124,25 @@ export function SearchTab({ query, onQuery }: { query: string; onQuery: (query: 
             onQuery(event.currentTarget.value)
             setOpenId(null)
           }}
+          onKeyDown={event => {
+            // Esc clears the search first; with nothing to clear, it closes the panel as usual
+            if (event.key === 'Escape' && query) {
+              event.stopPropagation()
+              clear()
+            }
+          }}
         />
+        {query && (
+          <button type='button' class='search-clear' onClick={clear} aria-label='Clear search' title='Clear search'>
+            <CloseIcon />
+          </button>
+        )}
       </form>
 
       {state.status === 'idle' ? (
         <Notice icon={<SearchIcon size={20} />} title='Search comments'>
-          Search by full address, street, suburb or postcode, e.g. “123 Main Street, Sydney”, “Main Street” or “Sydney”.
+          Search by address, street, suburb, state, or postcode, e.g. “123 Main Street, Sydney”, “Main Street”,
+          “Sydney”, "NSW", "2000".
         </Notice>
       ) : state.status === 'loading' ? (
         <Skeleton label='Searching…' />

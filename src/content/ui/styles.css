@@ -1028,6 +1028,49 @@ a.text-button {
   margin-top: 2px;
 }
 
+/* A suburb's comment counts, on its search results pages */
+.area-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 16px 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-muted);
+}
+
+.area-card-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.area-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.area-card-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.area-card-stats {
+  margin: 1px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.area-card .button {
+  flex: none;
+}
+
 .skeleton {
   display: flex;
   gap: 12px;
@@ -1103,6 +1146,40 @@ a.text-button {
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
+}
+
+/* Our own clear button instead of the browser's (Chrome has one, Firefox doesn't, and they look different) */
+.search-box input::-webkit-search-cancel-button {
+  appearance: none;
+  display: none;
+}
+
+.search-box input {
+  padding-right: 40px;
+}
+
+.search-clear {
+  position: absolute;
+  right: 22px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--text-muted);
+}
+
+.search-clear:hover {
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.search-clear .icon {
+  width: 16px;
+  height: 16px;
 }
 
 .search-box input::placeholder {

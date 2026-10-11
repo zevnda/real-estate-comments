@@ -1,15 +1,17 @@
 import type { BackgroundApi, BackgroundRequest, ContentMessage, Result } from '../shared/messages'
+import type { Area } from '../shared/property'
 
 import { FirebaseError } from 'firebase/app'
 
 import { ext } from '../shared/ext'
 import { log } from '../shared/log'
-import { buildPropertyKeys, getSite } from '../shared/property'
+import { buildPropertyKeys, getSite, STATES } from '../shared/property'
 import { isReportReason, REPORT_DETAILS_MAX_LENGTH } from '../shared/reports'
 import { SITE_MATCHES } from '../shared/sites'
 import { setStored } from '../shared/storage'
 import { isPropertyInput, validateCommentText } from '../shared/validation'
 import {
+  areaStats,
   createComment,
   deleteComment,
   editComment,
@@ -87,6 +89,11 @@ const handlers: Handlers = {
     }
     await reportComment(commentId, reason, details.trim())
     return null
+  },
+
+  async areaStats({ area }) {
+    if (!isArea(area)) throw new UserError('Invalid suburb.')
+    return areaStats(area)
   },
 
   async searchComments({ query }) {
@@ -191,6 +198,19 @@ ext.tabs.onUpdated.addListener((tabId, changeInfo) => {
 ext.runtime.onInstalled.addListener(() => {
   ext.action.setBadgeBackgroundColor({ color: '#2563eb' }).catch(() => {})
 })
+
+function isArea(value: unknown): value is Area {
+  if (!value || typeof value !== 'object') return false
+  const { suburb, state, postcode } = value as Record<string, unknown>
+  return (
+    typeof suburb === 'string' &&
+    /^[a-z][a-z' -]{0,60}$/.test(suburb) &&
+    typeof state === 'string' &&
+    (STATES as readonly string[]).includes(state) &&
+    typeof postcode === 'string' &&
+    /^\d{4}$/.test(postcode)
+  )
+}
 
 function isCommentId(value: unknown): value is string {
   return typeof value === 'string' && /^[A-Za-z0-9]{1,64}$/.test(value)

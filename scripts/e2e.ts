@@ -263,10 +263,30 @@ async function run(colorScheme: 'light' | 'dark') {
     await waitForComments()
   })
 
+  // A suburb's search results page: Concord NSW 2137 has a few production comments
+  await page.goto('https://www.domain.com.au/rent/concord-nsw-2137/')
+  await step('shows a suburb’s comment counts on its search page, and searches it', async () => {
+    if (!(await ui('.panel').isVisible())) await ui('.launcher').click()
+    assert.equal(await ui('.area-card-title').textContent(), 'Concord NSW 2137')
+    // The button only appears once the counts have loaded, and there are some
+    await ui('.area-card button:has-text("See them")').waitFor({ timeout: 20_000 })
+    assert.match((await ui('.area-card-stats').textContent()) ?? '', /^\d+ comments? on \d+ propert/)
+    await ui('.area-card button:has-text("See them")').click()
+    await ui('.search-result').first().waitFor({ timeout: 20_000 })
+    assert.equal(await ui('#rec-search').inputValue(), 'Concord 2137')
+    assert.ok((await ui('.search-result-address').allTextContents()).includes('9 Warbrick Street'))
+    await ui('.search-clear').click()
+  })
+
+  // Back to realestate.com.au: property links list the current site first, and the steps below expect it
+  await page.goto('https://www.realestate.com.au/buy')
+  await ui('.launcher').click()
+
   await step('finds comments by address search, despite different spelling', async () => {
     await ui('.tabs button:has-text("Search")').click()
     await ui('#rec-search').fill('97 Yates Avenue, Dundas Valley')
-    await ui('.search-result').first().waitFor({ timeout: 20_000 })
+    // Results stay on screen while typing, so wait for this search's
+    await ui('.search-result-address:text("97 Yates Avenue")').first().waitFor({ timeout: 20_000 })
     assert.equal(await ui('.search-result-address').first().textContent(), '97 Yates Avenue')
     // Results can be re-sorted or filtered
     const options = await ui('.search .view-select option').allTextContents()
@@ -333,6 +353,16 @@ async function run(colorScheme: 'light' | 'dark') {
     )
 
     assert.ok((await resultAddresses('Concrd')).includes('9 Warbrick Street'))
+  })
+
+  await step('clears the search with the ✕ button', async () => {
+    await ui('#rec-search').fill('Epping')
+    await ui('.search-clear').click()
+    assert.equal(await ui('#rec-search').inputValue(), '')
+    await ui('.notice-title:text("Search comments")').waitFor()
+    assert.equal(await ui('.search-clear').count(), 0, 'the button goes once the box is empty')
+    // Focus goes back to the box, ready to type again
+    assert.ok(await ui('#rec-search').evaluate(input => (input.getRootNode() as ShadowRoot).activeElement === input))
   })
 
   await step('closes when clicking outside the panel', async () => {

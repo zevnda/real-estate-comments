@@ -10,3 +10,4 @@
 - Firefox: if site access is turned off, the toolbar button now asks for it instead of doing nothing
 - Sort and filter comments from a dropdown: newest, top, or only those with photos
 - Sort and filter search results: best match, newest, most comments, or with photos
+- On a suburb’s search results page, see how many comments the suburb has, and jump to them

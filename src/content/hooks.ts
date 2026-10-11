@@ -1,5 +1,5 @@
-import type { CommentView, RecentCommentView } from '../shared/messages'
-import type { PropertyInput } from '../shared/property'
+import type { AreaStats, CommentView, RecentCommentView } from '../shared/messages'
+import type { Area, PropertyInput } from '../shared/property'
 import type { StoredData } from '../shared/storage'
 import type { WatchedProperty } from '../shared/watchlist'
 
@@ -205,4 +205,24 @@ export function useWatchedComments(items: WatchedProperty[], enabled: boolean) {
   }, [])
 
   return { byKey, refreshing, reload: useCallback(() => void load(true), [load]), update }
+}
+
+// Comment counts for the suburb a search results page is for (null when the page isn't for one)
+export function useAreaStats(area: Area | undefined): Loadable<AreaStats> | null {
+  const [state, setState] = useState<{ key: string; value: Loadable<AreaStats> } | null>(null)
+  const key = area ? `${area.suburb}|${area.state}|${area.postcode}` : null
+  useEffect(() => {
+    if (!area || !key) return
+    let current = true
+    setState({ key, value: { status: 'loading' } })
+    callBackground('areaStats', { area }).then(
+      data => current && setState({ key, value: { status: 'ready', data } }),
+      (error: unknown) => current && setState({ key, value: { status: 'error', error: errorMessage(error) } }),
+    )
+    return () => {
+      current = false
+    }
+  }, [key])
+  if (!key) return null
+  return state?.key === key ? state.value : { status: 'loading' }
 }

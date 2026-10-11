@@ -1,6 +1,6 @@
 import type { DocumentSnapshot, Timestamp } from 'firebase/firestore/lite'
-import type { CommentView, RecentCommentView, SearchResult } from '../shared/messages'
-import type { PropertyInput } from '../shared/property'
+import type { AreaStats, CommentView, RecentCommentView, SearchResult } from '../shared/messages'
+import type { Area, PropertyInput } from '../shared/property'
 import type { ReportReason } from '../shared/reports'
 import type { SearchLookup, SearchQuery } from '../shared/search'
 
@@ -97,10 +97,11 @@ const TTL = {
   recent: 5 * MINUTE,
   search: 5 * MINUTE,
   searchScan: 10 * MINUTE,
+  area: 10 * MINUTE,
   ban: 60 * MINUTE,
 }
 // Cache key prefixes, so a write can clear everything that shows comments
-const COMMENT_CACHES = ['property:', 'recent', 'search:']
+const COMMENT_CACHES = ['property:', 'recent', 'search:', 'area:']
 
 // An error whose message is safe and useful to show the user as-is.
 export class UserError extends Error {
@@ -385,6 +386,25 @@ export async function deleteComment(commentId: string, userId: string): Promise<
     await deleteDoc(ref)
   }
   await invalidate(...COMMENT_CACHES)
+}
+
+// Comment and property counts for a suburb (for its search results pages). One query on `suburb`, served by the
+// automatic single-field index, capped like the search scan; postcodes are checked here, since the query can't.
+export async function areaStats(area: Area): Promise<AreaStats> {
+  const records = await cached(`area:${area.suburb}|${area.postcode}`, TTL.area, async () => {
+    await ensureSignedIn()
+    const snapshot = await getDocs(
+      query(collection(db, COMMENTS), where('suburb', '==', area.suburb), limit(SEARCH_RECENT_SCAN)),
+    )
+    return snapshot.docs.map(toRecord)
+  })
+  // Old comments without a postcode are counted: the suburb and state are usually enough
+  const here = records.filter(record => !record.postcode || record.postcode === area.postcode)
+  return {
+    comments: here.length,
+    properties: new Set(here.map(record => canonicalAddress(record.address))).size,
+    capped: records.length === SEARCH_RECENT_SCAN,
+  }
 }
 
 // Reports go to a collection only the maintainer can read (with `pnpm moderate`). The document ID is the comment ID and

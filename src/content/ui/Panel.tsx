@@ -6,11 +6,13 @@ import type { CommentsView } from '../views'
 
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
+import { titleCase } from '../../shared/property'
 import { newComments } from '../../shared/watchlist'
 import { pluralize } from '../format'
-import { useRecentComments, useStored, useWatchedComments, useWatchlist } from '../hooks'
+import { useAreaStats, useRecentComments, useStored, useWatchedComments, useWatchlist } from '../hooks'
 import { complaintsMailto, reportIssueUrl } from '../report'
 import { COMMENT_VIEWS, viewThreads } from '../views'
+import { AreaCard } from './AreaCard'
 import { Comment, CommentThread, scrollToComment } from './Comment'
 import { Composer } from './Composer'
 import {
@@ -76,6 +78,8 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
   // Checked whenever the panel is open, for the tab's "new" count (cheap: the background caches each lookup)
   const watched = useWatchedComments(watchlist.items, true)
   const panel = useRef<HTMLDivElement>(null)
+  const area = page.status === 'browse' ? page.area : undefined
+  const areaStats = useAreaStats(area)
 
   useEffect(() => setTab(onPropertyPage ? 'property' : 'recent'), [onPropertyPage])
   useEffect(() => panel.current?.focus(), [])
@@ -206,7 +210,24 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
               state={recent.state}
               refreshing={recent.refreshing}
               onRefresh={recent.reload}
-              showHint={!onPropertyPage}
+              banner={
+                area && areaStats ? (
+                  <AreaCard
+                    area={area}
+                    stats={areaStats}
+                    onShow={() => {
+                      // The suburb and postcode find every commented property there (see shared/search.ts)
+                      setSearchQuery(`${titleCase(area.suburb)} ${area.postcode}`)
+                      setTab('search')
+                    }}
+                  />
+                ) : !onPropertyPage ? (
+                  <p class='hint-banner'>
+                    <InfoIcon />
+                    Open a listing on realestate.com.au or domain.com.au to comment on it.
+                  </p>
+                ) : null
+              }
             />
           ) : tab === 'watchlist' ? (
             <WatchlistTab
@@ -362,21 +383,17 @@ function RecentTab({
   state,
   refreshing,
   onRefresh,
-  showHint,
+  banner,
 }: {
   state: Loadable<RecentCommentView[]>
   refreshing: boolean
   onRefresh: () => void
-  showHint: boolean
+  // Above the list: the suburb's stats on its search pages, or a hint off property pages
+  banner: ComponentChildren
 }) {
   return (
     <>
-      {showHint && (
-        <p class='hint-banner'>
-          <InfoIcon />
-          Open a listing on realestate.com.au or domain.com.au to comment on it.
-        </p>
-      )}
+      {banner}
       {state.status === 'idle' || state.status === 'loading' ? (
         <Skeleton label='Loading recent comments…' />
       ) : state.status === 'error' ? (
