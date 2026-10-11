@@ -1772,6 +1772,26 @@ a.text-button {
   font-size: 13px;
 }
 
+/* The review request */
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 12px;
+  margin-top: 12px;
+}
+
+.review-actions .link-button {
+  margin-right: auto;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.review-actions a.button {
+  text-decoration: none;
+}
+
 /* What's new (the changelog) */
 .whats-new .markdown {
   margin: 4px 0 14px;

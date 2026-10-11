@@ -169,9 +169,10 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
       <h4>Stored in your browser</h4>
       <p>
         Your random identifier, your display name, your settings (theme, panel width, sort order), whether you’ve agreed
-        to the posting rules, whether you’ve seen what’s new in an update, and which properties you posted on in the
-        last day, and when (to limit posting rate), are kept in your browser’s extension storage, and never leave it
-        except as described above. Comments are cached in your browser for a few minutes.
+        to the posting rules, whether you’ve seen what’s new in an update, when you installed it and whether we’ve asked
+        you for a review, and which properties you posted on in the last day, and when (to limit posting rate), are kept
+        in your browser’s extension storage, and never leave it except as described above. Comments are cached in your
+        browser for a few minutes.
       </p>
       <p>
         The properties on your watchlist are kept in your browser’s synced extension storage, so if your browser syncs

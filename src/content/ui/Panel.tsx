@@ -30,6 +30,7 @@ import {
   SunIcon,
 } from './icons'
 import { PrivacyDialog, TermsDialog } from './Legal'
+import { ReviewDialog, useReviewPrompt } from './ReviewPrompt'
 import { SearchTab } from './Search'
 import { ErrorNotice, NoPhotos, Notice, Skeleton } from './states'
 import { ViewSelect } from './ViewSelect'
@@ -88,6 +89,8 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
       setShowWhatsNew(true)
     }
   }, [whatsNewLoaded, whatsNewFor])
+  // Never on top of What's new, or the legal pages
+  const review = useReviewPrompt(showWhatsNew || legal !== null)
   const area = page.status === 'browse' ? page.area : undefined
   const areaStats = useAreaStats(area)
 
@@ -300,6 +303,7 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
         </footer>
         {legal === 'terms' && <TermsDialog onClose={() => setLegal(null)} />}
         {legal === 'privacy' && <PrivacyDialog onClose={() => setLegal(null)} />}
+        {review.show && <ReviewDialog onLater={review.later} onDone={review.done} />}
         {showWhatsNew && (
           <WhatsNewDialog
             onClose={() => {

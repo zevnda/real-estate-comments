@@ -176,6 +176,34 @@ async function run(colorScheme: 'light' | 'dark') {
     assert.equal(await ui('.whats-new').count(), 0)
   })
 
+  await step('asks for a review once it’s been installed 30 minutes, until reviewed or declined', async () => {
+    const setStorage = (values: Record<string, unknown>) =>
+      context.serviceWorkers()[0]!.evaluate(items => chrome.storage.local.set(items), values)
+    const openPanel = async () => {
+      await page.reload()
+      await ui('.panel').waitFor({ timeout: 10_000 })
+    }
+    await setStorage({ installedAt: Date.now() - 31 * 60_000, reviewAsked: 0 })
+    await openPanel()
+    await ui('.review').waitFor({ timeout: 10_000 })
+    const href = (await ui('.review a:has-text("Leave a review")').getAttribute('href')) ?? ''
+    assert.match(href, /^https:\/\/chromewebstore\.google\.com\/detail\/fpmhogbiebniapjfkbhgeacgkgpjaenn\/reviews$/)
+    await ui('.review button:has-text("Maybe later")').click()
+    await ui('.review').waitFor({ state: 'detached' })
+    // Not again for a week
+    await openPanel()
+    await waitForComments()
+    assert.equal(await ui('.review').count(), 0)
+    // A week later it asks again; "No thanks" ends it
+    await setStorage({ reviewAsked: Date.now() - 1000 })
+    await openPanel()
+    await ui('.review button:has-text("No thanks")').click()
+    await ui('.review').waitFor({ state: 'detached' })
+    await openPanel()
+    await waitForComments()
+    assert.equal(await ui('.review').count(), 0)
+  })
+
   await step('explains formatting in a popup, closed with Esc without closing the panel', async () => {
     await ui('.link-button:text("Formatting help")').click()
     await ui('.overlay .dialog').waitFor()

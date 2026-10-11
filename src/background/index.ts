@@ -8,7 +8,7 @@ import { log } from '../shared/log'
 import { buildPropertyKeys, getSite, STATES } from '../shared/property'
 import { isReportReason, REPORT_DETAILS_MAX_LENGTH } from '../shared/reports'
 import { SITE_MATCHES } from '../shared/sites'
-import { setStored } from '../shared/storage'
+import { getStored, setStored } from '../shared/storage'
 import { isPropertyInput, validateCommentText } from '../shared/validation'
 import {
   areaStats,
@@ -197,6 +197,14 @@ ext.tabs.onUpdated.addListener((tabId, changeInfo) => {
 
 ext.runtime.onInstalled.addListener(details => {
   ext.action.setBadgeBackgroundColor({ color: '#2563eb' }).catch(() => {})
+  // When it was installed, to time the review request (see ReviewPrompt). Existing users count from their update.
+  if (details.reason === 'install' || details.reason === 'update') {
+    getStored('installedAt')
+      .then(async installedAt => {
+        if (!installedAt) await setStored('installedAt', Date.now())
+      })
+      .catch(error => log.warn('Saving installedAt failed:', error))
+  }
   // After an update (not a fresh install), the panel shows what's new the next time it opens
   if (details.reason === 'update') {
     setStored('whatsNewFor', ext.runtime.getManifest().version).catch(error =>

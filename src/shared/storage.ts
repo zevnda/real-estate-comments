@@ -14,6 +14,11 @@ export interface StoredData {
   theme: Theme
   // The POSTING_RULES_VERSION the user last agreed to; the rules are shown before their first post after a change
   postingRulesAccepted: number
+  // When the extension was installed (or, for users who had it before this was recorded, updated): times the review
+  // request
+  installedAt: number
+  // The review request: 'done' (reviewed or declined), or a time (ms) before which not to ask again
+  reviewAsked: number | 'done'
   // Set to the new version when the extension updates; the panel then shows "What's new" once and clears it
   whatsNewFor: string
   // Timestamps (ms) of this user's recent comments, for rate limiting
