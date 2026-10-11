@@ -1,0 +1,66 @@
+rules_version = '2';
+
+// A copy of the rules deployed in the Firebase console. The console is the source of truth:
+// editing this file changes nothing until the same text is published there. Keep the two in sync (see CLAUDE.md).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Legacy comments (only very early versions used this). Locked; the data stays, viewable in the console.
+    match /comments/{commentId} {
+      allow read, write: if false;
+    }
+
+    // Comments
+    match /listingcomments/{commentId} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+        && isValidComment(request.resource.data);
+
+      // Votes only: one voter added or removed, count moves by at most 1. Nothing else can be edited.
+      allow update: if request.auth != null
+        && isValidVote(request.resource.data, resource.data);
+
+      // Only by the poster: comments record the poster's Firebase Auth UID, which can't be faked (unlike `uid`).
+      // Comments from older versions don't have it, so only the maintainer can delete them, in the console.
+      allow delete: if request.auth != null
+        && resource.data.get('authorAuthUid', null) == request.auth.uid;
+    }
+
+    // Bans: the extension reads them; only you add or remove them, in the console
+    match /bannedUsers/{document} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    function isValidComment(data) {
+      return data.keys().hasAll(['address', 'suburb', 'text', 'username', 'timestamp', 'createdAt'])
+        && data.keys().hasOnly(['address', 'suburb', 'state', 'postcode', 'url', 'text', 'username',
+             'timestamp', 'createdAt', 'uid', 'authorAuthUid'])
+        && data.text is string
+        && data.text.size() >= 5
+        && data.text.size() <= 1200
+        && data.username is string
+        && data.username.size() <= 50
+        && data.address is string
+        && data.address.size() <= 200
+        && data.suburb is string
+        && data.suburb.size() <= 100
+        && data.timestamp is string
+        && data.createdAt is timestamp
+        && data.get('uid', '') is string
+        && data.get('uid', '').size() <= 64
+        && data.get('authorAuthUid', request.auth.uid) == request.auth.uid;
+    }
+
+    function isValidVote(after, before) {
+      return after.diff(before).affectedKeys().hasOnly(['votes', 'userVotes'])
+        && after.votes is int
+        && after.votes >= 0
+        && after.votes - before.get('votes', 0) <= 1
+        && after.votes - before.get('votes', 0) >= -1
+        && after.userVotes is map
+        && after.userVotes.diff(before.get('userVotes', {})).affectedKeys().size() == 1;
+    }
+  }
+}

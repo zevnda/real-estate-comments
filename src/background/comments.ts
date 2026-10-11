@@ -38,6 +38,9 @@ interface CommentDoc {
   username?: string
   // The poster's anonymous extension user ID (not the Firebase Auth UID)
   uid?: string
+  // The poster's Firebase Auth UID. The security rules only allow deleting a comment whose authorAuthUid is the
+  // caller's, since `uid` is visible to everyone and can't be verified. Missing on comments from older versions.
+  authorAuthUid?: string
   createdAt?: Timestamp
   votes?: number
   // Voter user ID → 'up'
@@ -54,6 +57,7 @@ interface CommentRecord {
   text: string
   username?: string
   uid?: string
+  authorAuthUid?: string
   // Milliseconds since the epoch, or 0 if unknown
   createdAt: number
   votes: number
@@ -90,6 +94,7 @@ export class UserError extends Error {
 }
 
 export async function listComments(property: PropertyInput, userId: string, fresh = false): Promise<CommentView[]> {
+  const authUid = await ensureSignedIn()
   const keys = buildPropertyKeys(property)
   const records = await cached(
     `property:${JSON.stringify([keys.addressVariants, keys.suburb])}`,
@@ -116,11 +121,12 @@ export async function listComments(property: PropertyInput, userId: string, fres
       // The query can't include the postcode (no index for it), so drop same-named streets in same-named suburbs
       // elsewhere, e.g. Richmond VIC and Richmond NSW
       .filter(record => !record.postcode || record.postcode === keys.postcode)
-      .map(record => toView(record, userId))
+      .map(record => toView(record, userId, authUid))
   )
 }
 
 export async function recentComments(userId: string, fresh = false): Promise<RecentCommentView[]> {
+  const authUid = await ensureSignedIn()
   const records = await cached(
     'recent',
     TTL.recent,
@@ -136,7 +142,7 @@ export async function recentComments(userId: string, fresh = false): Promise<Rec
   return records.map(record => {
     const { address, suburb, state, postcode } = record
     return {
-      ...toView(record, userId),
+      ...toView(record, userId, authUid),
       displayAddress: titleCase(canonicalAddress(address)),
       displayLocality: [titleCase(suburb), state?.toUpperCase(), postcode].filter(Boolean).join(' '),
       links: state && postcode ? propertyLinks({ address, suburb, state, postcode }) : null,
@@ -150,12 +156,13 @@ export async function searchComments(text: string, userId: string): Promise<Sear
   const search = parseSearchQuery(text)
   if (!search) return []
 
+  const viewer = { userId, authUid: await ensureSignedIn() }
   let records = await runLookups(searchLookups(search))
-  let results = rankSearchResults(search, records, userId)
+  let results = rankSearchResults(search, records, viewer)
   // Nothing specific matched (a street on its own, a misspelt suburb): fuzzy-match recent comments instead
   if (!results.length) {
     records = await runLookups([{ kind: 'recent' }])
-    results = rankSearchResults(search, records, userId)
+    results = rankSearchResults(search, records, viewer)
   }
   return results
 }
@@ -197,7 +204,11 @@ function fetchLookup(lookup: SearchLookup): Promise<CommentRecord[]> {
 }
 
 // Groups comments by property, scores each property against the query, and returns the best matches
-function rankSearchResults(search: SearchQuery, records: CommentRecord[], userId: string): SearchResult[] {
+function rankSearchResults(
+  search: SearchQuery,
+  records: CommentRecord[],
+  viewer: { userId: string; authUid: string },
+): SearchResult[] {
   // Old spellings of the same address ("97  yates ave") join their property's group
   const groups = new Map<string, CommentRecord[]>()
   for (const record of records) {
@@ -209,7 +220,9 @@ function rankSearchResults(search: SearchQuery, records: CommentRecord[], userId
     .map(([id, group]) => ({ id, group, score: scoreMatch(search, group[0]!) }))
     .filter(({ score }) => score >= MIN_SCORE)
     .map(({ id, group, score }) => {
-      const comments = group.map(record => toView(record, userId)).sort((a, b) => b.createdAt - a.createdAt)
+      const comments = group
+        .map(record => toView(record, viewer.userId, viewer.authUid))
+        .sort((a, b) => b.createdAt - a.createdAt)
       const { suburb, state = '', postcode = '' } = group[0]!
       const address = canonicalAddress(group[0]!.address)
       return {
@@ -235,7 +248,7 @@ export async function createComment(
   username: string,
   userId: string,
 ): Promise<CommentView> {
-  await ensureSignedIn()
+  const authUid = await ensureSignedIn()
   if (await isBanned(userId)) throw new UserError('You can’t post comments right now (error 90001).')
 
   const keys = buildPropertyKeys(property)
@@ -250,6 +263,7 @@ export async function createComment(
     timestamp: now.toISOString(),
     username: cleanUsername(username),
     uid: userId,
+    authorAuthUid: authUid,
     createdAt: serverTimestamp(),
   }
   const ref = await addDoc(collection(db, COMMENTS), data)
@@ -262,6 +276,7 @@ export async function createComment(
     votes: 0,
     hasVoted: false,
     isOwn: true,
+    canDelete: true,
   }
 }
 
@@ -292,11 +307,18 @@ export async function toggleVote(commentId: string, userId: string): Promise<{ v
 }
 
 export async function deleteComment(commentId: string, userId: string): Promise<void> {
-  await ensureSignedIn()
+  const authUid = await ensureSignedIn()
   const ref = doc(db, COMMENTS, commentId)
   const snap = await getDoc(ref)
   if (snap.exists()) {
-    if ((snap.data() as CommentDoc).uid !== userId) throw new UserError('You can only delete your own comments.')
+    const data = snap.data() as CommentDoc
+    if (data.authorAuthUid !== authUid) {
+      throw new UserError(
+        data.uid === userId
+          ? 'Comments posted with older versions of the extension can’t be deleted.'
+          : 'You can only delete your own comments.',
+      )
+    }
     await deleteDoc(ref)
   }
   await invalidate(...COMMENT_CACHES)
@@ -324,11 +346,12 @@ function toRecord(snap: DocumentSnapshot): CommentRecord {
   if (data.postcode) record.postcode = data.postcode
   if (data.username) record.username = data.username
   if (data.uid) record.uid = data.uid
+  if (data.authorAuthUid) record.authorAuthUid = data.authorAuthUid
   if (data.userVotes) record.userVotes = data.userVotes
   return record
 }
 
-function toView(record: CommentRecord, userId: string): CommentView {
+function toView(record: CommentRecord, userId: string, authUid: string): CommentView {
   return {
     id: record.id,
     text: record.text,
@@ -337,5 +360,6 @@ function toView(record: CommentRecord, userId: string): CommentView {
     votes: record.votes,
     hasVoted: record.userVotes?.[userId] === 'up',
     isOwn: record.uid === userId,
+    canDelete: record.authorAuthUid === authUid,
   }
 }

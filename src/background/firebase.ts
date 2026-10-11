@@ -19,14 +19,16 @@ export const db = getFirestore(app)
 // The web-extension build of Auth avoids the DOM and popup code that breaks in a service worker.
 const auth = getAuth(app)
 
-let signingIn: Promise<void> | null = null
+let signingIn: Promise<string> | null = null
 
 // The security rules require a signed-in user, so every request goes through this first. Concurrent callers share
-// one sign-in.
-export function ensureSignedIn(): Promise<void> {
+// one sign-in. Returns the Firebase Auth UID, which the rules use to check who may delete a comment. The session is
+// kept in the extension's IndexedDB, so the UID stays the same across browser restarts.
+export function ensureSignedIn(): Promise<string> {
   signingIn ??= (async () => {
     await auth.authStateReady()
-    if (!auth.currentUser) await signInAnonymously(auth)
+    const user = auth.currentUser ?? (await signInAnonymously(auth)).user
+    return user.uid
   })().finally(() => {
     signingIn = null
   })

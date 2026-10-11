@@ -104,7 +104,7 @@ export function Comment({ comment, onChange, onDelete }: CommentProps) {
               <span>{comment.votes}</span>
             </span>
           )}
-          {comment.isOwn && onDelete && !confirming && (
+          {comment.canDelete && onDelete && !confirming && (
             <button type='button' class='text-button' onClick={() => setConfirming(true)} disabled={busy}>
               <TrashIcon />
               Delete

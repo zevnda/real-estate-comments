@@ -6,6 +6,8 @@ Guidance for working on Real Estate Comments. Read this before changing anything
 
 **Rebuild after every change.** Whenever you change anything that ends up in the extension (`src/`, `icons/`, `package.json` version, build script), run `pnpm build` before finishing, even for small changes and even if you didn't otherwise test, so `dist/chrome` and `dist/firefox` are always current and the maintainer can reload the extension and test straight away. If the build fails, fix it or say so; never leave `dist` stale without saying. End by telling the maintainer it's rebuilt and to reload the extension and refresh the site's tabs (see "Loading locally").
 
+**Never commit or push.** The maintainer handles all git commits, pushes, branches, tags and releases. Leave changes uncommitted in the working tree and say what changed; don't run `git commit`, `git push` or anything else that writes to git history or a remote, even when it seems helpful or a task would normally end with one.
+
 ## What the extension does
 
 A browser extension that adds a comment section to property pages on **realestate.com.au** and **domain.com.au**, so renters and buyers can share what a property is really like. Users can read, post, upvote and delete their own comments. Off property pages, the panel shows the most recent comments across all properties.
@@ -40,6 +42,7 @@ It ships for **Chrome** and **Firefox**, both **Manifest V3**, from one codebase
 | `scripts/e2e.ts`                              | Browser smoke test on fake pages (see Testing).                                                                                                                                        |
 | `scripts/live-check.ts`                       | Runs the built extension on the real sites (see "Checking the live sites").                                                                                                            |
 | `tests/*.test.ts`                             | Vitest unit tests.                                                                                                                                                                     |
+| `firestore.rules`                             | Copy of the Firestore security rules deployed in the console (see "Security model").                                                                                                   |
 | `CHANGELOG.md`                                | Becomes the GitHub release notes verbatim (see Releasing).                                                                                                                             |
 
 ## Architecture
@@ -150,6 +153,7 @@ Collection **`listingcomments`**. One document per comment:
 | `url`                | Page URL without query string.                                                                                |
 | `text`, `username`   | Comment markdown (5–1200 chars, ≤ 50 lines); name (≤ 50 chars, default `Anonymous`).                          |
 | `uid`                | The poster's **anonymous extension user ID** (see below), not the Firebase Auth UID.                          |
+| `authorAuthUid`      | The poster's **Firebase Auth UID**, which the rules check on delete. Missing on comments from 2.0.0 and 1.x.  |
 | `createdAt`          | Timestamp (`serverTimestamp()` from 2.0; client `Date` in 1.x). Sort key.                                     |
 | `timestamp`          | ISO string from the client. Legacy; still written.                                                            |
 | `votes`, `userVotes` | Upvote count and `{ [userId]: 'up' }`. Added on first vote.                                                   |
@@ -158,7 +162,7 @@ Collection **`bannedUsers`**: documents with a `uid` field. A match blocks posti
 
 **Rules for changing any of this:**
 
-- **Don't add, rename or remove fields** without first checking the deployed **security rules** in the Firebase console. They aren't in this repo and may reject unknown fields, which would break posting for everyone.
+- **Don't add, rename or remove fields** without updating the **security rules** first (`firestore.rules`, see "Security model"). They reject unknown fields on create (`hasOnly`) and any update other than a vote, so a new field would break posting for everyone.
 - **Queries must be served by existing indexes.** The comment lookup is `address in [...] AND suburb == x ORDER BY createdAt DESC LIMIT 100`, which uses 1.x's composite index (address, suburb, createdAt). The recent list is `ORDER BY createdAt DESC LIMIT 10`. A query needing a new composite index fails until it's created in the console.
 - **Address keys:** new comments are saved under `canonicalAddress()` (lowercase, single spaces, `unit 5, 12 x` → `5/12 x`, street type spelled out: `st` → `street`). Lookups query every spelling in `buildPropertyKeys().addressVariants`: canonical, abbreviated street type, and the **1.x key** (`legacyAddress()`: title text lowercased, `" - "` → `"-"`). That's how a house listed as "97 Yates Ave" on one site and "97 Yates Avenue" on the other shares comments, and how 1.x comments are still found. Never drop the legacy variant. Audit on 2026-10-11 (19 comments): all stored addresses are canonical. The one exception, document `EOrAimxFhGiyEyKGv6Dm` (`97  yates ave`, double space, from a sloppy 1.x title), was fixed by hand in the console; property pages other than its original listing couldn't find it, because no variant can guess stray whitespace. If old data like that turns up again, fix the record rather than adding variants. Keep the variant list ≤ 30 (Firestore's `in` limit). `tests/property.test.ts` has real stored keys; keep those tests passing.
 
@@ -208,19 +212,28 @@ Scaling: street-number, postcode and suburb lookups stay small as comments grow,
 
 Listed in `StoredData`. Two keys predate 2.0 and **must keep their names**:
 
-- `CTextFilterStore_strCleanPattern_1039531631`: the user's anonymous ID (UUID). Losing it means users can no longer delete their comments, and their votes stop being recognised.
+- `CTextFilterStore_strCleanPattern_1039531631`: the user's anonymous ID (UUID). Losing it means their comments stop showing as theirs ("You") and their votes stop being recognised.
 - `tos_accepted`: the string `'true'` once the terms were accepted.
 
 Others: `displayName`, `panelOpen`, `panelWidth`, `sort`, `theme` (`light`/`dark`/`system`), `postHistory` (rate limiting). 1.x also wrote some keys into the _site's_ `localStorage` (`comments-panel-*`); 2.0 doesn't use them.
 
+Deleting depends instead on the Firebase Auth session, which the Auth SDK keeps in the extension's IndexedDB (`indexedDBLocalPersistence`, the web-extension build's default), not in `storage.local`. It survives browser restarts; reinstalling the extension loses it, and with it the ability to delete earlier comments.
+
 ## Security model and known gaps
 
-Everything client-side is a courtesy, not a control: the rate limit (5 posts/hour, 3 per property per day), the ownership check before deleting, the ban check and comment validation all run in the extension, and anyone can call Firestore directly with the public config. **Real enforcement must be in the Firestore security rules.** These aren't in the repo; recommended rule changes (need the Firebase console):
+Everything client-side is a courtesy, not a control: the rate limit (5 posts/hour, 3 per property per day), the ownership check before deleting, the ban check and comment validation all run in the extension, and anyone can call Firestore directly with the public config. **Real enforcement must be in the Firestore security rules.**
 
-- Store the Firebase Auth UID on new comments (e.g. `authorAuthUid`) and only allow delete/update by that user. Today `uid` is a client-generated ID, so the rules can't verify ownership.
-- Validate field types and lengths on create; only allow `votes`/`userVotes` to change on update, by ±1 and only for the caller's own key.
-- Enforce bans in the rules rather than in the client.
-- **Enable Firebase App Check** so Firestore only accepts requests from the genuine extension. Client-side limits (the refresh interval, rate limits) can be bypassed by calling Firestore directly with the public config. Also set a budget alert in Google Cloud.
+**`firestore.rules` is a copy of the deployed rules**, published by hand in the Firebase console (Firestore Database → Rules); the console is the source of truth, so publish any change there and keep the file in sync. Until 2026-10-11, any signed-in (i.e. anonymous) user could edit or delete any comment, and create bans. Now:
+
+- `listingcomments`: read when signed in; create only with the extension's field set (`hasOnly`) and length limits, and `authorAuthUid` (if present) must be the caller's; update only a single vote (`votes` ±1, one `userVotes` key); **delete only when `authorAuthUid` is the caller's Firebase Auth UID**. `uid` can't be used for this: it's client-generated and visible to everyone. So comments without `authorAuthUid` (2.0.0 and 1.x) can only be deleted by the maintainer in the console; the extension shows Delete only when `canDelete` (`CommentView`), and the background checks it again before deleting. (From 2026-10-11 until this rule was published, delete was `if false`.)
+- `bannedUsers`: read when signed in; no writes. `comments` (pre-1.x-refactor collection, unused): locked.
+- Checked after publishing with writes carrying an impossible `updateTime` precondition: Firestore evaluates rules before preconditions on existing documents, so `PERMISSION_DENIED` vs `FAILED_PRECONDITION` shows what the rules allow without changing data. Creates can't be checked this way (on a new document the precondition is checked first), so test posting with the extension.
+
+Still to do:
+
+- The rules can't stop one person voting many times with different `userVotes` keys, or voting on their own comment, since votes are keyed by the unverifiable `uid`. Keying them by Auth UID would fix it but would forget everyone's existing votes.
+- Enforce bans in the rules rather than in the client (ban documents have random IDs, so this needs them keyed by user ID).
+- **Enable Firebase App Check** so Firestore only accepts requests from the genuine extension. Client-side limits (the refresh interval, rate limits) can be bypassed by calling Firestore directly with the public config. The project is on the free Spark plan, so there's no billing and no budget alert to set: abuse can't cost money, but once the daily free quota is used up Firestore refuses requests until it resets, and the extension stops working until then.
 
 Comment rendering is safe by construction: markdown goes through DOMPurify with a small allow-list, links get `rel="noopener noreferrer nofollow ugc"`, and nothing is assigned to `innerHTML`.
 

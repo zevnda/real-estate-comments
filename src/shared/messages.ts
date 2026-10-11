@@ -11,6 +11,9 @@ export interface CommentView {
   votes: number
   hasVoted: boolean
   isOwn: boolean
+  // Only comments that record the poster's Firebase Auth UID can be deleted (the security rules check it), so the
+  // user's own comments from before that can't
+  canDelete: boolean
 }
 
 export interface RecentCommentView extends CommentView {
