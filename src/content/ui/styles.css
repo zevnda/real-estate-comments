@@ -910,7 +910,20 @@ a.text-button {
   max-height: 100%;
   object-fit: contain;
   border-radius: 6px;
+  /* Gestures are handled by the lightbox (pinch, drag, swipe), not the browser, which would zoom the whole page */
+  touch-action: none;
+  cursor: zoom-in;
   animation: pop-in 0.18s ease-out;
+}
+
+.lightbox-image--zoomed {
+  position: relative;
+  z-index: 1;
+  cursor: grab;
+}
+
+.lightbox-image--zoomed:active {
+  cursor: grabbing;
 }
 
 .lightbox-figure figcaption {
