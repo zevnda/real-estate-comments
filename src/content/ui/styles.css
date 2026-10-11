@@ -1,8 +1,8 @@
 /* Scoped to the extension's shadow root. Use px, not rem: rem follows the host site's root font size. */
 
 /* Theme: every colour is light-dark(light, dark), resolved by color-scheme. It follows the system until the user
-   picks one with the theme button, which sets data-theme on the host. Neutrals (white, with a cool blue-white for the
-   muted areas in light mode) and the extension's blue as the only accent (the launcher's colour since 1.x). */
+   picks one with the theme button, which sets data-theme on the host. Neutrals (in light mode white, with cool
+   blue-white muted areas and cool grey borders) and the extension's blue as the only accent (the launcher's colour since 1.x). */
 :host {
   all: initial;
   color-scheme: light dark;
@@ -14,12 +14,13 @@
   --surface: light-dark(#ffffff, #1b1a18);
   --surface-muted: light-dark(#f3f6fb, #141311);
   --surface-raised: light-dark(#ffffff, #24221f);
-  --border: light-dark(#e8e5df, #302d29);
-  --border-strong: light-dark(#d4cfc6, #45403a);
+  --border: light-dark(#e2e8f0, #302d29);
+  --border-strong: light-dark(#cbd5e1, #45403a);
   --text: light-dark(#1c1917, #f3f1ee);
   --text-muted: light-dark(#5c5650, #b3ada5);
   --text-faint: light-dark(#8c857c, #7f7971);
   --danger: light-dark(#b42318, #f97066);
+  --star: light-dark(#d97706, #fbbf24);
   --danger-soft: light-dark(#fef3f2, #3a1714);
   --backdrop: light-dark(rgba(28, 25, 23, 0.32), rgba(0, 0, 0, 0.55));
   /* The image lightbox is dark in both themes, like a photo viewer */
@@ -153,6 +154,7 @@ button:disabled {
 /* Panel */
 
 .panel {
+  container: panel / inline-size;
   position: fixed;
   top: 16px;
   right: 16px;
@@ -282,28 +284,52 @@ button:disabled {
   color: var(--text);
 }
 
-/* Tabs */
+/* The header's Watch star, when the property is on the watchlist */
+.icon-button--active,
+.icon-button--active:hover {
+  color: var(--star);
+}
+
+.icon-button:disabled {
+  opacity: 0.5;
+}
+
+/* Tabs: a segmented control under the header. On a narrow panel the labels are hidden (still read out by screen
+   readers) and the icons remain. */
+
+.tabs-bar {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
 
 .tabs {
   display: flex;
   gap: 4px;
-  padding: 0 14px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  /* Room around the selected tab, so it doesn't touch the holder's edge */
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--surface-muted);
 }
 
 .tabs button {
   display: flex;
+  flex: 1 1 0;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  margin-bottom: -1px;
-  padding: 12px 8px 10px;
+  min-width: 0;
+  padding: 6px 8px;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-radius: 8px;
   background: none;
   color: var(--text-muted);
+  font-size: 12.5px;
   font-weight: 600;
-  font-size: 13px;
+  white-space: nowrap;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .tabs button:hover {
@@ -311,24 +337,51 @@ button:disabled {
 }
 
 .tabs button[aria-selected='true'] {
-  border-bottom-color: var(--accent);
+  background: var(--surface);
   color: var(--accent-text);
+  box-shadow:
+    0 0 0 1px var(--border),
+    0 1px 2px var(--shadow-color);
+}
+
+.tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tab-count {
-  min-width: 20px;
-  padding: 0 6px;
-  border-radius: 10px;
-  background: var(--surface-muted);
+  flex: none;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--border);
   color: var(--text-muted);
-  font-size: 11px;
-  line-height: 18px;
+  font-size: 10.5px;
+  line-height: 17px;
   text-align: center;
 }
 
 .tabs button[aria-selected='true'] .tab-count {
   background: var(--accent-soft);
   color: var(--accent-text);
+}
+
+/* New comments on watched properties */
+.tab-count--new,
+.tabs button[aria-selected='true'] .tab-count--new {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+@container panel (max-width: 460px) {
+  .tab-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 /* Lists */
@@ -1129,6 +1182,58 @@ a.text-button {
 .search-detail-heading {
   padding: 6px 22px 12px;
   border-bottom: 1px solid var(--border);
+}
+
+/* Title with a Watch button beside it (search results and the watchlist) */
+.detail-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.watch-button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.watch-button:hover {
+  color: var(--text);
+}
+
+.watch-button--active,
+.watch-button--active:hover {
+  border-color: var(--star);
+  color: var(--star);
+}
+
+.watch-result {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.watch-result .search-result {
+  flex: 1;
+  min-width: 0;
+}
+
+.watch-result .search-result-meta {
+  gap: 2px;
+}
+
+.watch-result .search-result-meta .chip--accent {
+  color: var(--accent-text);
+  font-weight: 600;
 }
 
 .search-detail-heading h3 {

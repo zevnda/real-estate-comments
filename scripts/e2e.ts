@@ -161,7 +161,7 @@ async function run(colorScheme: 'light' | 'dark') {
   await step('switches theme from the header button', async () => {
     const host = page.locator('real-estate-comments')
     const before = await host.getAttribute('data-theme')
-    await ui('.header-actions .icon-button').first().click()
+    await ui('.header-actions button[aria-label*="theme"]').click()
     await page.waitForFunction(
       before => document.querySelector('real-estate-comments')?.getAttribute('data-theme') !== before,
       before,
@@ -171,7 +171,7 @@ async function run(colorScheme: 'light' | 'dark') {
     assert.notEqual(after, before)
   })
   // Back to the original theme, so screenshots match the run's colour scheme
-  await ui('.header-actions .icon-button').first().click()
+  await ui('.header-actions button[aria-label*="theme"]').click()
 
   await page.goto('https://www.realestate.com.au/property-house-nsw-dundas+valley-442858264')
   await step('finds comments from a listing title with irregular spacing and abbreviations', async () => {
@@ -196,6 +196,24 @@ async function run(colorScheme: 'light' | 'dark') {
     })
     await ui('.panel-title:text("9 Warbrick Street")').waitFor({ timeout: 5_000 })
     await waitForComments()
+  })
+
+  // The watchlist is kept in extension storage, never in Firestore, so this writes nothing to production
+  await step('watches a property, lists it on the Watchlist tab, and stops watching', async () => {
+    const star = ui('.header-actions button[aria-pressed]')
+    await star.click()
+    assert.equal(await star.getAttribute('aria-pressed'), 'true')
+    const address = await panelTitle()
+    await ui('.tabs button:has-text("Watchlist")').click()
+    await ui('.watch-result').first().waitFor()
+    assert.equal(await ui('.watch-result .search-result-address').first().textContent(), address)
+    await ui('.watch-result .search-result').first().click()
+    await waitForComments()
+    await ui('.search-detail .back-button').click()
+    await ui('.watch-result button[aria-label^="Stop watching"]').first().click()
+    await ui('.watch-result').waitFor({ state: 'detached' })
+    await ui('.tabs button:has-text("Property")').click()
+    assert.equal(await star.getAttribute('aria-pressed'), 'false')
   })
 
   await step('previews a comment with its formatting, without posting', async () => {

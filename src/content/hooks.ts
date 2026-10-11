@@ -1,12 +1,14 @@
 import type { CommentView, RecentCommentView } from '../shared/messages'
 import type { PropertyInput } from '../shared/property'
 import type { StoredData } from '../shared/storage'
+import type { WatchedProperty } from '../shared/watchlist'
 
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
 
 import { log } from '../shared/log'
 import { callBackground } from '../shared/messages'
 import { getStored, setStored } from '../shared/storage'
+import { getWatchlist, MAX_WATCHED, onWatchlistChange, updateWatchlist, watchedInput } from '../shared/watchlist'
 
 export type Loadable<T> =
   { status: 'idle' } | { status: 'loading' } | { status: 'ready'; data: T } | { status: 'error'; error: string }
@@ -119,4 +121,88 @@ export function useStored<K extends keyof StoredData>(key: K, fallback: StoredDa
     [key],
   )
   return [value, save, loaded] as const
+}
+
+export type WatchEntry = Omit<WatchedProperty, 'addedAt' | 'seenAt'>
+
+// The user's watchlist, kept in step across tabs
+export function useWatchlist() {
+  const [items, setItems] = useState<WatchedProperty[]>([])
+  useEffect(() => {
+    getWatchlist()
+      .then(setItems)
+      .catch(error => log.warn('Reading the watchlist failed:', error))
+    return onWatchlistChange(setItems)
+  }, [])
+
+  const save = useCallback((change: (list: WatchedProperty[]) => WatchedProperty[]) => {
+    // Update straight away; storage confirms it (and tells other tabs)
+    setItems(change)
+    updateWatchlist(change).catch(error => log.warn('Saving the watchlist failed:', error))
+  }, [])
+
+  return {
+    items,
+    full: items.length >= MAX_WATCHED,
+    isWatched: (key: string) => items.some(item => item.key === key),
+    // `newestAt`: the newest comment the user can see right now, so only later ones count as new
+    watch: (entry: WatchEntry, newestAt = Date.now()) =>
+      save(list =>
+        list.some(item => item.key === entry.key) || list.length >= MAX_WATCHED
+          ? list
+          : [{ ...entry, addedAt: Date.now(), seenAt: newestAt }, ...list],
+      ),
+    unwatch: (key: string) => save(list => list.filter(item => item.key !== key)),
+    markSeen: (key: string, at: number) => {
+      // Only write when it changes anything: this runs whenever a watched property's comments are shown
+      if (!items.some(item => item.key === key && at > item.seenAt)) return
+      save(list => list.map(item => (item.key === key && at > item.seenAt ? { ...item, seenAt: at } : item)))
+    },
+  }
+}
+
+export type Watchlist = ReturnType<typeof useWatchlist>
+
+// Comments for each watched property, looked up through the background's cache (so reopening the panel is cheap)
+export function useWatchedComments(items: WatchedProperty[], enabled: boolean) {
+  const [byKey, setByKey] = useState<Record<string, Loadable<CommentView[]>>>({})
+  const [refreshing, setRefreshing] = useState(false)
+  const keys = items.map(item => item.key).join('|')
+
+  const load = useCallback(
+    async (fresh: boolean) => {
+      if (fresh) setRefreshing(true)
+      await Promise.all(
+        items.map(async item => {
+          setByKey(previous =>
+            previous[item.key]?.status === 'ready' ? previous : { ...previous, [item.key]: { status: 'loading' } },
+          )
+          try {
+            const data = await callBackground('listComments', { property: watchedInput(item), fresh })
+            setByKey(previous => ({ ...previous, [item.key]: { status: 'ready', data } }))
+          } catch (error) {
+            setByKey(previous => ({ ...previous, [item.key]: { status: 'error', error: errorMessage(error) } }))
+          }
+        }),
+      )
+      setRefreshing(false)
+    },
+    // `keys` identifies `items`
+    [keys],
+  )
+
+  useEffect(() => {
+    if (enabled) void load(false)
+  }, [enabled, load])
+
+  const update = useCallback((key: string, change: (comments: CommentView[]) => CommentView[]) => {
+    setByKey(previous => {
+      const current = previous[key]
+      return current?.status === 'ready'
+        ? { ...previous, [key]: { status: 'ready', data: change(current.data) } }
+        : previous
+    })
+  }, [])
+
+  return { byKey, refreshing, reload: useCallback(() => void load(true), [load]), update }
 }

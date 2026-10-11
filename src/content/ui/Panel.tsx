@@ -1,3 +1,4 @@
+import type { ComponentChildren } from 'preact'
 import type { CommentView, RecentCommentView } from '../../shared/messages'
 import type { CommentSort } from '../../shared/storage'
 import type { Loadable, useComments } from '../hooks'
@@ -5,13 +6,15 @@ import type { PageState } from '../page-state'
 
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
+import { newComments } from '../../shared/watchlist'
 import { pluralize } from '../format'
-import { useRecentComments, useStored } from '../hooks'
+import { useRecentComments, useStored, useWatchedComments, useWatchlist } from '../hooks'
 import { complaintsMailto, reportIssueUrl } from '../report'
 import { buildThreads } from '../threads'
 import { Comment, CommentThread, scrollToComment } from './Comment'
 import { Composer } from './Composer'
 import {
+  ClockIcon,
   CloseIcon,
   HeartIcon,
   HomeIcon,
@@ -20,18 +23,20 @@ import {
   MoonIcon,
   RefreshIcon,
   SearchIcon,
+  StarIcon,
   SunIcon,
 } from './icons'
 import { PrivacyDialog, TermsDialog } from './Legal'
 import { SearchTab } from './Search'
 import { ErrorNotice, Notice, Skeleton } from './states'
+import { WatchButton, watchEntry, WatchlistContext, WatchlistTab } from './Watchlist'
 
 const MIN_WIDTH = 340
 const MAX_WIDTH = 760
 // Until the user resizes it, the panel opens as wide as allowed (clampWidth caps it to the window)
 const DEFAULT_WIDTH = MAX_WIDTH
 
-type Tab = 'property' | 'recent' | 'search'
+type Tab = 'property' | 'recent' | 'watchlist' | 'search'
 
 interface PanelProps {
   page: PageState
@@ -50,6 +55,9 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
   const [searchQuery, setSearchQuery] = useState('')
   const [legal, setLegal] = useState<'terms' | 'privacy' | null>(null)
   const [replyTo, setReplyTo] = useState<CommentView | null>(null)
+  const watchlist = useWatchlist()
+  // Checked whenever the panel is open, for the tab's "new" count (cheap: the background caches each lookup)
+  const watched = useWatchedComments(watchlist.items, true)
   const panel = useRef<HTMLDivElement>(null)
 
   useEffect(() => setTab(onPropertyPage ? 'property' : 'recent'), [onPropertyPage])
@@ -59,123 +67,181 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
   // A reply belongs to the property it was started on
   useEffect(() => setReplyTo(null), [property?.input.url])
   const count = comments.state.status === 'ready' ? comments.state.data.length : null
+  const newestAt =
+    comments.state.status === 'ready' ? Math.max(0, ...comments.state.data.map(comment => comment.createdAt)) : 0
+  const entry = property ? watchEntry(property.input, property.displayAddress, property.displayLocality) : null
+
+  // Seeing a watched property's comments on its own page counts as having seen them
+  const watchedHere = !!entry && watchlist.isWatched(entry.key)
+  useEffect(() => {
+    if (entry && watchedHere && tab === 'property' && newestAt) watchlist.markSeen(entry.key, newestAt)
+  }, [entry?.key, watchedHere, tab, newestAt])
+
+  const newOnWatchlist = watchlist.items.reduce((total, item) => {
+    const state = watched.byKey[item.key]
+    return total + (state?.status === 'ready' ? newComments(state.data, item.seenAt) : 0)
+  }, 0)
+
+  const tabs: { id: Tab; label: string; icon: ComponentChildren; badge?: ComponentChildren }[] = [
+    ...(onPropertyPage
+      ? [
+          {
+            id: 'property' as const,
+            label: 'Property',
+            icon: <HomeIcon />,
+            badge: count !== null ? <span class='tab-count'>{count}</span> : null,
+          },
+        ]
+      : []),
+    { id: 'recent', label: 'Recent', icon: <ClockIcon /> },
+    {
+      id: 'watchlist',
+      label: 'Watchlist',
+      icon: <StarIcon />,
+      badge:
+        newOnWatchlist > 0 ? (
+          <span class='tab-count tab-count--new' title={pluralize(newOnWatchlist, 'new comment')}>
+            {newOnWatchlist}
+          </span>
+        ) : null,
+    },
+    { id: 'search', label: 'Search', icon: <SearchIcon /> },
+  ]
 
   return (
-    <div
-      class='panel'
-      ref={panel}
-      tabIndex={-1}
-      role='dialog'
-      aria-label='Property comments'
-      style={{ '--panel-width': `${clampWidth(width)}px` }}
-      onKeyDown={event => {
-        if (event.key === 'Escape') onClose()
-      }}
-    >
-      <ResizeHandle width={clampWidth(width)} onResize={setWidth} />
-      <header class='panel-header'>
-        <div class='panel-heading'>
-          <p class='eyebrow'>
-            <MessageIcon size={14} />
-            {property ? 'Property comments' : 'Real Estate Comments'}
-          </p>
-          <h2 class='panel-title'>{property ? property.displayAddress : headingFor(page)}</h2>
-          <p class='panel-subtitle'>{property ? property.displayLocality : subheadingFor(page)}</p>
-        </div>
-        <div class='header-actions'>
-          <button
-            type='button'
-            class='icon-button'
-            onClick={onToggleTheme}
-            aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
-            title={dark ? 'Light theme' : 'Dark theme'}
-          >
-            {dark ? <SunIcon /> : <MoonIcon />}
-          </button>
-          <button type='button' class='icon-button' onClick={onClose} aria-label='Close comments' title='Close (Esc)'>
-            <CloseIcon />
-          </button>
-        </div>
-      </header>
+    <WatchlistContext.Provider value={watchlist}>
+      <div
+        class='panel'
+        ref={panel}
+        tabIndex={-1}
+        role='dialog'
+        aria-label='Property comments'
+        style={{ '--panel-width': `${clampWidth(width)}px` }}
+        onKeyDown={event => {
+          if (event.key === 'Escape') onClose()
+        }}
+      >
+        <ResizeHandle width={clampWidth(width)} onResize={setWidth} />
+        <header class='panel-header'>
+          <div class='panel-heading'>
+            <p class='eyebrow'>
+              <MessageIcon size={14} />
+              {property ? 'Property comments' : 'Real Estate Comments'}
+            </p>
+            <h2 class='panel-title'>{property ? property.displayAddress : headingFor(page)}</h2>
+            <p class='panel-subtitle'>{property ? property.displayLocality : subheadingFor(page)}</p>
+          </div>
+          <div class='header-actions'>
+            {entry && <WatchButton entry={entry} newestAt={newestAt} />}
+            <button
+              type='button'
+              class='icon-button'
+              onClick={onToggleTheme}
+              aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
+              title={dark ? 'Light theme' : 'Dark theme'}
+            >
+              {dark ? <SunIcon /> : <MoonIcon />}
+            </button>
+            <button type='button' class='icon-button' onClick={onClose} aria-label='Close comments' title='Close (Esc)'>
+              <CloseIcon />
+            </button>
+          </div>
+        </header>
 
-      <nav class='tabs' role='tablist' aria-label='Comment views'>
-        {onPropertyPage && (
-          <button type='button' role='tab' aria-selected={tab === 'property'} onClick={() => setTab('property')}>
-            This property{count !== null && <span class='tab-count'>{count}</span>}
-          </button>
+        <div class='tabs-bar'>
+          <nav class='tabs' role='tablist' aria-label='Comment views'>
+            {tabs.map(({ id, label, icon, badge }) => (
+              <button
+                key={id}
+                type='button'
+                role='tab'
+                aria-selected={tab === id}
+                onClick={() => setTab(id)}
+                title={label}
+              >
+                {icon}
+                <span class='tab-label'>{label}</span>
+                {badge}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        <div class='panel-scroll' role='tabpanel'>
+          {tab === 'property' ? (
+            <PropertyTab
+              page={page}
+              comments={comments}
+              sort={sort}
+              onSort={setSort}
+              onSearch={() => setTab('search')}
+              onReply={setReplyTo}
+            />
+          ) : tab === 'recent' ? (
+            <RecentTab
+              state={recent.state}
+              refreshing={recent.refreshing}
+              onRefresh={recent.reload}
+              showHint={!onPropertyPage}
+            />
+          ) : tab === 'watchlist' ? (
+            <WatchlistTab
+              watchlist={watchlist}
+              comments={watched}
+              toolbar={label => (
+                <div class='list-toolbar'>
+                  <span>{label}</span>
+                  <RefreshButton refreshing={watched.refreshing} onRefresh={watched.reload} />
+                </div>
+              )}
+            />
+          ) : (
+            <SearchTab query={searchQuery} onQuery={setSearchQuery} />
+          )}
+        </div>
+
+        {tab === 'property' && property && (
+          <div class='panel-composer'>
+            <Composer
+              property={property.input}
+              replyTo={replyTo}
+              onCancelReply={() => setReplyTo(null)}
+              onPosted={comment => {
+                comments.update(list => [comment, ...list])
+                if (comment.parentId) {
+                  // Show the new reply in its thread
+                  setReplyTo(null)
+                  setTimeout(() => scrollToComment(panel.current?.getRootNode(), comment.id), 50)
+                } else if (sort !== 'newest') {
+                  setSort('newest')
+                }
+              }}
+            />
+          </div>
         )}
-        <button type='button' role='tab' aria-selected={tab === 'recent'} onClick={() => setTab('recent')}>
-          Recent submissions
-        </button>
-        <button type='button' role='tab' aria-selected={tab === 'search'} onClick={() => setTab('search')}>
-          <SearchIcon size={14} />
-          Search
-        </button>
-      </nav>
 
-      <div class='panel-scroll' role='tabpanel'>
-        {tab === 'property' ? (
-          <PropertyTab
-            page={page}
-            comments={comments}
-            sort={sort}
-            onSort={setSort}
-            onSearch={() => setTab('search')}
-            onReply={setReplyTo}
-          />
-        ) : tab === 'recent' ? (
-          <RecentTab
-            state={recent.state}
-            refreshing={recent.refreshing}
-            onRefresh={recent.reload}
-            showHint={!onPropertyPage}
-          />
-        ) : (
-          <SearchTab query={searchQuery} onQuery={setSearchQuery} />
-        )}
-      </div>
-
-      {tab === 'property' && property && (
-        <div class='panel-composer'>
-          <Composer
-            property={property.input}
-            replyTo={replyTo}
-            onCancelReply={() => setReplyTo(null)}
-            onPosted={comment => {
-              comments.update(list => [comment, ...list])
-              if (comment.parentId) {
-                // Show the new reply in its thread
-                setReplyTo(null)
-                setTimeout(() => scrollToComment(panel.current?.getRootNode(), comment.id), 50)
-              } else if (sort !== 'newest') {
-                setSort('newest')
-              }
-            }}
-          />
-        </div>
-      )}
-
-      <footer class='panel-footer'>
-        <a href='https://buymeacoffee.com/zevnda' target='_blank' rel='noopener noreferrer'>
-          <HeartIcon />
-          Support this extension
-        </a>
-        <div class='panel-footer-links'>
-          <button type='button' onClick={() => setLegal('terms')}>
-            Terms
-          </button>
-          <button type='button' onClick={() => setLegal('privacy')}>
-            Privacy
-          </button>
-          <a href={complaintsMailto()}>Complaints</a>
-          <a href={reportIssueUrl(page)} target='_blank' rel='noopener noreferrer'>
-            Report a problem
+        <footer class='panel-footer'>
+          <a href='https://buymeacoffee.com/zevnda' target='_blank' rel='noopener noreferrer'>
+            <HeartIcon />
+            Support this extension
           </a>
-        </div>
-      </footer>
-      {legal === 'terms' && <TermsDialog onClose={() => setLegal(null)} />}
-      {legal === 'privacy' && <PrivacyDialog onClose={() => setLegal(null)} />}
-    </div>
+          <div class='panel-footer-links'>
+            <button type='button' onClick={() => setLegal('terms')}>
+              Terms
+            </button>
+            <button type='button' onClick={() => setLegal('privacy')}>
+              Privacy
+            </button>
+            <a href={complaintsMailto()}>Complaints</a>
+            <a href={reportIssueUrl(page)} target='_blank' rel='noopener noreferrer'>
+              Report a problem
+            </a>
+          </div>
+        </footer>
+        {legal === 'terms' && <TermsDialog onClose={() => setLegal(null)} />}
+        {legal === 'privacy' && <PrivacyDialog onClose={() => setLegal(null)} />}
+      </div>
+    </WatchlistContext.Provider>
   )
 }
 

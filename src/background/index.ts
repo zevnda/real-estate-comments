@@ -4,8 +4,10 @@ import { FirebaseError } from 'firebase/app'
 
 import { ext } from '../shared/ext'
 import { log } from '../shared/log'
-import { buildPropertyKeys } from '../shared/property'
+import { buildPropertyKeys, getSite } from '../shared/property'
 import { isReportReason, REPORT_DETAILS_MAX_LENGTH } from '../shared/reports'
+import { SITE_MATCHES } from '../shared/sites'
+import { setStored } from '../shared/storage'
 import { isPropertyInput, validateCommentText } from '../shared/validation'
 import {
   createComment,
@@ -121,14 +123,64 @@ ext.runtime.onMessage.addListener((message: BackgroundRequest, sender, sendRespo
   return true
 })
 
-// The toolbar button (and its keyboard shortcut) opens or closes the panel on supported sites
+// Whether the user has let the extension run on the two sites. Firefox lets users switch Manifest V3 site access off
+// (and Chrome has "on click" access); without it the content script never runs and the extension silently does
+// nothing. Null until checked, e.g. just after the background has started.
+let siteAccess: boolean | null = null
+const checkSiteAccess = () =>
+  ext.permissions.contains({ origins: SITE_MATCHES }).then(
+    granted => (siteAccess = granted),
+    () => {},
+  )
+void checkSiteAccess()
+ext.permissions.onAdded.addListener(() => void checkSiteAccess())
+ext.permissions.onRemoved.addListener(() => void checkSiteAccess())
+
+// The toolbar button (and its keyboard shortcut) opens or closes the panel on supported sites. Without site access, it
+// asks for it first.
 ext.action.onClicked.addListener(tab => {
   if (tab.id === undefined) return
+  const tabId = tab.id
+  if (siteAccess === true) return togglePanel(tabId)
+  // Asked for straight away, still inside the click: Firefox only allows the prompt from a user action. If access is
+  // already granted (siteAccess just wasn't known yet), this resolves without a prompt.
+  ext.permissions.request({ origins: SITE_MATCHES }).then(
+    granted => {
+      siteAccess = granted
+      if (granted) void startOnTab(tabId)
+    },
+    (error: unknown) => log.warn('Requesting site access failed:', error),
+  )
+})
+
+function togglePanel(tabId: number) {
   const message: ContentMessage = { type: 'togglePanel' }
-  ext.tabs.sendMessage(tab.id, message).catch(() => {
+  ext.tabs.sendMessage(tabId, message).catch(() => {
     // No content script in this tab: it isn't realestate.com.au or domain.com.au
   })
-})
+}
+
+// Just granted access: open the panel, or, if the page loaded before access was granted (so the content script isn't
+// there), reload it with the panel set to open
+async function startOnTab(tabId: number) {
+  const message: ContentMessage = { type: 'togglePanel' }
+  try {
+    await ext.tabs.sendMessage(tabId, message)
+  } catch {
+    const tab = await ext.tabs.get(tabId)
+    if (!tab.url || !isSupportedSite(tab.url)) return
+    await setStored('panelOpen', true)
+    await ext.tabs.reload(tabId)
+  }
+}
+
+function isSupportedSite(url: string): boolean {
+  try {
+    return getSite(new URL(url).hostname) !== null
+  } catch {
+    return false
+  }
+}
 
 // Clear a tab's comment count when it starts loading another page. The content script sets it again if the new page
 // is a property.

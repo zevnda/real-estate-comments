@@ -1,13 +1,8 @@
+import { SITE_MATCHES as SITES } from './shared/sites.ts'
+
 // Builds manifest.json for each browser. This is the only manifest source; the version comes from package.json.
 
 export type Browser = 'chrome' | 'firefox'
-
-const SITES = [
-  'https://www.realestate.com.au/*',
-  'https://realestate.com.au/*',
-  'https://www.domain.com.au/*',
-  'https://domain.com.au/*',
-]
 
 const ICONS = {
   '48': 'icons/icon-48.png',

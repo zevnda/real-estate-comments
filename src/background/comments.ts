@@ -246,6 +246,7 @@ function rankSearchResults(
           displayAddress: titleCase(address),
           displayLocality: [titleCase(suburb), state.toUpperCase(), postcode].filter(Boolean).join(' '),
           links: propertyLinks({ address, suburb, state, postcode }),
+          property: state && postcode ? { address, suburb, state, postcode } : null,
           latestAt: comments[0]?.createdAt ?? 0,
           comments,
         },

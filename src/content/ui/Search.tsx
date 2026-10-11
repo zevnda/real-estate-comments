@@ -12,6 +12,7 @@ import { CommentThread } from './Comment'
 import { ChevronLeftIcon, ChevronRightIcon, SearchIcon } from './icons'
 import { PropertyLinks } from './PropertyLinks'
 import { Notice, Skeleton } from './states'
+import { WatchButton, watchEntry } from './Watchlist'
 
 const DEBOUNCE_MS = 300
 
@@ -67,7 +68,16 @@ export function SearchTab({ query, onQuery }: { query: string; onQuery: (query: 
           All results
         </button>
         <div class='search-detail-heading'>
-          <h3>{open.displayAddress}</h3>
+          <div class='detail-title'>
+            <h3>{open.displayAddress}</h3>
+            {open.property && (
+              <WatchButton
+                entry={watchEntry(open.property, open.displayAddress, open.displayLocality)}
+                newestAt={open.latestAt}
+                variant='text'
+              />
+            )}
+          </div>
           <p>{open.displayLocality}</p>
           <PropertyLinks links={open.links} />
         </div>

@@ -37,6 +37,8 @@ export interface SearchResult {
   displayAddress: string
   displayLocality: string
   links: PropertyLinks
+  // For the watchlist: null for the odd old comment without a state or postcode
+  property: { address: string; suburb: string; state: string; postcode: string } | null
   latestAt: number
   comments: CommentView[]
 }

@@ -172,6 +172,12 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
         kept in your browser’s extension storage, and never leave it except as described above. Comments are cached in
         your browser for a few minutes.
       </p>
+      <p>
+        The properties on your watchlist are kept in your browser’s synced extension storage, so if your browser syncs
+        your data (for example, when you’re signed in to Chrome or Firefox), your browser’s provider stores and syncs
+        them across your devices. We never receive your watchlist; checking it for new comments looks up each property
+        the same way as viewing it.
+      </p>
 
       <h4>Who holds the data</h4>
       <p>

@@ -36,13 +36,18 @@ export function Composer({ property, replyTo, onCancelReply, onPosted }: Compose
 
   useEffect(() => setName(savedName), [savedName])
 
-  // A draft belongs to the property it was written for. Don't carry it over to the next listing.
+  // A draft belongs to the property it was written for. Don't carry it over to the next listing. Only on an actual
+  // change: clearing on mount too (e.g. switching back to the Property tab) wiped anything typed in the first moment.
+  const propertyKey = `${property.url}|${property.address}`
+  const draftFor = useRef(propertyKey)
   useEffect(() => {
+    if (draftFor.current === propertyKey) return
+    draftFor.current = propertyKey
     setText('')
     setError(null)
     setTouched(false)
     setShowTerms(false)
-  }, [property.url, property.address])
+  }, [propertyKey])
 
   // Choosing Reply takes you to the text box
   useEffect(() => {
