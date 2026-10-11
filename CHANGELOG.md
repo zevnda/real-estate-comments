@@ -11,3 +11,4 @@
 - Sort and filter comments from a dropdown: newest, top, or only those with photos
 - Sort and filter search results: best match, newest, most comments, or with photos
 - On a suburb’s search results page, see how many comments the suburb has, and jump to them
+- See what’s new after each update, or any time from the Changelog link at the bottom of the panel

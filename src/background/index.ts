@@ -195,8 +195,14 @@ ext.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (changeInfo.status === 'loading') ext.action.setBadgeText({ tabId, text: '' }).catch(() => {})
 })
 
-ext.runtime.onInstalled.addListener(() => {
+ext.runtime.onInstalled.addListener(details => {
   ext.action.setBadgeBackgroundColor({ color: '#2563eb' }).catch(() => {})
+  // After an update (not a fresh install), the panel shows what's new the next time it opens
+  if (details.reason === 'update') {
+    setStored('whatsNewFor', ext.runtime.getManifest().version).catch(error =>
+      log.warn('Saving whatsNewFor failed:', error),
+    )
+  }
 })
 
 function isArea(value: unknown): value is Area {

@@ -6,6 +6,7 @@ import type { CommentsView } from '../views'
 
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
+import { ext } from '../../shared/ext'
 import { titleCase } from '../../shared/property'
 import { newComments } from '../../shared/watchlist'
 import { pluralize } from '../format'
@@ -33,6 +34,7 @@ import { SearchTab } from './Search'
 import { ErrorNotice, NoPhotos, Notice, Skeleton } from './states'
 import { ViewSelect } from './ViewSelect'
 import { WatchButton, watchEntry, WatchlistContext, WatchlistTab } from './Watchlist'
+import { CHANGES, WhatsNewDialog } from './WhatsNew'
 
 const MIN_WIDTH = 340
 const MAX_WIDTH = 760
@@ -78,6 +80,14 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
   // Checked whenever the panel is open, for the tab's "new" count (cheap: the background caches each lookup)
   const watched = useWatchedComments(watchlist.items, true)
   const panel = useRef<HTMLDivElement>(null)
+  const [showWhatsNew, setShowWhatsNew] = useState(false)
+  // Set by the background after an update: show what's new the first time the panel opens
+  const [whatsNewFor, saveWhatsNewFor, whatsNewLoaded] = useStored('whatsNewFor', '')
+  useEffect(() => {
+    if (whatsNewLoaded && whatsNewFor && whatsNewFor === ext.runtime.getManifest().version && CHANGES) {
+      setShowWhatsNew(true)
+    }
+  }, [whatsNewLoaded, whatsNewFor])
   const area = page.status === 'browse' ? page.area : undefined
   const areaStats = useAreaStats(area)
 
@@ -273,6 +283,9 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
             Support this extension
           </a>
           <div class='panel-footer-links'>
+            <button type='button' onClick={() => setShowWhatsNew(true)}>
+              Changelog
+            </button>
             <button type='button' onClick={() => setLegal('terms')}>
               Terms
             </button>
@@ -287,6 +300,14 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
         </footer>
         {legal === 'terms' && <TermsDialog onClose={() => setLegal(null)} />}
         {legal === 'privacy' && <PrivacyDialog onClose={() => setLegal(null)} />}
+        {showWhatsNew && (
+          <WhatsNewDialog
+            onClose={() => {
+              setShowWhatsNew(false)
+              if (whatsNewFor) saveWhatsNewFor('')
+            }}
+          />
+        )}
       </div>
     </WatchlistContext.Provider>
   )

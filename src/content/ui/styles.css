@@ -1772,6 +1772,16 @@ a.text-button {
   font-size: 13px;
 }
 
+/* What's new (the changelog) */
+.whats-new .markdown {
+  margin: 4px 0 14px;
+  font-size: 13.5px;
+}
+
+.whats-new .markdown li + li {
+  margin-top: 5px;
+}
+
 /* Terms of use and privacy policy */
 
 .legal h4 {

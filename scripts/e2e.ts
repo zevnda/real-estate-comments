@@ -149,6 +149,33 @@ async function run(colorScheme: 'light' | 'dark') {
     assert.equal(firestoreQueries, before, 'refreshing straight after a fetch queried Firestore')
   })
 
+  await step('shows the changelog from the footer, and once after an update', async () => {
+    await ui('.panel-footer button:has-text("Changelog")').click()
+    await ui('.dialog h3:text-matches("What’s new in version")').waitFor()
+    assert.ok((await ui('.whats-new .markdown li').count()) > 0, 'the changelog is listed')
+    await ui('.whats-new button:has-text("Got it")').click()
+    await ui('.dialog').waitFor({ state: 'detached' })
+
+    // What the background does after an update, then the next time the panel opens
+    await context
+      .serviceWorkers()[0]!
+      .evaluate(() => chrome.storage.local.set({ whatsNewFor: chrome.runtime.getManifest().version }))
+    await page.reload()
+    await ui('.launcher')
+      .click()
+      .catch(() => {})
+    await ui('.whats-new').waitFor({ timeout: 10_000 })
+    await page.keyboard.press('Escape')
+    await ui('.dialog').waitFor({ state: 'detached' })
+    // Only once
+    await page.reload()
+    await ui('.panel')
+      .waitFor({ timeout: 10_000 })
+      .catch(() => ui('.launcher').click())
+    await waitForComments()
+    assert.equal(await ui('.whats-new').count(), 0)
+  })
+
   await step('explains formatting in a popup, closed with Esc without closing the panel', async () => {
     await ui('.link-button:text("Formatting help")').click()
     await ui('.overlay .dialog').waitFor()
