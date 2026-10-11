@@ -15,7 +15,7 @@ export const POSTING_RULES = [
   'Your comment is public. You’re responsible for it, and it may be removed without notice.',
 ]
 
-const UPDATED = '11 October 2026'
+const UPDATED = '12 October 2026'
 
 const ComplaintsLink = () => <a href={complaintsMailto()}>{COMPLAINTS_EMAIL}</a>
 
@@ -113,6 +113,14 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
       <p>
         Comments, names, votes and these identifiers are publicly readable. Don’t put anything in a comment or name that
         you don’t want public. Votes are stored against the same random identifier.
+      </p>
+
+      <h4>Images in comments</h4>
+      <p>
+        When a comment links to an image on a supported image host (such as Imgur), the extension shows it as a
+        thumbnail, so your browser loads the image straight from that host when you view the comment. Like any website,
+        the host can see your IP address and browser when it sends the image. The extension doesn’t tell it which page
+        you’re on. We don’t host images.
       </p>
 
       <h4>Stored in your browser</h4>

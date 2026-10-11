@@ -22,6 +22,14 @@ describe('renderMarkdown', () => {
     )
   })
 
+  it('shows markdown images as links rather than embedding them', () => {
+    expect(html('![Kitchen](https://i.imgur.com/abc1234.jpg)')).toBe(
+      '<p><a href="https://i.imgur.com/abc1234.jpg" target="_blank" rel="noopener noreferrer nofollow ugc">Kitchen</a></p>',
+    )
+    expect(html('![](https://i.imgur.com/abc1234.jpg)')).toContain('>https://i.imgur.com/abc1234.jpg</a>')
+    expect(html('![x](javascript:alert(1))')).not.toMatch(/href="javascript/i)
+  })
+
   it('strips scripts, images, event handlers and javascript: links', () => {
     const output = html(
       '<script>alert(1)</script><img src=x onerror=alert(1)> [x](javascript:alert(1)) <b onclick="alert(1)">b</b>',

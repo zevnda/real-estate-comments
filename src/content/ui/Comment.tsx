@@ -1,13 +1,14 @@
 import type { CommentView, RecentCommentView } from '../../shared/messages'
 
-import { useLayoutEffect, useRef, useState } from 'preact/hooks'
+import { useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { callBackground } from '../../shared/messages'
 import { avatarHue, formatAbsolute, formatRelative, initials } from '../format'
 import { errorMessage } from '../hooks'
-import { renderMarkdown } from '../markdown'
+import { commentImages, renderMarkdown } from '../markdown'
 import { reportCommentUrl } from '../report'
 import { FlagIcon, TrashIcon, UpvoteIcon } from './icons'
+import { CommentImages } from './Images'
 import { PropertyLinks } from './PropertyLinks'
 
 export function Markdown({ text }: { text: string }) {
@@ -29,6 +30,7 @@ export function Comment({ comment, onChange, onDelete }: CommentProps) {
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const recent = 'displayAddress' in comment ? comment : null
+  const images = useMemo(() => commentImages(comment.text), [comment.text])
 
   const vote = async () => {
     if (busy || !onChange) return
@@ -86,6 +88,7 @@ export function Comment({ comment, onChange, onDelete }: CommentProps) {
           </time>
         </header>
         <Markdown text={comment.text} />
+        {images.length > 0 && <CommentImages images={images} />}
         <footer class='comment-actions'>
           {onChange && !comment.isOwn ? (
             <button

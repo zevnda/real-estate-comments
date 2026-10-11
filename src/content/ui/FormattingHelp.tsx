@@ -1,3 +1,4 @@
+import { IMAGE_HOST_NAMES } from '../../shared/images'
 import { Markdown } from './Comment'
 import { Dialog } from './Dialog'
 
@@ -11,13 +12,17 @@ const EXAMPLES: { label: string; source: string; note?: string }[] = [
   { label: 'List', source: '- Mould in bathroom\n- Leaky tap' },
   { label: 'Numbered list', source: '1. Inspected\n2. Applied' },
   { label: 'Code', source: 'Gate code `1234`' },
-  // Images can't be shown in comments (they're stripped for safety), so link to one instead
+  // The text shows the link; the thumbnail under the comment isn't part of this example
   {
     label: 'Image',
-    source: '[Photo of the mould](https://i.imgur.com/abc123.jpg)',
-    note: 'Upload it to Imgur or another image host, then link to it',
+    source: '[Photo of the mould](https://i.imgur.com/abc1234.jpg)',
+    note: `Upload it to an image host and link to it, and it shows as a thumbnail under your comment. Works with ${listOf(IMAGE_HOST_NAMES)}.`,
   },
 ]
+
+function listOf(items: string[]): string {
+  return items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items.at(-1)}` : items.join('')
+}
 
 // A small dialog explaining comment formatting
 export function FormattingHelp({ onClose }: { onClose: () => void }) {

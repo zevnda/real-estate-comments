@@ -99,14 +99,14 @@ export const SearchIcon = ({ size = 16 }: { size?: number }) => (
   </Icon>
 )
 
-export const ChevronRightIcon = () => (
-  <Icon size={16}>
+export const ChevronRightIcon = ({ size = 16 }: { size?: number }) => (
+  <Icon size={size}>
     <path d='m9 18 6-6-6-6' />
   </Icon>
 )
 
-export const ChevronLeftIcon = () => (
-  <Icon size={16}>
+export const ChevronLeftIcon = ({ size = 16 }: { size?: number }) => (
+  <Icon size={size}>
     <path d='m15 18-6-6 6-6' />
   </Icon>
 )
