@@ -1906,27 +1906,38 @@ a.text-button {
   font-size: 13px;
 }
 
+/* Two halves: Mark all as read | Archive all */
 .notifications-menu-footer {
   display: flex;
+  flex: none;
+  border-top: 1px solid var(--border);
+  background: var(--surface-muted);
+}
+
+.notifications-menu-footer button {
+  display: flex;
+  flex: 1;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  flex: none;
-  padding: 11px 16px;
+  padding: 11px 12px;
   border: none;
-  border-top: 1px solid var(--border);
-  background: var(--surface-muted);
+  background: none;
   color: var(--accent-text);
   font-size: 13px;
   font-weight: 600;
   transition: background-color 0.15s ease;
 }
 
-.notifications-menu-footer:hover:not(:disabled) {
+.notifications-menu-footer button + button {
+  border-left: 1px solid var(--border);
+}
+
+.notifications-menu-footer button:hover:not(:disabled) {
   background: var(--accent-soft);
 }
 
-.notifications-menu-footer:disabled {
+.notifications-menu-footer button:disabled {
   color: var(--text-faint);
 }
 

@@ -207,6 +207,7 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose, draft, onD
               onToggle={setShowNotifications}
               onOpen={openNotification}
               onMarkAllRead={notifications.markAllRead}
+              onArchiveAll={notifications.archiveAll}
             />
             <button
               type='button'

@@ -33,6 +33,8 @@ export interface AppNotification {
   createdAt: number
   property: NotificationProperty
   read: boolean
+  // Cleared from the bell with "Archive all": kept (until trimmed) only so the comment doesn't come back as new
+  archived?: boolean
 }
 
 export type NotificationCandidate = Omit<AppNotification, 'read'>
@@ -45,7 +47,10 @@ export interface NotificationsState {
   since: number
 }
 
+// Kept in storage, including archived ones (so they aren't added again)
 export const MAX_NOTIFICATIONS = 50
+// Shown in the bell's dropdown, and counted on it
+export const SHOWN_NOTIFICATIONS = 5
 export const CHECK_INTERVAL_MS = 5 * 60 * 1000
 // On the first check, replies from the last week are shown, so the feature starts with something useful
 export const BACKLOG_MS = 7 * 24 * 60 * 60 * 1000
@@ -94,6 +99,16 @@ export function markRead(state: NotificationsState, ids?: string[]): Notificatio
   const marks = (item: AppNotification) => !item.read && (!ids || ids.includes(item.id))
   if (!state.items.some(marks)) return state
   return { ...state, items: state.items.map(item => (marks(item) ? { ...item, read: true } : item)) }
+}
+
+// What the bell shows: the newest that haven't been archived
+export function shownNotifications(items: AppNotification[]): AppNotification[] {
+  return items.filter(item => !item.archived).slice(0, SHOWN_NOTIFICATIONS)
+}
+
+export function archiveAll(state: NotificationsState): NotificationsState {
+  if (state.items.every(item => item.archived)) return state
+  return { ...state, items: state.items.map(item => (item.archived ? item : { ...item, read: true, archived: true })) }
 }
 
 // New comments on a watched property stop being news once the user has seen them in the Watchlist or on its page

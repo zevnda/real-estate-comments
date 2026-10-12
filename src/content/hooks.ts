@@ -10,12 +10,14 @@ import { ext } from '../shared/ext'
 import { log } from '../shared/log'
 import { callBackground, MAX_RECENT, RECENT_PAGE } from '../shared/messages'
 import {
+  archiveAll,
   CHECK_INTERVAL_MS,
   getNotifications,
   markRead,
   markWatchedSeen,
   mergeNotifications,
   replyCandidates,
+  shownNotifications,
   updateNotifications,
   watchCandidates,
 } from '../shared/notifications'
@@ -321,12 +323,14 @@ export function useNotifications(watchlist: Watchlist, watched: ReturnType<typeo
     }
   }, [watchlist.items, state])
 
-  const items: AppNotification[] = state?.items ?? []
+  const items: AppNotification[] = shownNotifications(state?.items ?? [])
   return {
+    // The newest few, not archived
     items,
     unread: items.filter(item => !item.read).length,
     markRead: (id: string) => update(current => markRead(current, [id])),
     markAllRead: () => update(current => markRead(current)),
+    archiveAll: () => update(current => archiveAll(current)),
   }
 }
 

@@ -12,7 +12,7 @@ import { errorMessage } from '../hooks'
 import { excerpt } from '../threads'
 import { scrollToComment } from './Comment'
 import { DetailComments } from './DetailComments'
-import { BellIcon, CheckIcon, ChevronLeftIcon, MessageIcon, ReplyIcon, StarIcon } from './icons'
+import { ArchiveIcon, BellIcon, CheckIcon, ChevronLeftIcon, MessageIcon, ReplyIcon, StarIcon } from './icons'
 import { PropertyLinks } from './PropertyLinks'
 import { ErrorNotice, Notice, Skeleton } from './states'
 import { WatchButton, watchEntry, WatchlistContext } from './Watchlist'
@@ -31,12 +31,15 @@ export function NotificationsMenu({
   onToggle,
   onOpen,
   onMarkAllRead,
+  onArchiveAll,
 }: {
+  // The newest few (see shownNotifications)
   items: AppNotification[]
   open: boolean
   onToggle: (open: boolean) => void
   onOpen: (notification: AppNotification) => void
   onMarkAllRead: () => void
+  onArchiveAll: () => void
 }) {
   const root = useRef<HTMLDivElement>(null)
   const menu = useRef<HTMLDivElement>(null)
@@ -106,8 +109,7 @@ export function NotificationsMenu({
           <div class='notifications-menu-body'>
             {items.length === 0 ? (
               <p class='notifications-empty'>
-                Nothing yet. Replies to your comments, and new comments on properties you’re watching, will show up
-                here.
+                Nothing new. Replies to your comments, and new comments on properties you’re watching, show up here.
               </p>
             ) : (
               <>
@@ -116,10 +118,16 @@ export function NotificationsMenu({
               </>
             )}
           </div>
-          <button type='button' class='notifications-menu-footer' onClick={onMarkAllRead} disabled={!unread.length}>
-            <CheckIcon />
-            Mark all as read
-          </button>
+          <div class='notifications-menu-footer'>
+            <button type='button' onClick={onMarkAllRead} disabled={!unread.length}>
+              <CheckIcon />
+              Mark all as read
+            </button>
+            <button type='button' onClick={onArchiveAll} disabled={!items.length}>
+              <ArchiveIcon />
+              Archive all
+            </button>
+          </div>
         </div>
       )}
     </div>

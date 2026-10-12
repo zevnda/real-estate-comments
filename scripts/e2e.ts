@@ -332,12 +332,18 @@ async function run(colorScheme: 'light' | 'dark') {
     await ui('.hint-banner:has-text("since been deleted")').waitFor()
     await ui('.bell-count:text("1")').waitFor()
 
-    // The footer marks the rest read
+    // The footer marks the rest read, then archives them all
     await ui('.bell-button').click()
-    await ui('.notifications-menu-footer').click()
+    const markRead = ui('.notifications-menu-footer button:has-text("Mark all as read")')
+    const archive = ui('.notifications-menu-footer button:has-text("Archive all")')
+    await markRead.click()
     await ui('.bell-count').waitFor({ state: 'detached' })
     assert.equal(await ui('.notification--unread').count(), 0)
-    assert.ok(await ui('.notifications-menu-footer').isDisabled())
+    assert.ok(await markRead.isDisabled())
+    await archive.click()
+    await ui('.notifications-empty').waitFor()
+    assert.equal(await ui('.notification').count(), 0)
+    assert.ok(await archive.isDisabled())
     await page.keyboard.press('Escape')
     await ui('.search-detail .back-button').click()
     await ui('.panel-composer').waitFor()

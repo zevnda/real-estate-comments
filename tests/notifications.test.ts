@@ -5,6 +5,7 @@ import type { WatchedProperty } from '../src/shared/watchlist'
 import { describe, expect, it } from 'vitest'
 
 import {
+  archiveAll,
   BACKLOG_MS,
   initialNotifications,
   markRead,
@@ -12,6 +13,8 @@ import {
   MAX_NOTIFICATIONS,
   mergeNotifications,
   replyCandidates,
+  SHOWN_NOTIFICATIONS,
+  shownNotifications,
   watchCandidates,
 } from '../src/shared/notifications'
 import { watchKey } from '../src/shared/watchlist'
@@ -129,5 +132,27 @@ describe('replyCandidates', () => {
       ['direct', 'reply'],
       ['thread', 'thread'],
     ])
+  })
+})
+
+describe('the bell', () => {
+  const many = Array.from({ length: 8 }, (_, i) => candidate(`c${i}`, NOW - i * 1000))
+
+  it('shows only the newest few', () => {
+    const state = mergeNotifications(initialNotifications(NOW), many)
+    expect(shownNotifications(state.items).map(item => item.id)).toEqual(
+      many.slice(0, SHOWN_NOTIFICATIONS).map(item => item.id),
+    )
+  })
+
+  it('archives everything, read, without letting it come back', () => {
+    const archived = archiveAll(mergeNotifications(initialNotifications(NOW), many))
+    expect(shownNotifications(archived.items)).toEqual([])
+    expect(archived.items.every(item => item.read && item.archived)).toBe(true)
+    expect(mergeNotifications(archived, many)).toBe(archived)
+    expect(archiveAll(archived)).toBe(archived)
+    // Newer ones show again
+    const next = mergeNotifications(archived, [candidate('new', NOW + 1000)])
+    expect(shownNotifications(next.items).map(item => item.id)).toEqual(['new'])
   })
 })
