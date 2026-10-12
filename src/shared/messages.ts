@@ -1,3 +1,4 @@
+import type { NotificationProperty } from './notifications'
 import type { Area, PropertyInput, PropertyLinks } from './property'
 
 import { ext } from './ext'
@@ -43,6 +44,14 @@ export interface SearchResult {
   comments: CommentView[]
 }
 
+// A reply to one of the user's comments (`direct`), or under one in a thread they started
+export interface ReplyNotice {
+  comment: CommentView
+  direct: boolean
+  // Null for the odd old comment without a state or postcode
+  property: NotificationProperty | null
+}
+
 export interface AreaStats {
   comments: number
   properties: number
@@ -67,6 +76,8 @@ export interface BackgroundApi {
   // How much has been said about a suburb, for its search results pages
   // `capped`: the suburb has more comments than one lookup reads, so the counts are a minimum
   areaStats: { request: { area: Area }; response: AreaStats }
+  // Replies to the user's comments, for notifications (cached, so opening the panel often is cheap)
+  replyNotices: { request: { fresh?: boolean }; response: ReplyNotice[] }
   setBadge: { request: { count: number | null }; response: null }
 }
 

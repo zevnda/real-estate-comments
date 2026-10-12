@@ -1,3 +1,5 @@
+import type { NotificationsState } from './notifications'
+
 import { ext } from './ext'
 
 // Everything the extension keeps in `storage.local`. The user ID predates 2.0 and must keep its name, or existing
@@ -23,6 +25,8 @@ export interface StoredData {
   whatsNewFor: string
   // Timestamps (ms) of this user's recent comments, for rate limiting
   postHistory: { at: number; property: string; reply?: boolean }[]
+  // The bell's notifications: replies to the user's comments and new comments on watched properties
+  notifications: NotificationsState
 }
 
 export type CommentSort = 'newest' | 'top'

@@ -170,15 +170,20 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
       <p>
         Your random identifier, your display name, your settings (theme, panel width, sort order), whether you’ve agreed
         to the posting rules, whether you’ve seen what’s new in an update, when you installed it and whether we’ve asked
-        you for a review, and which properties you posted on in the last day, and when (to limit posting rate), are kept
-        in your browser’s extension storage, and never leave it except as described above. Comments are cached in your
-        browser for a few minutes.
+        you for a review, your notifications, and which properties you posted on in the last day, and when (to limit
+        posting rate), are kept in your browser’s extension storage, and never leave it except as described above.
+        Comments are cached in your browser for a few minutes.
       </p>
       <p>
         The properties on your watchlist are kept in your browser’s synced extension storage, so if your browser syncs
         your data (for example, when you’re signed in to Chrome or Firefox), your browser’s provider stores and syncs
         them across your devices. We never receive your watchlist; checking it for new comments looks up each property
         the same way as viewing it.
+      </p>
+      <p>
+        For notifications, while the panel is open the extension looks up the comments posted with your random
+        identifier, and replies to them. Nothing is checked while the panel is closed, and we don’t keep a record of
+        these lookups.
       </p>
 
       <h4>Who holds the data</h4>

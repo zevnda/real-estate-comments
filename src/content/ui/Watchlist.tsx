@@ -108,8 +108,9 @@ export function WatchlistTab({ watchlist, comments, toolbar }: WatchlistTabProps
   if (!watchlist.items.length) {
     return (
       <Notice icon={<StarIcon size={20} />} title='Nothing on your watchlist yet'>
-        On a listing, press ☆ next to the address on the Property tab. You can also press Watch on a property you’ve
-        found in Search. Its comments are then followed here, with new ones since you last looked marked.
+        On a listing, press ☆ next to the address on the Property tab, or press Watch on a property you’ve found in
+        Search. Its comments are then followed here, and new ones since you last looked are marked here and show up
+        under the bell.
       </Notice>
     )
   }

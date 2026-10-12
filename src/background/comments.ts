@@ -1,5 +1,5 @@
 import type { DocumentSnapshot, Timestamp } from 'firebase/firestore/lite'
-import type { AreaStats, CommentView, RecentCommentView, SearchResult } from '../shared/messages'
+import type { AreaStats, CommentView, RecentCommentView, ReplyNotice, SearchResult } from '../shared/messages'
 import type { Area, PropertyInput } from '../shared/property'
 import type { ReportReason } from '../shared/reports'
 import type { SearchLookup, SearchQuery } from '../shared/search'
@@ -88,6 +88,11 @@ const PREFIX_END = String.fromCharCode(0xf8ff)
 // Comments scanned when a search has no street number, postcode or suburb to look up by
 const SEARCH_RECENT_SCAN = 500
 const SEARCH_RESULTS = 20
+// Notifications: the user's comments looked at for replies, and replies read per lookup
+const MAX_OWN_COMMENTS = 200
+const MAX_REPLIES = 100
+// Firestore's limit on `in` values
+const IN_LIMIT = 30
 
 // How long reads are cached. New comments are rare, so other people's comments may take up to these to appear; the
 // user's own posts, votes and deletes clear the cache straight away, and the panel's refresh button skips it.
@@ -99,6 +104,9 @@ const TTL = {
   searchScan: 10 * MINUTE,
   area: 10 * MINUTE,
   ban: 60 * MINUTE,
+  // Opening the panel is answered from the cache, so opening and closing it repeatedly doesn't query again; its timed
+  // checks while open skip the cache (down to MIN_REFRESH_INTERVAL)
+  notices: 5 * MINUTE,
 }
 // Cache key prefixes, so a write can clear everything that shows comments
 const COMMENT_CACHES = ['property:', 'recent', 'search:', 'area:']
@@ -158,11 +166,73 @@ export async function recentComments(userId: string, fresh = false): Promise<Rec
     const { address, suburb, state, postcode } = record
     return {
       ...toView(record, userId, authUid),
-      displayAddress: titleCase(canonicalAddress(address)),
-      displayLocality: [titleCase(suburb), state?.toUpperCase(), postcode].filter(Boolean).join(' '),
+      ...displayFields(record),
       links: state && postcode ? propertyLinks({ address, suburb, state, postcode }) : null,
     }
   })
+}
+
+// Replies to the user's comments: anything under their top-level comments, and replies answering their replies in
+// other people's threads. Each lookup is served by an automatic single-field index (`uid`, `parentId`, `replyToId`),
+// and cached for TTL.notices; the user's own replies are left out.
+export async function replyNotices(userId: string, fresh = false): Promise<ReplyNotice[]> {
+  const authUid = await ensureSignedIn()
+  const own = await cached(
+    `notices:own:${userId}`,
+    TTL.notices,
+    async () => {
+      const snapshot = await getDocs(
+        query(collection(db, COMMENTS), where('uid', '==', userId), limit(MAX_OWN_COMMENTS)),
+      )
+      return snapshot.docs.map(toRecord)
+    },
+    fresh,
+  )
+  const ownIds = new Set(own.map(record => record.id))
+  const lookups = [
+    ...chunk(own.filter(record => !record.parentId).map(record => record.id)).map(ids => ({ field: 'parentId', ids })),
+    ...chunk(own.filter(record => record.parentId).map(record => record.id)).map(ids => ({ field: 'replyToId', ids })),
+  ]
+  const batches = await Promise.all(
+    lookups.map(({ field, ids }) =>
+      cached(
+        `notices:${field}:${ids.join(',')}`,
+        TTL.notices,
+        async () => {
+          const snapshot = await getDocs(query(collection(db, COMMENTS), where(field, 'in', ids), limit(MAX_REPLIES)))
+          return snapshot.docs.map(toRecord)
+        },
+        fresh,
+      ),
+    ),
+  )
+  const replies = new Map<string, CommentRecord>()
+  for (const record of batches.flat()) if (record.uid !== userId) replies.set(record.id, record)
+  return [...replies.values()].map(record => {
+    const { address, suburb, state, postcode } = record
+    return {
+      comment: toView(record, userId, authUid),
+      direct: !!record.replyToId && ownIds.has(record.replyToId),
+      property:
+        state && postcode
+          ? { address: canonicalAddress(address), suburb, state, postcode, ...displayFields(record) }
+          : null,
+    }
+  })
+}
+
+function chunk<T>(items: T[]): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < items.length; i += IN_LIMIT) chunks.push(items.slice(i, i + IN_LIMIT))
+  return chunks
+}
+
+function displayFields(record: CommentRecord): { displayAddress: string; displayLocality: string } {
+  const { address, suburb, state, postcode } = record
+  return {
+    displayAddress: titleCase(canonicalAddress(address)),
+    displayLocality: [titleCase(suburb), state?.toUpperCase(), postcode].filter(Boolean).join(' '),
+  }
 }
 
 // Finds properties that have comments by address (see shared/search.ts for how). Results are grouped by property,

@@ -33,7 +33,9 @@ export function watchKey(property: { address: string; suburb: string; state: str
 
 // What the background needs to look up a watched property's comments. Watched properties may have been added from
 // Search, which has no listing page, so the URL is the property's realestate.com.au profile page.
-export function watchedInput(item: WatchedProperty): PropertyInput {
+export function watchedInput(
+  item: Pick<WatchedProperty, 'address' | 'titleAddress' | 'suburb' | 'state' | 'postcode'>,
+): PropertyInput {
   const { address, titleAddress, suburb, state, postcode } = item
   const input: PropertyInput = {
     address,

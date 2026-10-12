@@ -12,3 +12,4 @@
 - Sort and filter search results: best match, newest, most comments, or with images
 - On a suburb’s search results page, see how many comments the suburb has, and jump to them
 - See what’s new after each update, or any time from the Changelog link at the bottom of the panel
+- Notifications: a bell at the top of the panel shows replies to your comments and new comments on properties you’re watching

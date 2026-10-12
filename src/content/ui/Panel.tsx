@@ -1,5 +1,6 @@
 import type { ComponentChildren } from 'preact'
 import type { CommentView, RecentCommentView } from '../../shared/messages'
+import type { AppNotification } from '../../shared/notifications'
 import type { Loadable, useComments } from '../hooks'
 import type { PageState } from '../page-state'
 import type { CommentsView } from '../views'
@@ -9,15 +10,23 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { ext } from '../../shared/ext'
 import { titleCase } from '../../shared/property'
-import { newComments } from '../../shared/watchlist'
+import { newComments, watchKey } from '../../shared/watchlist'
 import { pluralize } from '../format'
-import { useAreaStats, useRecentComments, useStored, useWatchedComments, useWatchlist } from '../hooks'
+import {
+  useAreaStats,
+  useNotifications,
+  useRecentComments,
+  useStored,
+  useWatchedComments,
+  useWatchlist,
+} from '../hooks'
 import { complaintsMailto, reportIssueUrl } from '../report'
 import { COMMENT_VIEWS, viewThreads } from '../views'
 import { AreaCard } from './AreaCard'
 import { Comment, CommentThread, scrollToComment } from './Comment'
 import { Composer } from './Composer'
 import {
+  BellIcon,
   ClockIcon,
   CloseIcon,
   HeartIcon,
@@ -31,6 +40,7 @@ import {
   SunIcon,
 } from './icons'
 import { PrivacyDialog, TermsDialog } from './Legal'
+import { NotificationDetail, NotificationsMenu } from './Notifications'
 import { ReviewDialog, useReviewPrompt } from './ReviewPrompt'
 import { SearchTab } from './Search'
 import { ErrorNotice, NoImages, Notice, Skeleton } from './states'
@@ -82,6 +92,10 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose, draft, onD
   const watchlist = useWatchlist()
   // Checked whenever the panel is open, for the tab's "new" count (cheap: the background caches each lookup)
   const watched = useWatchedComments(watchlist.items, true)
+  const notifications = useNotifications(watchlist, watched)
+  const [showNotifications, setShowNotifications] = useState(false)
+  // A notification's property, shown in place of the selected tab until a tab is chosen
+  const [notice, setNotice] = useState<AppNotification | null>(null)
   const panel = useRef<HTMLDivElement>(null)
   const [showWhatsNew, setShowWhatsNew] = useState(false)
   // Set by the background after an update: show what's new the first time the panel opens
@@ -116,7 +130,23 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose, draft, onD
     return total + (state?.status === 'ready' ? newComments(state.data, item.seenAt) : 0)
   }, 0)
 
-  const heading = headerFor(tab, page, { count: watchlist.items.length, fresh: newOnWatchlist })
+  const heading = notice
+    ? { title: notice.property.displayAddress, subtitle: notice.property.displayLocality }
+    : headerFor(tab, page, { count: watchlist.items.length, fresh: newOnWatchlist })
+
+  const openNotification = (notification: AppNotification) => {
+    notifications.markRead(notification.id)
+    setShowNotifications(false)
+    if (entry && entry.key === watchKey(notification.property)) {
+      // It's on this page: show it in the Property tab, where it can be replied to
+      setNotice(null)
+      setTab('property')
+      setImagesOnly(false)
+      setTimeout(() => scrollToComment(panel.current?.getRootNode(), notification.id), 50)
+    } else {
+      setNotice(notification)
+    }
+  }
 
   const tabs: { id: Tab; label: string; icon: ComponentChildren; badge?: ComponentChildren }[] = [
     ...(onPropertyPage
@@ -162,14 +192,21 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose, draft, onD
           <div class='panel-heading'>
             {/* The selected tab, so it's named even when the tabs show only icons (narrow panels, phones) */}
             <p class='eyebrow'>
-              <TabIcon tab={tab} size={14} />
-              {TAB_HEADINGS[tab]}
+              {notice ? <BellIcon size={14} /> : <TabIcon tab={tab} size={14} />}
+              {notice ? 'Notification' : TAB_HEADINGS[tab]}
             </p>
             <h2 class='panel-title'>{heading.title}</h2>
             <p class='panel-subtitle'>{heading.subtitle}</p>
           </div>
           <div class='header-actions'>
-            {entry && tab === 'property' && <WatchButton entry={entry} newestAt={newestAt} />}
+            {entry && tab === 'property' && !notice && <WatchButton entry={entry} newestAt={newestAt} />}
+            <NotificationsMenu
+              items={notifications.items}
+              open={showNotifications}
+              onToggle={setShowNotifications}
+              onOpen={openNotification}
+              onMarkAllRead={notifications.markAllRead}
+            />
             <button
               type='button'
               class='icon-button'
@@ -192,8 +229,11 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose, draft, onD
                 key={id}
                 type='button'
                 role='tab'
-                aria-selected={tab === id}
-                onClick={() => setTab(id)}
+                aria-selected={tab === id && !notice}
+                onClick={() => {
+                  setTab(id)
+                  setNotice(null)
+                }}
                 title={label}
               >
                 {icon}
@@ -205,7 +245,9 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose, draft, onD
         </div>
 
         <div class='panel-scroll' role='tabpanel'>
-          {tab === 'property' ? (
+          {notice ? (
+            <NotificationDetail key={notice.id} notification={notice} onBack={() => setNotice(null)} />
+          ) : tab === 'property' ? (
             <PropertyTab
               page={page}
               comments={comments}
@@ -259,7 +301,7 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose, draft, onD
           )}
         </div>
 
-        {tab === 'property' && property && (
+        {tab === 'property' && property && !notice && (
           <div class='panel-composer'>
             <Composer
               property={property.input}

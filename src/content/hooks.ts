@@ -1,12 +1,24 @@
 import type { AreaStats, CommentView, RecentCommentView } from '../shared/messages'
+import type { AppNotification, NotificationsState } from '../shared/notifications'
 import type { Area, PropertyInput } from '../shared/property'
 import type { StoredData } from '../shared/storage'
 import type { WatchedProperty } from '../shared/watchlist'
 
-import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
+import { ext } from '../shared/ext'
 import { log } from '../shared/log'
 import { callBackground } from '../shared/messages'
+import {
+  CHECK_INTERVAL_MS,
+  getNotifications,
+  markRead,
+  markWatchedSeen,
+  mergeNotifications,
+  replyCandidates,
+  updateNotifications,
+  watchCandidates,
+} from '../shared/notifications'
 import { getStored, setStored } from '../shared/storage'
 import { getWatchlist, MAX_WATCHED, onWatchlistChange, updateWatchlist, watchedInput } from '../shared/watchlist'
 
@@ -204,7 +216,80 @@ export function useWatchedComments(items: WatchedProperty[], enabled: boolean) {
     })
   }, [])
 
-  return { byKey, refreshing, reload: useCallback(() => void load(true), [load]), update }
+  return {
+    byKey,
+    refreshing,
+    reload: useCallback(() => void load(true), [load]),
+    update,
+  }
+}
+
+// The bell's notifications. Used only while the panel is open (it unmounts when closed): checks for replies when it
+// opens and every CHECK_INTERVAL_MS after, and turns new comments on watched properties into notifications as they
+// load. Opening the panel is answered from the background's cache (5 minutes, shared by every tab), so opening and
+// closing it repeatedly doesn't query the database again. The timed checks skip the cache, so they really do check,
+// but the background still won't repeat a fetch within MIN_REFRESH_INTERVAL (30 s) of the last one.
+export function useNotifications(watchlist: Watchlist, watched: ReturnType<typeof useWatchedComments>) {
+  const [state, setState] = useState<NotificationsState | null>(null)
+
+  useEffect(() => {
+    getNotifications()
+      .then(stored => setState(stored ?? null))
+      .catch(error => log.warn('Reading notifications failed:', error))
+    // Other tabs' checks and reads
+    const handle = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+      if (area === 'local' && 'notifications' in changes) {
+        setState((changes.notifications?.newValue as NotificationsState | undefined) ?? null)
+      }
+    }
+    ext.storage.onChanged.addListener(handle)
+    return () => ext.storage.onChanged.removeListener(handle)
+  }, [])
+
+  const update = useCallback((change: (state: NotificationsState) => NotificationsState) => {
+    updateNotifications(change)
+      .then(setState)
+      .catch(error => log.warn('Saving notifications failed:', error))
+  }, [])
+
+  const reloadWatched = useRef(watched.reload)
+  reloadWatched.current = watched.reload
+  useEffect(() => {
+    const checkReplies = (fresh: boolean) =>
+      callBackground('replyNotices', { fresh })
+        .then(notices => update(current => mergeNotifications(current, replyCandidates(notices))))
+        .catch(error => log.warn('Checking for replies failed:', error))
+    void checkReplies(false)
+    const timer = setInterval(() => {
+      void checkReplies(true)
+      reloadWatched.current()
+    }, CHECK_INTERVAL_MS)
+    return () => clearInterval(timer)
+  }, [update])
+
+  const candidates = useMemo(() => {
+    const comments: Record<string, CommentView[]> = {}
+    for (const [key, value] of Object.entries(watched.byKey)) if (value.status === 'ready') comments[key] = value.data
+    return watchCandidates(watchlist.items, comments)
+  }, [watchlist.items, watched.byKey])
+  useEffect(() => {
+    if (candidates.length) update(current => mergeNotifications(current, candidates))
+  }, [candidates])
+
+  // Seen in the Watchlist or on the property's page: no longer news
+  useEffect(() => {
+    if (state?.items.some(item => item.kind === 'watch' && !item.read)) {
+      update(current => markWatchedSeen(current, watchlist.items))
+    }
+  }, [watchlist.items, state])
+
+  const items: AppNotification[] = state?.items ?? []
+  return {
+    items,
+    unread: items.filter(item => !item.read).length,
+    markRead: (id: string) => update(current => markRead(current, [id])),
+    markAllRead: () => update(current => markRead(current)),
+  }
 }
 
 // Comment counts for the suburb a search results page is for (null when the page isn't for one)

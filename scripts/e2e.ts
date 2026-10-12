@@ -50,8 +50,19 @@ async function run(colorScheme: 'light' | 'dark') {
   const page = await context.newPage()
   // Firestore queries sent by the background script, to check the cache (needs the service worker network events)
   let firestoreQueries = 0
+  // The reply check's failures (see useNotifications)
+  const replyCheckErrors: string[] = []
+  // Lookups of the user's own comments, which the reply check starts with
+  let ownCommentQueries = 0
   context.on('request', request => {
-    if (request.url().includes('firestore.googleapis.com') && request.url().includes(':runQuery')) firestoreQueries++
+    if (!request.url().includes('firestore.googleapis.com') || !request.url().includes(':runQuery')) return
+    firestoreQueries++
+    if (/"fieldPath":\s*"uid"/.test(request.postData() ?? '')) {
+      ownCommentQueries++
+      void request.response().then(response => {
+        if (response && !response.ok()) replyCheckErrors.push(`Firestore answered ${response.status()}`)
+      })
+    }
   })
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
@@ -69,6 +80,10 @@ async function run(colorScheme: 'light' | 'dark') {
     }
     console.log(`  ✓ ${name}`)
   }
+  // The panel checks for replies to the user's comments when it opens (see useNotifications); this catches it failing
+  page.on('console', message => {
+    if (message.text().includes('Checking for replies failed')) replyCheckErrors.push(message.text())
+  })
   const waitForComments = () => ui('.comment').first().waitFor({ timeout: 20_000 })
   const panelTitle = () => ui('.panel-title').textContent()
 
@@ -269,6 +284,64 @@ async function run(colorScheme: 'light' | 'dark') {
     await ui('.watch-result').waitFor({ state: 'detached' })
     await ui('.tabs button:has-text("Property")').click()
     assert.equal(await star.getAttribute('aria-pressed'), 'false')
+  })
+
+  // Production has no replies to this fresh profile's comments, so notifications are put in storage, as a check would
+  await step('lists notifications under the bell, and opens one', async () => {
+    assert.deepEqual(replyCheckErrors, [], 'the reply check worked')
+    // Once, however often the panel has been opened since: the rest came from the cache
+    assert.equal(ownCommentQueries, 1, 'checked for replies once')
+    const property = {
+      address: '65 newmarket street',
+      suburb: 'hendra',
+      state: 'qld',
+      postcode: '4011',
+      displayAddress: '65 Newmarket Street',
+      displayLocality: 'Hendra QLD 4011',
+    }
+    const notification = { kind: 'reply', username: 'Sam', text: 'Thanks, good to know.', property }
+    const notifications = {
+      since: 0,
+      items: [
+        { ...notification, id: 'e2e-unread', createdAt: Date.now() - 60_000, read: false },
+        { ...notification, id: 'e2e-unread-2', kind: 'thread', createdAt: Date.now() - 120_000, read: false },
+        { ...notification, id: 'e2e-read', kind: 'watch', createdAt: Date.now() - 3_600_000, read: true },
+      ],
+    }
+    await context.serviceWorkers()[0]!.evaluate(items => chrome.storage.local.set(items), { notifications })
+    await ui('.bell-count:text("2")').waitFor()
+    const menu = ui('.notifications-menu')
+    // A dropdown under the bell: Esc and clicks elsewhere in the panel close it, not the panel
+    await ui('.bell-button').click()
+    await menu.waitFor()
+    await page.keyboard.press('Escape')
+    await menu.waitFor({ state: 'detached' })
+    await ui('.bell-button').click()
+    await ui('.panel-title').click()
+    await menu.waitFor({ state: 'detached' })
+    assert.ok(await ui('.panel').isVisible(), 'the panel stayed open')
+
+    await ui('.bell-button').click()
+    assert.deepEqual(await ui('.notification-group h4').allTextContents(), ['New', 'Earlier'])
+    assert.match((await ui('.notification--unread').first().textContent()) ?? '', /Sam replied to your comment/)
+    await ui('.notification--unread').first().click()
+    await menu.waitFor({ state: 'detached' })
+    assert.equal(await panelTitle(), '65 Newmarket Street')
+    await waitForComments()
+    // The made-up comment doesn't exist
+    await ui('.hint-banner:has-text("since been deleted")').waitFor()
+    await ui('.bell-count:text("1")').waitFor()
+
+    // The footer marks the rest read
+    await ui('.bell-button').click()
+    await ui('.notifications-menu-footer').click()
+    await ui('.bell-count').waitFor({ state: 'detached' })
+    assert.equal(await ui('.notification--unread').count(), 0)
+    assert.ok(await ui('.notifications-menu-footer').isDisabled())
+    await page.keyboard.press('Escape')
+    await ui('.search-detail .back-button').click()
+    await ui('.panel-composer').waitFor()
+    await context.serviceWorkers()[0]!.evaluate(() => chrome.storage.local.remove('notifications'))
   })
 
   await step('sorts and filters comments from the dropdown, showing a notice when none have images', async () => {

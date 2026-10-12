@@ -17,6 +17,7 @@ import {
   editComment,
   listComments,
   recentComments,
+  replyNotices,
   reportComment,
   searchComments,
   toggleVote,
@@ -99,6 +100,10 @@ const handlers: Handlers = {
   async searchComments({ query }) {
     if (typeof query !== 'string' || query.length > 200) throw new UserError('Invalid search.')
     return searchComments(query, await getUserId())
+  },
+
+  async replyNotices({ fresh }) {
+    return replyNotices(await getUserId(), fresh === true)
   },
 
   async setBadge({ count }, sender) {

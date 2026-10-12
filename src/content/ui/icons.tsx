@@ -57,6 +57,19 @@ export const StarIcon = ({ size = 16, filled = false }: { size?: number; filled?
   </Icon>
 )
 
+export const CheckIcon = ({ size = 16 }: { size?: number }) => (
+  <Icon size={size}>
+    <path d='M20 6 9 17l-5-5' />
+  </Icon>
+)
+
+export const BellIcon = ({ size = 18 }: { size?: number }) => (
+  <Icon size={size}>
+    <path d='M10.268 21a2 2 0 0 0 3.464 0' />
+    <path d='M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326' />
+  </Icon>
+)
+
 export const ClockIcon = ({ size = 16 }: { size?: number }) => (
   <Icon size={size}>
     <circle cx='12' cy='12' r='10' />
