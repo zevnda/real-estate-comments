@@ -24,6 +24,8 @@
   --text-faint: light-dark(#8c857c, #7f7971);
   --danger: light-dark(#b42318, #f97066);
   --star: light-dark(#d97706, #fbbf24);
+  /* The footer's "Support this extension" heart */
+  --heart: light-dark(#e11d48, #fb7185);
   --danger-soft: light-dark(#fef3f2, #3a1714);
   --backdrop: light-dark(rgba(28, 25, 23, 0.32), rgba(0, 0, 0, 0.55));
   /* The image lightbox is dark in both themes, like a photo viewer */
@@ -1828,6 +1830,23 @@ a.text-button {
 
 /* Dialogs (formatting help, terms, privacy), over the panel with a backdrop */
 
+/* The end of the Recent list: Show more, or that there's nothing more */
+.load-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 22px 20px;
+  border-top: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: 13px;
+  text-align: center;
+}
+
+.load-more p {
+  margin: 0;
+}
+
 /* Notifications: the header bell's dropdown, under the header's buttons */
 .icon-button--pressed {
   background: var(--surface-muted);
@@ -2176,6 +2195,10 @@ kbd {
 .panel-footer button:hover {
   color: var(--text-muted);
   text-decoration: underline;
+}
+
+.panel-footer .icon {
+  color: var(--heart);
 }
 
 /* Small screens: take the whole viewport */

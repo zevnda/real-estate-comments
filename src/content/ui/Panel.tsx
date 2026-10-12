@@ -1,7 +1,7 @@
 import type { ComponentChildren } from 'preact'
-import type { CommentView, RecentCommentView } from '../../shared/messages'
+import type { CommentView } from '../../shared/messages'
 import type { AppNotification } from '../../shared/notifications'
-import type { Loadable, useComments } from '../hooks'
+import type { useComments } from '../hooks'
 import type { PageState } from '../page-state'
 import type { CommentsView } from '../views'
 import type { Draft } from './Composer'
@@ -9,6 +9,7 @@ import type { Draft } from './Composer'
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { ext } from '../../shared/ext'
+import { MAX_RECENT } from '../../shared/messages'
 import { titleCase } from '../../shared/property'
 import { newComments, watchKey } from '../../shared/watchlist'
 import { pluralize } from '../format'
@@ -263,9 +264,8 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose, draft, onD
             />
           ) : tab === 'recent' ? (
             <RecentTab
-              state={recent.state}
-              refreshing={recent.refreshing}
-              onRefresh={recent.reload}
+              recent={recent}
+              onSearch={() => setTab('search')}
               banner={
                 area && areaStats ? (
                   <AreaCard
@@ -451,17 +451,16 @@ function PropertyTab({
 }
 
 function RecentTab({
-  state,
-  refreshing,
-  onRefresh,
+  recent,
+  onSearch,
   banner,
 }: {
-  state: Loadable<RecentCommentView[]>
-  refreshing: boolean
-  onRefresh: () => void
+  recent: ReturnType<typeof useRecentComments>
+  onSearch: () => void
   // Above the list: the suburb's stats on its search pages, or a hint off property pages
   banner: ComponentChildren
 }) {
+  const { state, refreshing, reload: onRefresh } = recent
   return (
     <>
       {banner}
@@ -472,21 +471,70 @@ function RecentTab({
       ) : (
         <>
           <div class='list-toolbar'>
-            <span>{state.data.length ? pluralize(state.data.length, 'comment') : 'No comments yet'}</span>
+            <span>{state.data.length ? 'Newest first' : 'No comments yet'}</span>
             <RefreshButton refreshing={refreshing} onRefresh={onRefresh} />
           </div>
           {state.data.length === 0 ? (
             <Notice icon={<MessageIcon />} title='No comments yet' />
           ) : (
-            <div class='comment-list'>
-              {state.data.map(comment => (
-                <Comment key={comment.id} comment={comment} />
-              ))}
-            </div>
+            <>
+              <div class='comment-list'>
+                {state.data.map(comment => (
+                  <Comment key={comment.id} comment={comment} />
+                ))}
+              </div>
+              <LoadMore recent={recent} onSearch={onSearch} />
+            </>
           )}
         </>
       )}
     </>
+  )
+}
+
+// The end of the Recent list: loads the next page as it scrolls into view, with a button for keyboards and as a
+// fallback, and says when there's no more
+function LoadMore({ recent, onSearch }: { recent: ReturnType<typeof useRecentComments>; onSearch: () => void }) {
+  const sentinel = useRef<HTMLDivElement>(null)
+  const { hasMore, loadMore, loadingMore, moreError } = recent
+  const loadMoreRef = useRef(loadMore)
+  loadMoreRef.current = loadMore
+
+  useEffect(() => {
+    const element = sentinel.current
+    if (!element || !hasMore || moreError) return
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries.some(entry => entry.isIntersecting)) void loadMoreRef.current()
+      },
+      // Start loading a little before the end comes into view
+      { root: element.closest('.panel-scroll'), rootMargin: '0px 0px 300px 0px' },
+    )
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [hasMore, moreError, recent.state])
+
+  return (
+    <div class='load-more' ref={sentinel}>
+      {hasMore ? (
+        <>
+          {moreError && <p class='inline-error'>{moreError}</p>}
+          <button type='button' class='button button--ghost' onClick={() => void loadMore()} disabled={loadingMore}>
+            {loadingMore ? 'Loading…' : moreError ? 'Try again' : 'Show more'}
+          </button>
+        </>
+      ) : recent.state.status === 'ready' && recent.state.data.length >= MAX_RECENT ? (
+        <p>
+          That’s the latest {MAX_RECENT}.{' '}
+          <button type='button' class='link-button' onClick={onSearch}>
+            Search
+          </button>{' '}
+          to find older comments.
+        </p>
+      ) : (
+        <p>That’s every comment.</p>
+      )}
+    </div>
   )
 }
 

@@ -42,8 +42,11 @@ const handlers: Handlers = {
     return listComments(property, await getUserId(), fresh === true)
   },
 
-  async recentComments({ fresh }) {
-    return recentComments(await getUserId(), fresh === true)
+  async recentComments({ fresh, before }) {
+    if (before !== undefined && !(typeof before === 'number' && Number.isFinite(before) && before > 0)) {
+      throw new UserError('Invalid request.')
+    }
+    return recentComments(await getUserId(), fresh === true, before)
   },
 
   async createComment({ property, text, username, replyTo }) {

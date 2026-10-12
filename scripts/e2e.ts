@@ -443,6 +443,31 @@ async function run(colorScheme: 'light' | 'dark') {
     await waitForComments()
   })
 
+  // Production has more than one page of comments; scrolling loads them until the end
+  await step('loads more recent comments while scrolling, to the end', async () => {
+    const recent = ui('.comment-list > .comment')
+    assert.equal(await recent.count(), 10, 'the first page')
+    for (let pages = 0; pages < 12 && !(await ui('.load-more p').count()); pages++) {
+      const shown = await recent.count()
+      await ui('.load-more').scrollIntoViewIfNeeded()
+      await page.waitForFunction(
+        count => {
+          const root = document.querySelector('real-estate-comments')?.shadowRoot
+          return (
+            root?.querySelector('.load-more p') || root!.querySelectorAll('.comment-list > .comment').length > count
+          )
+        },
+        shown,
+        { timeout: 20_000 },
+      )
+    }
+    const ids = await recent.evaluateAll(elements => elements.map(element => element.id))
+    assert.ok(ids.length > 10, 'loaded more than the first page')
+    assert.equal(new Set(ids).size, ids.length, 'no comment shown twice')
+    assert.match((await ui('.load-more p').textContent()) ?? '', /That’s (every comment|the latest 100)/)
+    await ui('.panel-scroll').evaluate(element => element.scrollTo(0, 0))
+  })
+
   // A suburb's search results page: Concord NSW 2137 has a few production comments
   await page.goto('https://www.domain.com.au/rent/concord-nsw-2137/')
   await step('shows a suburb’s comment counts on its search page, and searches it', async () => {

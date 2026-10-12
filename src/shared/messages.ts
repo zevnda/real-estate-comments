@@ -58,11 +58,16 @@ export interface AreaStats {
   capped: boolean
 }
 
+// The Recent tab loads this many comments at a time as the user scrolls, up to MAX_RECENT (Search finds older ones)
+export const RECENT_PAGE = 10
+export const MAX_RECENT = 100
+
 // Requests the content script sends to the background script, and what each one returns
 export interface BackgroundApi {
   // `fresh` skips the background's cache (the panel's refresh button)
   listComments: { request: { property: PropertyInput; fresh?: boolean }; response: CommentView[] }
-  recentComments: { request: { fresh?: boolean }; response: RecentCommentView[] }
+  // A page of RECENT_PAGE, older than `before` (ms) when given
+  recentComments: { request: { fresh?: boolean; before?: number }; response: RecentCommentView[] }
   // `replyTo`: the comment being replied to, which must be on the same property
   createComment: {
     request: { property: PropertyInput; text: string; username: string; replyTo?: string }

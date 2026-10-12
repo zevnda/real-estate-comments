@@ -1,4 +1,4 @@
-import type { DocumentSnapshot, Timestamp } from 'firebase/firestore/lite'
+import type { DocumentSnapshot } from 'firebase/firestore/lite'
 import type { AreaStats, CommentView, RecentCommentView, ReplyNotice, SearchResult } from '../shared/messages'
 import type { Area, PropertyInput } from '../shared/property'
 import type { ReportReason } from '../shared/reports'
@@ -18,10 +18,13 @@ import {
   runTransaction,
   serverTimestamp,
   setDoc,
+  startAfter,
+  Timestamp,
   updateDoc,
   where,
 } from 'firebase/firestore/lite'
 
+import { RECENT_PAGE } from '../shared/messages'
 import { buildPropertyKeys, canonicalAddress, propertyLinks, titleCase } from '../shared/property'
 import { MIN_SCORE, parseSearchQuery, scoreMatch, searchLookups } from '../shared/search'
 import { cleanUsername, EDIT_WINDOW_MS } from '../shared/validation'
@@ -81,7 +84,6 @@ const COMMENTS = 'listingcomments'
 const BANNED_USERS = 'bannedUsers'
 const REPORTS = 'reports'
 const MAX_COMMENTS_PER_PROPERTY = 100
-const RECENT_COMMENTS = 10
 const SEARCH_SCAN_LIMIT = 300
 // Upper bound for prefix range queries: `>= prefix` and `< prefix + PREFIX_END` matches everything starting with prefix
 const PREFIX_END = String.fromCharCode(0xf8ff)
@@ -148,15 +150,23 @@ export async function listComments(property: PropertyInput, userId: string, fres
   )
 }
 
-export async function recentComments(userId: string, fresh = false): Promise<RecentCommentView[]> {
+// The newest comments across every property, a page at a time: `before` (ms) is the createdAt of the last comment
+// already shown, so a comment posted while the user scrolls can't shift the pages and repeat or skip one. Served by
+// the automatic single-field index on createdAt. Each page is cached; the user's writes clear them all ('recent').
+export async function recentComments(userId: string, fresh = false, before?: number): Promise<RecentCommentView[]> {
   const authUid = await ensureSignedIn()
   const records = await cached(
-    'recent',
+    before === undefined ? 'recent' : `recent:${before}`,
     TTL.recent,
     async () => {
       await ensureSignedIn()
       const snapshot = await getDocs(
-        query(collection(db, COMMENTS), orderBy('createdAt', 'desc'), limit(RECENT_COMMENTS)),
+        query(
+          collection(db, COMMENTS),
+          orderBy('createdAt', 'desc'),
+          ...(before === undefined ? [] : [startAfter(Timestamp.fromMillis(before))]),
+          limit(RECENT_PAGE),
+        ),
       )
       return snapshot.docs.map(toRecord)
     },

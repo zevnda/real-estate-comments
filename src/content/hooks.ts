@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { ext } from '../shared/ext'
 import { log } from '../shared/log'
-import { callBackground } from '../shared/messages'
+import { callBackground, MAX_RECENT, RECENT_PAGE } from '../shared/messages'
 import {
   CHECK_INTERVAL_MS,
   getNotifications,
@@ -92,25 +92,63 @@ export function useComments(property: PropertyInput | null) {
   return { state, reload, refreshing, update }
 }
 
+// The newest comments across every property: the first page, then more as the user scrolls (loadMore)
 export function useRecentComments(enabled: boolean) {
   const [state, setState] = useState<Loadable<RecentCommentView[]>>({ status: 'idle' })
   const [refreshing, setRefreshing] = useState(false)
+  // More to load, unless a page came back short or MAX_RECENT is reached
+  const [hasMore, setHasMore] = useState(false)
+  const [more, setMore] = useState<{ loading: boolean; error: string | null }>({ loading: false, error: null })
+  // Bumped by a refresh, so a page that was loading for the old list isn't added to the new one
+  const generation = useRef(0)
+  const loadingMore = useRef(false)
+
   const load = useCallback(async (fresh: boolean) => {
+    const current = ++generation.current
+    loadingMore.current = false
+    setMore({ loading: false, error: null })
     setState(previous => (previous.status === 'ready' ? previous : { status: 'loading' }))
     if (fresh) setRefreshing(true)
     try {
-      setState({ status: 'ready', data: await callBackground('recentComments', { fresh }) })
+      const data = await callBackground('recentComments', { fresh })
+      if (current !== generation.current) return
+      setState({ status: 'ready', data })
+      setHasMore(data.length === RECENT_PAGE)
     } catch (error) {
-      setState({ status: 'error', error: errorMessage(error) })
+      if (current === generation.current) setState({ status: 'error', error: errorMessage(error) })
     } finally {
       setRefreshing(false)
     }
   }, [])
+
+  const loadMore = useCallback(async () => {
+    if (state.status !== 'ready' || !hasMore || loadingMore.current) return
+    const last = state.data.at(-1)
+    if (!last) return
+    const current = generation.current
+    loadingMore.current = true
+    setMore({ loading: true, error: null })
+    try {
+      const page = await callBackground('recentComments', { before: last.createdAt })
+      if (current !== generation.current) return
+      // The cursor is a time, so the last comment can come back again; never show one twice
+      const shown = new Set(state.data.map(comment => comment.id))
+      const data = [...state.data, ...page.filter(comment => !shown.has(comment.id))].slice(0, MAX_RECENT)
+      setState({ status: 'ready', data })
+      setHasMore(page.length === RECENT_PAGE && data.length < MAX_RECENT)
+      setMore({ loading: false, error: null })
+    } catch (error) {
+      if (current === generation.current) setMore({ loading: false, error: errorMessage(error) })
+    } finally {
+      if (current === generation.current) loadingMore.current = false
+    }
+  }, [state, hasMore])
+
   useEffect(() => {
     if (enabled && state.status === 'idle') void load(false)
   }, [enabled, state.status, load])
   const reload = useCallback(() => void load(true), [load])
-  return { state, reload, refreshing }
+  return { state, reload, refreshing, hasMore, loadMore, loadingMore: more.loading, moreError: more.error }
 }
 
 // A value kept in extension storage, so it's shared by every realestate.com.au and domain.com.au tab
