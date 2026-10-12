@@ -1,6 +1,7 @@
-// Reviews reported comments. Starts a small server on your machine and opens a page listing open reports, where you can
-// remove a comment (optionally banning its poster) or dismiss the reports. Uses the Firebase Admin SDK, which bypasses
-// the security rules, with a service account key that never leaves your machine.
+// Moderates comments. Starts a small server on your machine and opens a page where you can review reported comments
+// (remove, ban the poster, or dismiss the reports), browse every comment (edit, delete, look at a poster's or a
+// property's comments) and manage bans. Uses the Firebase Admin SDK, which bypasses the security rules, with a
+// service account key that never leaves your machine.
 //
 //   pnpm moderate
 //
@@ -11,7 +12,7 @@
 // websites open in your browser can't use it.
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import type { Timestamp } from 'firebase-admin/firestore'
+import type { DocumentSnapshot, Query, Timestamp } from 'firebase-admin/firestore'
 import type { PropertyLinks } from '../src/shared/property.ts'
 
 import { spawn } from 'node:child_process'
@@ -23,14 +24,20 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 
 import { canonicalAddress, propertyLinks, titleCase } from '../src/shared/property.ts'
 import { reportReasonLabel } from '../src/shared/reports.ts'
+import { cleanUsername, USERNAME_MAX_LENGTH, validateCommentText } from '../src/shared/validation.ts'
 
 const COMMENTS = 'listingcomments'
 const REPORTS = 'reports'
 const BANNED_USERS = 'bannedUsers'
 const MAX_REPORTS = 500
+const MAX_BANS = 1000
+// Comments per page in the Comments view, and the most shown for one poster, property or thread
+const PAGE_SIZE = 50
+const MAX_SCOPED = 200
+// Firestore's limit for `in` queries
+const IN_LIMIT = 30
 
 type ReportStatus = 'open' | 'removed' | 'dismissed'
-type Action = 'remove' | 'remove-ban' | 'dismiss'
 
 interface ReportDoc {
   commentId: string
@@ -52,25 +59,40 @@ interface CommentDoc {
   uid?: string
   createdAt?: Timestamp
   timestamp?: string
+  editedAt?: Timestamp
   votes?: number
   parentId?: string
+  replyToId?: string
 }
 
-// What the page gets: one entry per reported comment, with all its reports
+interface BanDoc {
+  uid: string
+  bannedAt?: Timestamp
+  commentId?: string
+}
+
+// A comment as the page shows it
+interface CommentView {
+  id: string
+  text: string
+  username: string
+  uid: string | null
+  address: string
+  locality: string
+  // The stored keys, for looking up the property's other comments
+  key: { address: string; suburb: string }
+  links: PropertyLinks | null
+  createdAt: number
+  editedAt: number | null
+  votes: number
+  parentId: string | null
+}
+
+// One entry per reported comment, with all its reports
 interface ReportedComment {
   commentId: string
   open: boolean
-  comment: {
-    text: string
-    username: string
-    address: string
-    locality: string
-    links: PropertyLinks | null
-    createdAt: number
-    votes: number
-    canBan: boolean
-    isReply: boolean
-  } | null
+  comment: CommentView | null
   reports: {
     reason: string
     details: string
@@ -95,6 +117,37 @@ const db = getFirestore()
 const token = randomBytes(24).toString('hex')
 const page = readFileSync(new URL('./moderate.html', import.meta.url), 'utf8')
 
+// Errors whose message is shown on the page as is
+class BadRequest extends Error {}
+
+function commentView(snap: DocumentSnapshot): CommentView | null {
+  if (!snap.exists) return null
+  const data = snap.data() as CommentDoc
+  return {
+    id: snap.id,
+    text: data.text,
+    username: data.username ?? 'Anonymous',
+    uid: data.uid ?? null,
+    address: titleCase(canonicalAddress(data.address)),
+    locality: [titleCase(data.suburb), data.state?.toUpperCase(), data.postcode].filter(Boolean).join(' '),
+    key: { address: data.address, suburb: data.suburb },
+    links:
+      data.state && data.postcode
+        ? propertyLinks({ address: data.address, suburb: data.suburb, state: data.state, postcode: data.postcode })
+        : null,
+    createdAt: data.createdAt?.toMillis() ?? (data.timestamp ? Date.parse(data.timestamp) : 0),
+    editedAt: data.editedAt?.toMillis() ?? null,
+    votes: data.votes ?? 0,
+    parentId: data.parentId ?? null,
+  }
+}
+
+function chunks<T>(items: T[], size: number): T[][] {
+  const result: T[][] = []
+  for (let i = 0; i < items.length; i += size) result.push(items.slice(i, i + size))
+  return result
+}
+
 async function listReports(): Promise<ReportedComment[]> {
   const snapshot = await db.collection(REPORTS).orderBy('createdAt', 'desc').limit(MAX_REPORTS).get()
   const byComment = new Map<string, ReportDoc[]>()
@@ -114,53 +167,160 @@ async function listReports(): Promise<ReportedComment[]> {
       status: report.status ?? ('open' as const),
       resolvedAt: report.resolvedAt?.toMillis() ?? null,
     }))
-    const data = snap.exists ? (snap.data() as CommentDoc) : null
     return {
       commentId: snap.id,
       open: reports.some(report => report.status === 'open'),
-      comment: data && {
-        text: data.text,
-        username: data.username ?? 'Anonymous',
-        address: titleCase(canonicalAddress(data.address)),
-        locality: [titleCase(data.suburb), data.state?.toUpperCase(), data.postcode].filter(Boolean).join(' '),
-        links:
-          data.state && data.postcode
-            ? propertyLinks({ address: data.address, suburb: data.suburb, state: data.state, postcode: data.postcode })
-            : null,
-        createdAt: data.createdAt?.toMillis() ?? (data.timestamp ? Date.parse(data.timestamp) : 0),
-        votes: data.votes ?? 0,
-        canBan: !!data.uid,
-        isReply: !!data.parentId,
-      },
+      comment: commentView(snap),
       reports,
     }
   })
 }
 
-// Removes the comment (and with remove-ban, bans its poster) or dismisses the reports, and closes every open report
-// on it. Reports are kept, marked with the outcome, as a record of how complaints were handled.
-async function resolve(commentId: string, action: Action): Promise<void> {
-  const commentRef = db.collection(COMMENTS).doc(commentId)
-  const [comment, reports] = await Promise.all([
-    commentRef.get(),
-    db.collection(REPORTS).where('commentId', '==', commentId).get(),
-  ])
-  const batch = db.batch()
-  if (action !== 'dismiss' && comment.exists) {
-    if (action === 'remove-ban') {
-      const uid = (comment.data() as CommentDoc).uid
-      if (!uid) throw new Error('This comment has no user ID, so its poster can’t be banned.')
-      // The extension looks bans up by `uid`; the other fields are for your reference
-      batch.create(db.collection(BANNED_USERS).doc(), { uid, bannedAt: FieldValue.serverTimestamp(), commentId })
-    }
-    batch.delete(commentRef)
+// Comments for the Comments view: every comment newest first, a page at a time (`after` is the last comment shown),
+// or all of one poster's, one property's or one thread's. Each query is served by an existing index: the automatic
+// single-field ones on `createdAt`, `uid` and `parentId`, and 1.x's composite (address, suburb, createdAt).
+async function listComments(params: URLSearchParams): Promise<{ comments: CommentView[]; next: string | null }> {
+  const comments = db.collection(COMMENTS)
+  const poster = params.get('poster')
+  const address = params.get('address')
+  const suburb = params.get('suburb')
+  const thread = params.get('thread')
+  const newestFirst = (a: CommentView, b: CommentView) => b.createdAt - a.createdAt
+
+  if (poster) {
+    // No orderBy: that would need a composite index (uid, createdAt)
+    const snapshot = await comments.where('uid', '==', poster).limit(MAX_SCOPED).get()
+    return { comments: snapshot.docs.map(doc => commentView(doc)!).sort(newestFirst), next: null }
   }
-  const status: ReportStatus = action === 'dismiss' ? 'dismissed' : 'removed'
-  for (const report of reports.docs) {
-    if ((report.data() as ReportDoc).status) continue
-    batch.update(report.ref, { status, resolvedAt: FieldValue.serverTimestamp() })
+  if (address !== null && suburb !== null) {
+    const snapshot = await comments
+      .where('address', '==', address)
+      .where('suburb', '==', suburb)
+      .orderBy('createdAt', 'desc')
+      .limit(MAX_SCOPED)
+      .get()
+    return { comments: snapshot.docs.map(doc => commentView(doc)!), next: null }
+  }
+  if (thread) {
+    const [root, replies] = await Promise.all([
+      comments.doc(thread).get(),
+      comments.where('parentId', '==', thread).limit(MAX_SCOPED).get(),
+    ])
+    const views = [commentView(root), ...replies.docs.map(doc => commentView(doc))].filter(view => view !== null)
+    return { comments: views.sort((a, b) => a.createdAt - b.createdAt), next: null }
+  }
+
+  let query: Query = comments.orderBy('createdAt', 'desc')
+  const after = params.get('after')
+  if (after) {
+    const cursor = await comments.doc(after).get()
+    if (!cursor.exists) throw new BadRequest('The last comment shown has been deleted. Refresh to start again.')
+    query = query.startAfter(cursor)
+  }
+  const snapshot = await query.limit(PAGE_SIZE).get()
+  return {
+    comments: snapshot.docs.map(doc => commentView(doc)!),
+    next: snapshot.size === PAGE_SIZE ? snapshot.docs[snapshot.size - 1]!.id : null,
+  }
+}
+
+async function listBans() {
+  const snapshot = await db.collection(BANNED_USERS).limit(MAX_BANS).get()
+  return snapshot.docs
+    .map(doc => {
+      const ban = doc.data() as BanDoc
+      return { uid: ban.uid, bannedAt: ban.bannedAt?.toMillis() ?? null, commentId: ban.commentId ?? null }
+    })
+    .sort((a, b) => (b.bannedAt ?? 0) - (a.bannedAt ?? 0))
+}
+
+// Closes the open reports on these comments. Reports are kept, marked with the outcome, as a record of how
+// complaints were handled.
+async function closeReports(commentIds: string[], status: Exclude<ReportStatus, 'open'>) {
+  const batch = db.batch()
+  for (const ids of chunks(commentIds, IN_LIMIT)) {
+    const reports = await db.collection(REPORTS).where('commentId', 'in', ids).get()
+    for (const report of reports.docs) {
+      if ((report.data() as ReportDoc).status) continue
+      batch.update(report.ref, { status, resolvedAt: FieldValue.serverTimestamp() })
+    }
   }
   await batch.commit()
+}
+
+async function ban(uid: string, commentId: string | null) {
+  const existing = await db.collection(BANNED_USERS).where('uid', '==', uid).limit(1).get()
+  if (!existing.empty) return
+  // The extension looks bans up by `uid`; the other fields are for your reference
+  await db
+    .collection(BANNED_USERS)
+    .add({ uid, bannedAt: FieldValue.serverTimestamp(), ...(commentId ? { commentId } : {}) })
+}
+
+async function unban(uid: string) {
+  const bans = await db.collection(BANNED_USERS).where('uid', '==', uid).get()
+  const batch = db.batch()
+  for (const doc of bans.docs) batch.delete(doc.ref)
+  await batch.commit()
+}
+
+// Bans a poster and deletes every comment they've posted (by `uid`), closing the open reports on them. Other
+// people's replies under their comments stay, shown as replying to a deleted comment. Votes they cast stay too:
+// removing them would mean rewriting every comment they voted on.
+async function purge(uid: string, commentId: string | null): Promise<number> {
+  await ban(uid, commentId)
+  const deleted: string[] = []
+  for (;;) {
+    // Firestore allows 500 writes per batch
+    const snapshot = await db.collection(COMMENTS).where('uid', '==', uid).limit(400).get()
+    if (snapshot.empty) break
+    const batch = db.batch()
+    for (const doc of snapshot.docs) batch.delete(doc.ref)
+    await batch.commit()
+    deleted.push(...snapshot.docs.map(doc => doc.id))
+  }
+  await closeReports(deleted, 'removed')
+  return deleted.length
+}
+
+// Deletes a comment (with `withReplies`, the replies under it too), optionally bans its poster, and closes the open
+// reports on everything deleted. A comment that's already gone just has its reports closed.
+async function deleteComment(id: string, options: { withReplies: boolean; banPoster: boolean }) {
+  const ref = db.collection(COMMENTS).doc(id)
+  const snap = await ref.get()
+  const ids = [id]
+  if (snap.exists) {
+    const data = snap.data() as CommentDoc
+    if (options.banPoster) {
+      if (!data.uid) throw new BadRequest('This comment has no user ID, so its poster can’t be banned.')
+      await ban(data.uid, id)
+    }
+    const batch = db.batch()
+    batch.delete(ref)
+    if (options.withReplies && !data.parentId) {
+      const replies = await db.collection(COMMENTS).where('parentId', '==', id).get()
+      for (const reply of replies.docs) {
+        batch.delete(reply.ref)
+        ids.push(reply.id)
+      }
+    }
+    await batch.commit()
+  }
+  await closeReports(ids, 'removed')
+  return ids.length
+}
+
+// A moderator's edit. `markEdited` sets `editedAt`, so the extension shows "(edited)", as it does for posters' edits.
+async function editComment(id: string, text: string, username: string, markEdited: boolean) {
+  const problem = validateCommentText(text)
+  if (problem) throw new BadRequest(problem)
+  const ref = db.collection(COMMENTS).doc(id)
+  if (!(await ref.get()).exists) throw new BadRequest('This comment has been deleted.')
+  await ref.update({
+    text: text.trim(),
+    username: cleanUsername(username),
+    ...(markEdited ? { editedAt: FieldValue.serverTimestamp() } : {}),
+  })
 }
 
 function send(response: ServerResponse, status: number, body: unknown, type = 'application/json') {
@@ -179,42 +339,101 @@ function hasToken(request: IncomingMessage): boolean {
   return given.length === expected.length && timingSafeEqual(given, expected)
 }
 
-async function readJson(request: IncomingMessage): Promise<unknown> {
+async function readJson(request: IncomingMessage): Promise<Record<string, unknown>> {
   let body = ''
   for await (const chunk of request) {
     body += String(chunk)
-    if (body.length > 10_000) throw new Error('Request too large')
+    if (body.length > 20_000) throw new BadRequest('Request too large')
   }
-  return JSON.parse(body) as unknown
+  const parsed = JSON.parse(body) as unknown
+  if (!parsed || typeof parsed !== 'object') throw new BadRequest('Invalid request')
+  return parsed as Record<string, unknown>
+}
+
+function commentId(value: unknown): string {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9]{1,64}$/.test(value)) throw new BadRequest('Invalid comment ID')
+  return value
+}
+
+function userId(value: unknown): string {
+  if (typeof value !== 'string' || !value || value.length > 128) throw new BadRequest('Invalid user ID')
+  return value
+}
+
+function text(value: unknown, max: number): string {
+  if (typeof value !== 'string' || value.length > max) throw new BadRequest('Invalid text')
+  return value
+}
+
+type Handler = (body: Record<string, unknown>) => Promise<unknown>
+
+const actions: Record<string, Handler> = {
+  async delete(body) {
+    const id = commentId(body.id)
+    const deleted = await deleteComment(id, { withReplies: body.withReplies === true, banPoster: body.ban === true })
+    console.log(`delete${body.ban === true ? ' and ban' : ''}: ${id} (${deleted} comment${deleted === 1 ? '' : 's'})`)
+    return { deleted }
+  },
+  async dismiss(body) {
+    const id = commentId(body.id)
+    await closeReports([id], 'dismissed')
+    console.log(`dismiss reports: ${id}`)
+  },
+  async edit(body) {
+    const id = commentId(body.id)
+    await editComment(
+      id,
+      text(body.text, 10_000),
+      text(body.username ?? '', USERNAME_MAX_LENGTH * 2),
+      body.markEdited === true,
+    )
+    console.log(`edit: ${id}`)
+  },
+  async ban(body) {
+    const uid = userId(body.uid)
+    await ban(uid, body.commentId ? commentId(body.commentId) : null)
+    console.log(`ban: ${uid}`)
+  },
+  async purge(body) {
+    const uid = userId(body.uid)
+    const deleted = await purge(uid, body.commentId ? commentId(body.commentId) : null)
+    console.log(`ban and purge: ${uid} (${deleted} comment${deleted === 1 ? '' : 's'})`)
+    return { deleted }
+  },
+  async unban(body) {
+    const uid = userId(body.uid)
+    await unban(uid)
+    console.log(`unban: ${uid}`)
+  },
 }
 
 const server = createServer((request, response) => {
   const { port } = server.address() as AddressInfo
   // Refuse anything not addressed to this server by IP (DNS rebinding)
   if (request.headers.host !== `127.0.0.1:${port}`) return send(response, 403, { error: 'Forbidden' })
-  const path = new URL(request.url ?? '/', 'http://127.0.0.1').pathname
+  const url = new URL(request.url ?? '/', 'http://127.0.0.1')
+  const path = url.pathname
 
   if (request.method === 'GET' && path === '/') return send(response, 200, page, 'text/html')
   if (!path.startsWith('/api/')) return send(response, 404, { error: 'Not found' })
   if (!hasToken(request)) return send(response, 403, { error: 'Bad token. Open the URL printed by pnpm moderate.' })
 
   const handle = async () => {
-    if (request.method === 'GET' && path === '/api/reports') return send(response, 200, await listReports())
-    if (request.method === 'POST' && path === '/api/resolve') {
-      const { commentId, action } = (await readJson(request)) as { commentId?: unknown; action?: unknown }
-      if (typeof commentId !== 'string' || !/^[A-Za-z0-9]{1,64}$/.test(commentId)) {
-        return send(response, 400, { error: 'Invalid comment ID' })
-      }
-      if (action !== 'remove' && action !== 'remove-ban' && action !== 'dismiss') {
-        return send(response, 400, { error: 'Invalid action' })
-      }
-      await resolve(commentId, action)
-      console.log(`${action}: ${commentId}`)
-      return send(response, 200, { ok: true })
+    if (request.method === 'GET') {
+      if (path === '/api/reports') return send(response, 200, await listReports())
+      if (path === '/api/comments') return send(response, 200, await listComments(url.searchParams))
+      if (path === '/api/bans') return send(response, 200, await listBans())
+    }
+    const name = path.slice('/api/'.length)
+    if (request.method === 'POST' && Object.hasOwn(actions, name)) {
+      return send(response, 200, (await actions[name]!(await readJson(request))) ?? { ok: true })
     }
     send(response, 404, { error: 'Not found' })
   }
   handle().catch((error: unknown) => {
+    if (error instanceof BadRequest || error instanceof SyntaxError) {
+      return send(response, 400, { error: error.message })
+    }
     console.error(error)
     send(response, 500, { error: error instanceof Error ? error.message : String(error) })
   })

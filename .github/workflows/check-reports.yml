@@ -1,0 +1,51 @@
+name: Check reports
+
+# Daily check for new comment reports, posted to Discord (see scripts/check-reports.ts and CLAUDE.md, "Moderating").
+# Secrets: FIREBASE_SERVICE_ACCOUNT_JSON (a read-only service account key's JSON) and DISCORD_WEBHOOK_URL.
+
+on:
+  schedule:
+    # 01:30 UTC: 12:30 pm in Sydney during daylight saving, 11:30 am otherwise. GitHub may start it a little late.
+    - cron: '30 1 * * *'
+  # Run by hand: Actions → Check reports → Run workflow
+  workflow_dispatch:
+    inputs:
+      send_anyway:
+        description: Send a summary to Discord even if there are no new reports (to test the webhook)
+        type: boolean
+        default: false
+
+permissions:
+  # Reading this workflow's earlier runs, to check from the last successful one
+  actions: read
+  contents: read
+
+concurrency: check-reports
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Find the last successful check
+        id: since
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          since=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow check-reports.yml --status success --limit 1 \
+            --json createdAt --jq '.[0].createdAt // empty')
+          echo "since=$since" >> "$GITHUB_OUTPUT"
+          echo "Checking since: ${since:-the last 24 hours}"
+      - name: Check for new reports
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          CHECK_SINCE: ${{ steps.since.outputs.since }}
+          SEND_ANYWAY: ${{ inputs.send_anyway && '--always' || '' }}
+        run: node scripts/check-reports.ts $SEND_ANYWAY

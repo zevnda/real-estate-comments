@@ -22,6 +22,7 @@
     "e2e": "node scripts/e2e.ts",
     "live-check": "node scripts/live-check.ts",
     "moderate": "node --env-file-if-exists=.env scripts/moderate.ts",
+    "check-reports": "node --env-file-if-exists=.env scripts/check-reports.ts",
     "lint:firefox": "pnpm build && web-ext lint --source-dir dist/firefox",
     "sign": "node scripts/bump-version.ts && pnpm build && node --env-file=.env node_modules/web-ext/bin/web-ext.js sign --source-dir dist/firefox --channel unlisted --artifacts-dir web-ext-artifacts"
   },

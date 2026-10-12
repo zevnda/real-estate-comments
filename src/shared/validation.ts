@@ -1,6 +1,6 @@
-import type { PropertyInput } from './property'
+import type { PropertyInput } from './property.ts'
 
-import { getSite, hasStreetNumber, STATES } from './property'
+import { getSite, hasStreetNumber, STATES } from './property.ts'
 
 export const COMMENT_MIN_LENGTH = 5
 export const COMMENT_MAX_LENGTH = 1200
