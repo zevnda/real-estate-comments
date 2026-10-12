@@ -28,24 +28,40 @@ interface CommentProps {
   // Inside a thread: what this reply answers (see replyContext), and whether it's shown as a reply
   context?: ReplyContext
   nested?: boolean
+  // The composer is replying to this comment
+  replying?: boolean
 }
 
 // A top-level comment with its replies underneath
 export function CommentThread({
   thread,
   byId,
+  replyingTo,
   ...actions
 }: {
   thread: Thread
   byId: Map<string, CommentView>
+  replyingTo?: string | null
 } & Pick<CommentProps, 'onChange' | 'onDelete' | 'onReply'>) {
   return (
     <div class='thread'>
-      <Comment comment={thread.comment} context={replyContext(thread.comment, byId)} {...actions} />
+      <Comment
+        comment={thread.comment}
+        context={replyContext(thread.comment, byId)}
+        replying={thread.comment.id === replyingTo}
+        {...actions}
+      />
       {thread.replies.length > 0 && (
         <div class='replies'>
           {thread.replies.map(reply => (
-            <Comment key={reply.id} comment={reply} context={replyContext(reply, byId)} nested {...actions} />
+            <Comment
+              key={reply.id}
+              comment={reply}
+              context={replyContext(reply, byId)}
+              nested
+              replying={reply.id === replyingTo}
+              {...actions}
+            />
           ))}
         </div>
       )}
@@ -53,7 +69,7 @@ export function CommentThread({
   )
 }
 
-export function Comment({ comment, onChange, onDelete, onReply, context, nested }: CommentProps) {
+export function Comment({ comment, onChange, onDelete, onReply, context, nested, replying }: CommentProps) {
   const [busy, setBusy] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -97,7 +113,11 @@ export function Comment({ comment, onChange, onDelete, onReply, context, nested 
   }
 
   return (
-    <article ref={article} id={commentElementId(comment.id)} class={`comment${nested ? ' comment--reply' : ''}`}>
+    <article
+      ref={article}
+      id={commentElementId(comment.id)}
+      class={`comment${nested ? ' comment--reply' : ''}${replying ? ' comment--replying' : ''}`}
+    >
       <div class='avatar' style={{ '--hue': avatarHue(comment.username) }} aria-hidden='true'>
         {initials(comment.username)}
       </div>

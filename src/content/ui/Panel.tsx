@@ -3,6 +3,7 @@ import type { CommentView, RecentCommentView } from '../../shared/messages'
 import type { Loadable, useComments } from '../hooks'
 import type { PageState } from '../page-state'
 import type { CommentsView } from '../views'
+import type { Draft } from './Composer'
 
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
@@ -65,9 +66,11 @@ interface PanelProps {
   dark: boolean
   onToggleTheme: () => void
   onClose: () => void
+  draft: Draft
+  onDraft: (change: Partial<Draft>) => void
 }
 
-export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelProps) {
+export function Panel({ page, comments, dark, onToggleTheme, onClose, draft, onDraft }: PanelProps) {
   const onPropertyPage = page.status !== 'browse'
   const [tab, setTab] = useState<Tab>(onPropertyPage ? 'property' : 'recent')
   const [sort, setSort] = useStored('sort', 'newest')
@@ -75,7 +78,6 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
   const recent = useRecentComments(tab === 'recent')
   const [searchQuery, setSearchQuery] = useState('')
   const [legal, setLegal] = useState<'terms' | 'privacy' | null>(null)
-  const [replyTo, setReplyTo] = useState<CommentView | null>(null)
   const [imagesOnly, setImagesOnly] = useState(false)
   const watchlist = useWatchlist()
   // Checked whenever the panel is open, for the tab's "new" count (cheap: the background caches each lookup)
@@ -98,8 +100,6 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
   useEffect(() => panel.current?.focus(), [])
 
   const property = page.status === 'property' ? page.property : null
-  // A reply belongs to the property it was started on
-  useEffect(() => setReplyTo(null), [property?.input.url])
   const count = comments.state.status === 'ready' ? comments.state.data.length : null
   const newestAt =
     comments.state.status === 'ready' ? Math.max(0, ...comments.state.data.map(comment => comment.createdAt)) : 0
@@ -216,7 +216,8 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
                 if (view !== 'images') setSort(view)
               }}
               onSearch={() => setTab('search')}
-              onReply={setReplyTo}
+              replyingTo={draft.replyTo?.id ?? null}
+              onReply={comment => onDraft({ replyTo: comment })}
             />
           ) : tab === 'recent' ? (
             <RecentTab
@@ -262,13 +263,13 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose }: PanelPro
           <div class='panel-composer'>
             <Composer
               property={property.input}
-              replyTo={replyTo}
-              onCancelReply={() => setReplyTo(null)}
+              draft={draft}
+              onDraft={onDraft}
               onPosted={comment => {
                 comments.update(list => [comment, ...list])
                 if (comment.parentId) {
                   // Show the new reply in its thread
-                  setReplyTo(null)
+                  onDraft({ replyTo: null })
                   setTimeout(() => scrollToComment(panel.current?.getRootNode(), comment.id), 50)
                 } else if (sort !== 'newest' || imagesOnly) {
                   // Show the new comment at the top
@@ -323,6 +324,7 @@ function PropertyTab({
   view,
   onView,
   onSearch,
+  replyingTo,
   onReply,
 }: {
   page: PageState
@@ -330,6 +332,7 @@ function PropertyTab({
   view: CommentsView
   onView: (view: CommentsView) => void
   onSearch: () => void
+  replyingTo: string | null
   onReply: (comment: CommentView) => void
 }) {
   const { threads, byId } = useMemo(() => {
@@ -394,6 +397,7 @@ function PropertyTab({
               onChange={update}
               onDelete={remove}
               onReply={onReply}
+              replyingTo={replyingTo}
             />
           ))}
         </div>

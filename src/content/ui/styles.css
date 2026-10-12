@@ -10,6 +10,9 @@
   --accent-hover: light-dark(#1d4ed8, #60a5fa);
   --on-accent: #ffffff;
   --accent-soft: light-dark(#eef3ff, #172554);
+  /* For accent backgrounds on --surface-muted, where --accent-soft barely shows */
+  --accent-tint: light-dark(#dbe6fe, #172554);
+  --accent-border: light-dark(#bfd2fd, #1e3a8a);
   --accent-text: light-dark(#1d4ed8, #93c5fd);
   --surface: light-dark(#ffffff, #1b1a18);
   --surface-muted: light-dark(#f3f6fb, #141311);
@@ -484,6 +487,15 @@ button:disabled {
   width: 26px;
   height: 26px;
   font-size: 11px;
+}
+
+/* The comment the composer is replying to */
+.comment--replying {
+  background: var(--accent-soft);
+}
+
+.comment--reply.comment--replying {
+  border-radius: 0 6px 6px 0;
 }
 
 .comment--flash {
@@ -1602,9 +1614,10 @@ a.text-button {
   align-items: center;
   gap: 6px;
   margin-bottom: 6px;
-  padding: 2px 2px 2px 10px;
+  padding: 1px 1px 1px 9px;
+  border: 1px solid var(--accent-border);
   border-radius: 8px;
-  background: var(--accent-soft);
+  background: var(--accent-tint);
   color: var(--accent-text);
   font-size: 12.5px;
 }

@@ -12,18 +12,30 @@ import { CloseIcon, ReplyIcon } from './icons'
 import { PostingRulesDialog, usePostingRules } from './Legal'
 import { MarkdownEditor } from './MarkdownEditor'
 
-interface ComposerProps {
-  property: PropertyInput
+// What's typed in the composer. Kept by App, so it survives closing the panel (which unmounts it).
+export interface Draft {
+  text: string
+  // null until the user types a name: shows the saved one
+  name: string | null
   // The comment being replied to, chosen with its Reply button
   replyTo: CommentView | null
-  onCancelReply: () => void
+}
+
+export const EMPTY_DRAFT: Draft = { text: '', name: null, replyTo: null }
+
+interface ComposerProps {
+  property: PropertyInput
+  draft: Draft
+  onDraft: (change: Partial<Draft>) => void
   onPosted: (comment: CommentView) => void
 }
 
-export function Composer({ property, replyTo, onCancelReply, onPosted }: ComposerProps) {
-  const [text, setText] = useState('')
+export function Composer({ property, draft, onDraft, onPosted }: ComposerProps) {
+  const { text, replyTo } = draft
+  const setText = (value: string) => onDraft({ text: value })
+  const onCancelReply = () => onDraft({ replyTo: null })
   const [savedName, saveName] = useStored('displayName', '')
-  const [name, setName] = useState('')
+  const name = draft.name ?? savedName
   const [showTerms, setShowTerms] = useState(false)
   const rules = usePostingRules()
   // Incremented after each post, which puts the editor back on Write
@@ -34,16 +46,13 @@ export function Composer({ property, replyTo, onCancelReply, onPosted }: Compose
   const [showHelp, setShowHelp] = useState(false)
   const textarea = useRef<HTMLTextAreaElement>(null)
 
-  useEffect(() => setName(savedName), [savedName])
-
-  // A draft belongs to the property it was written for. Don't carry it over to the next listing. Only on an actual
-  // change: clearing on mount too (e.g. switching back to the Property tab) wiped anything typed in the first moment.
-  const propertyKey = `${property.url}|${property.address}`
+  // App clears the draft on the next listing; clear what's left of the last attempt too. Only on an actual change,
+  // not on mount (e.g. switching back to the Property tab).
+  const propertyKey = draftKey(property)
   const draftFor = useRef(propertyKey)
   useEffect(() => {
     if (draftFor.current === propertyKey) return
     draftFor.current = propertyKey
-    setText('')
     setError(null)
     setTouched(false)
     setShowTerms(false)
@@ -68,7 +77,7 @@ export function Composer({ property, replyTo, onCancelReply, onPosted }: Compose
         ...(replyTo && { replyTo: replyTo.id }),
       })
       if (name.trim() !== savedName) saveName(name.trim())
-      setText('')
+      onDraft({ text: '', name: null })
       setTouched(false)
       setPosts(count => count + 1)
       onPosted(comment)
@@ -104,7 +113,7 @@ export function Composer({ property, replyTo, onCancelReply, onPosted }: Compose
         maxLength={USERNAME_MAX_LENGTH}
         placeholder='Your name (optional)'
         autoComplete='nickname'
-        onInput={event => setName(event.currentTarget.value)}
+        onInput={event => onDraft({ name: event.currentTarget.value })}
       />
       {replyTo && (
         <div class='reply-bar'>
@@ -193,4 +202,9 @@ export function Composer({ property, replyTo, onCancelReply, onPosted }: Compose
       )}
     </form>
   )
+}
+
+// A draft belongs to the property it was written for
+export function draftKey(property: PropertyInput): string {
+  return `${property.url}|${property.address}`
 }

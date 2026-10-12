@@ -319,6 +319,40 @@ async function run(colorScheme: 'light' | 'dark') {
     assert.ok(await ui('.panel').isVisible(), 'Esc cancelled only the reply')
   })
 
+  // Closing the panel unmounts it; the draft is kept outside it
+  await step('keeps a draft and its reply when the panel is closed and reopened', async () => {
+    await ui('.comment button:has-text("Reply")').first().click()
+    await ui('#rec-comment').fill('A draft that survives closing the panel.')
+    await ui('button[aria-label="Close comments"]').click()
+    await ui('.launcher').click()
+    assert.equal(await ui('#rec-comment').inputValue(), 'A draft that survives closing the panel.')
+    await ui('.reply-bar').waitFor()
+    assert.equal(await ui('.comment--replying').count(), 1)
+    await ui('.reply-bar button[aria-label="Cancel reply"]').click()
+    await ui('#rec-comment').fill('')
+  })
+
+  // Like a listing's photo gallery: arrow keys anywhere on the page change photos and stop the default action
+  await step('keeps keys typed in the panel from the site’s shortcuts', async () => {
+    await page.evaluate(() => {
+      const record = window as unknown as { siteKeys: number }
+      record.siteKeys = 0
+      for (const target of [window, document]) {
+        target.addEventListener('keydown', event => {
+          if (!(event instanceof KeyboardEvent) || !event.key.startsWith('Arrow')) return
+          record.siteKeys++
+          event.preventDefault()
+        })
+      }
+    })
+    await ui('#rec-comment').fill('ac')
+    await ui('#rec-comment').press('ArrowLeft')
+    await ui('#rec-comment').press('b')
+    assert.equal(await ui('#rec-comment').inputValue(), 'abc', 'the caret moved')
+    assert.equal(await page.evaluate(() => (window as unknown as { siteKeys: number }).siteKeys), 0)
+    await ui('#rec-comment').fill('')
+  })
+
   // A fresh profile has never agreed, and cancelling doesn't count as agreeing, so it asks again
   await step('asks to agree to the rules before a first post', async () => {
     await ui('#rec-comment').fill('Testing the composer. This is never posted.')
