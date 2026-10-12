@@ -1,16 +1,16 @@
-- Added a terms of use, privacy policy and complaints contact to the bottom of the panel
-- Added a Report button to comments, for flagging comments that break the TOS/laws
-- Clearer posting rules, which users now agree to the first time they post
+- **Reply** to comments. Replies show under the comment they’re about, and say who they’re answering
+- New **Notification Panel**: the bell at the top of the panel shows replies to your comments and new comments on properties you’re watching
+- New **Watchlist Tab**: watch properties with ☆ and see when they get new comments
 - Links to images on Imgur, Reddit, Gyazo, and other popular image hosts now show as thumbnails under the comment
-- Reply to comments. Replies show under the comment they’re about, and say who they’re answering
-- Edit your comment for 15 minutes after posting it
-- Preview your comment, with its formatting and images, before posting
-- New Watchlist tab: watch properties with ☆ and see when they get new comments
-- Redesigned tabs, which now fit four views and work better on small screens
-- Firefox: if site access is turned off, the toolbar button now asks for it instead of doing nothing
+- **Edit** your comment for 15 minutes after posting it
+- **Preview** your comment, with its formatting and images, before posting
 - Sort and filter comments from a dropdown: newest, top, or only those with images
-- Sort and filter search results: best match, newest, most comments, or with images
+- The **Recent Tab** now loads more comments as you scroll, up to the latest 100
 - On a suburb’s search results page, see how many comments the suburb has, and jump to them
-- See what’s new after each update, or any time from the Changelog link at the bottom of the panel
-- Notifications: a bell at the top of the panel shows replies to your comments and new comments on properties you’re watching
-- The Recent tab now loads more comments as you scroll, up to the latest 100
+- Sort and filter results in the **Search Tab**: best match, newest, most comments, or with images
+- Redesigned tabs, which now fit four views and work better on small screens
+- Added a **Report Button** to comments, for flagging comments that break the terms of use or the law
+- Clearer posting rules, which users now agree to the first time they post
+- See what’s new after each update, or any time from the **Changelog** link at the bottom of the panel
+- Added the **Terms**, **Privacy** and **Complaints** links to the bottom of the panel
+- Firefox: if site access is turned off, the toolbar button now asks for it instead of doing nothing
