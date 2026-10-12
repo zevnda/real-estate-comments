@@ -74,11 +74,24 @@ jobs:
             real-estate-comments-firefox-v${{ github.event.inputs.version }}.zip
             real-estate-comments-source-v${{ github.event.inputs.version }}.zip
 
-      # The release (and the extension built for it) has its notes; start the next release's changelog empty, so they
-      # don't carry over into the next version's "What's new"
-      - name: Clear the changelog
+      # The release (and the extension built for it) has its notes. Keep them in CHANGELOG-ARCHIVE.md (newest first,
+      # dated in Sydney time), then start the next release's changelog empty, so they don't carry over into the next
+      # version's "What's new". `pnpm check` above has already format-checked CHANGELOG.md, so the archive stays
+      # Prettier-clean.
+      - name: Archive and clear the changelog
         run: |
+          VERSION=${{ github.event.inputs.version }}
+          DATE=$(TZ=Australia/Sydney date '+%-d %B %Y')
+          {
+            printf '## v%s (%s)\n\n' "$VERSION" "$DATE"
+            cat CHANGELOG.md
+            if [ -s CHANGELOG-ARCHIVE.md ]; then
+              printf '\n'
+              cat CHANGELOG-ARCHIVE.md
+            fi
+          } > CHANGELOG-ARCHIVE.md.new
+          mv CHANGELOG-ARCHIVE.md.new CHANGELOG-ARCHIVE.md
           : > CHANGELOG.md
-          git add CHANGELOG.md
-          git commit -m "chore: clear changelog after v${{ github.event.inputs.version }}"
+          git add CHANGELOG.md CHANGELOG-ARCHIVE.md
+          git commit -m "chore: archive and clear changelog after v$VERSION"
           git push origin HEAD:${{ github.ref }}
