@@ -22,6 +22,12 @@ export interface CommentView {
   // Replies: the top-level comment the reply is under, and the comment it answers (the same, or another reply)
   parentId?: string
   replyToId?: string
+  // A review imported from ShitRentals (see shared/shitrentals.ts), shown with their badge
+  source?: 'shitrentals'
+  // Its photos, on our image server
+  photos?: string[]
+  // The review on ShitRentals, taken off the end of `text`; `shortened` if the text was cut to fit
+  review?: { url: string; shortened: boolean }
 }
 
 export interface RecentCommentView extends CommentView {

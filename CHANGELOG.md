@@ -1,0 +1,6 @@
+- Reviews from **ShitRentals** (shitrentals.org) now show with comments, with their permission
+  - Each is marked with a purple **ShitRentals** badge and links to the full review
+  - Photos from the review show as thumbnails
+  - Reply to, upvote and report them like any comment
+- Filter **Search Tab** results to community comments or ShitRentals reviews
+- The **Terms** and **Privacy** policy now cover ShitRentals reviews and their photos

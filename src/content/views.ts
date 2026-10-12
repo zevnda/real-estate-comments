@@ -14,9 +14,10 @@ export const COMMENT_VIEWS: { value: CommentsView; label: string }[] = [
   { value: 'images', label: 'With images' },
 ]
 
-// A thread counts as having images if its comment or any reply links an image that's shown as a thumbnail
+// A thread counts as having images if its comment or any reply has a thumbnail: an imported review's photos, or a
+// linked image
 export function hasImages(comment: CommentView): boolean {
-  return commentImages(comment.text).length > 0
+  return !!comment.photos?.length || commentImages(comment.text).length > 0
 }
 
 export function viewThreads(comments: CommentView[], view: CommentsView): Thread[] {
@@ -27,13 +28,16 @@ export function viewThreads(comments: CommentView[], view: CommentsView): Thread
 }
 
 // Search results: properties with comments
-export type ResultsView = 'match' | 'newest' | 'comments' | 'images'
+export type ResultsView = 'match' | 'newest' | 'comments' | 'images' | 'community' | 'shitrentals'
 
 export const RESULT_VIEWS: { value: ResultsView; label: string }[] = [
   { value: 'match', label: 'Best match' },
   { value: 'newest', label: 'Newest' },
   { value: 'comments', label: 'Most comments' },
   { value: 'images', label: 'With images' },
+  // Properties with comments from our users, or with reviews imported from ShitRentals
+  { value: 'community', label: 'Community comments' },
+  { value: 'shitrentals', label: 'ShitRentals reviews' },
 ]
 
 // Results arrive best match first; the other views re-sort or filter them
@@ -44,5 +48,7 @@ export function viewResults<T extends { comments: CommentView[]; latestAt: numbe
   if (view === 'newest') return [...results].sort((a, b) => b.latestAt - a.latestAt)
   if (view === 'comments') return [...results].sort((a, b) => b.comments.length - a.comments.length)
   if (view === 'images') return results.filter(result => result.comments.some(hasImages))
+  if (view === 'community') return results.filter(result => result.comments.some(comment => !comment.source))
+  if (view === 'shitrentals') return results.filter(result => result.comments.some(comment => comment.source))
   return results
 }

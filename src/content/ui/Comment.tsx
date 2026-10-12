@@ -9,9 +9,9 @@ import { callBackground } from '../../shared/messages'
 import { validateCommentText } from '../../shared/validation'
 import { avatarHue, formatAbsolute, formatRelative, initials } from '../format'
 import { errorMessage } from '../hooks'
-import { commentImages } from '../markdown'
+import { allCommentImages } from '../markdown'
 import { replyContext } from '../threads'
-import { FlagIcon, PencilIcon, ReplyIcon, TrashIcon, UpvoteIcon } from './icons'
+import { ExternalIcon, FlagIcon, PencilIcon, ReplyIcon, TrashIcon, UpvoteIcon } from './icons'
 import { CommentImages } from './Images'
 import { PostingRulesDialog, usePostingRules } from './Legal'
 import { Markdown } from './Markdown'
@@ -78,7 +78,8 @@ export function Comment({ comment, onChange, onDelete, onReply, context, nested,
   const [editing, setEditing] = useState(false)
   const article = useRef<HTMLElement>(null)
   const recent = 'displayAddress' in comment ? comment : null
-  const images = useMemo(() => commentImages(comment.text), [comment.text])
+  const images = useMemo(() => allCommentImages(comment), [comment.text, comment.photos])
+  const imported = comment.source === 'shitrentals'
   const canEdit = useEditable(comment.editableUntil) && !!onChange
 
   const vote = async () => {
@@ -118,7 +119,11 @@ export function Comment({ comment, onChange, onDelete, onReply, context, nested,
       id={commentElementId(comment.id)}
       class={`comment${nested ? ' comment--reply' : ''}${replying ? ' comment--replying' : ''}`}
     >
-      <div class='avatar' style={{ '--hue': avatarHue(comment.username) }} aria-hidden='true'>
+      <div
+        class={`avatar${imported ? ' avatar--shitrentals' : ''}`}
+        style={{ '--hue': avatarHue(comment.username) }}
+        aria-hidden='true'
+      >
         {initials(comment.username)}
       </div>
       <div class='comment-main'>
@@ -131,7 +136,13 @@ export function Comment({ comment, onChange, onDelete, onReply, context, nested,
         )}
         {context && <ReplyTo context={context} />}
         <header class='comment-meta'>
-          <span class='comment-author'>{comment.username}</span>
+          {imported ? (
+            <span class='chip chip--shitrentals' title='A review from ShitRentals (shitrentals.org)'>
+              ShitRentals
+            </span>
+          ) : (
+            <span class='comment-author'>{comment.username}</span>
+          )}
           {comment.isOwn && <span class='chip chip--accent'>You</span>}
           {/* Outside threads (Recent), say it's a reply, since what it answers isn't shown */}
           {comment.parentId && context === undefined && <span class='chip'>Reply</span>}
@@ -159,6 +170,12 @@ export function Comment({ comment, onChange, onDelete, onReply, context, nested,
         ) : (
           <>
             <Markdown text={comment.text} />
+            {comment.review?.shortened && (
+              <a class='read-more' href={comment.review.url} target='_blank' rel='noopener noreferrer'>
+                Read more on ShitRentals
+                <ExternalIcon />
+              </a>
+            )}
             {images.length > 0 && <CommentImages images={images} />}
           </>
         )}
@@ -216,6 +233,18 @@ export function Comment({ comment, onChange, onDelete, onReply, context, nested,
                   Report
                 </button>
               ))}
+            {comment.review && (
+              <a
+                class='review-link'
+                href={comment.review.url}
+                target='_blank'
+                rel='noopener noreferrer'
+                title='See this review on ShitRentals'
+              >
+                ShitRentals
+                <ExternalIcon />
+              </a>
+            )}
             {/* Recent: the property's pages, with the comment's other actions */}
             {recent?.links && <PropertyLinks links={recent.links} />}
             {comment.canDelete && onDelete && !confirming && (

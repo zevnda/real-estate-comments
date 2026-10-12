@@ -2,11 +2,14 @@ import { initializeApp } from 'firebase/app'
 import { getAuth, signInAnonymously } from 'firebase/auth/web-extension'
 import { getFirestore } from 'firebase/firestore/lite'
 
+import { connectEmulators, EMULATOR_PROJECT_ID } from './emulator'
+
 // Public client config; access is controlled by the Firestore security rules, not by keeping this secret.
 const firebaseConfig = {
   apiKey: 'AIzaSyAuEVyfsPVkpdPtPLK3eWDxulcAHTWZQoQ',
   authDomain: 'realestatecomments.firebaseapp.com',
-  projectId: 'realestatecomments',
+  // Only `pnpm build:emulator` has a project ID here (see emulator.ts)
+  projectId: EMULATOR_PROJECT_ID ?? 'realestatecomments',
   storageBucket: 'realestatecomments.firebasestorage.app',
   messagingSenderId: '819214707372',
   appId: '1:819214707372:web:12ec0084ba8e70d914cd09',
@@ -18,6 +21,7 @@ const app = initializeApp(firebaseConfig)
 export const db = getFirestore(app)
 // The web-extension build of Auth avoids the DOM and popup code that breaks in a service worker.
 const auth = getAuth(app)
+connectEmulators(db, auth)
 
 let signingIn: Promise<string> | null = null
 

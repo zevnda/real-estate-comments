@@ -82,6 +82,11 @@ export function TermsDialog({ onClose }: { onClose: () => void }) {
         on a comment alone when deciding whether to rent or buy: inspect the property, and get professional advice where
         it matters.
       </p>
+      <p>
+        Comments marked “ShitRentals” are reviews from ShitRentals (shitrentals.org), shown with its permission and
+        linked to the original. They were written by ShitRentals’ users and reviewed by ShitRentals, not under our
+        posting rules. You can reply to, vote on and report them like any comment.
+      </p>
 
       <h4>Rules for posting</h4>
       <ul>
@@ -163,7 +168,13 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
         When a comment links to an image on a supported image host (such as Imgur), the extension shows it as a
         thumbnail, so your browser loads the image straight from that host when you view the comment. Like any website,
         the host can see your IP address and browser when it sends the image. The extension doesn’t tell it which page
-        you’re on. We don’t host images.
+        you’re on. We don’t host images posted in comments.
+      </p>
+      <p>
+        Photos with reviews from ShitRentals are copied to our own image server (Cloudflare R2, at
+        rec.cdn-steamgameidler.com), with location and camera details removed, and your browser loads them from there.
+        Like any website, Cloudflare can see your IP address and browser when it sends a photo. We don’t keep a record
+        of who views them.
       </p>
 
       <h4>Stored in your browser</h4>

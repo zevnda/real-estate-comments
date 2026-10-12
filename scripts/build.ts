@@ -1,24 +1,42 @@
 // Builds the extension into dist/chrome and dist/firefox. Run with `pnpm build`, or `pnpm dev` to rebuild on change.
-import type { BuildOptions } from 'esbuild'
+// `pnpm build:emulator` builds dist/chrome-emulator instead: Chrome only, using the local Firebase emulators
+// (`pnpm shitrentals emulator`), and named so it can't be mistaken for the real one.
+import type { BuildOptions, Plugin } from 'esbuild'
 import type { Browser } from '../src/manifest.ts'
 
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { context } from 'esbuild'
 
 import { createManifest } from '../src/manifest.ts'
 
-const BROWSERS: Browser[] = ['chrome', 'firefox']
 const TARGETS: Record<Browser, string> = { chrome: 'chrome123', firefox: 'firefox128' }
 
 const watch = process.argv.includes('--watch')
+const emulator = process.argv.includes('--emulator')
+const BROWSERS: Browser[] = emulator ? ['chrome'] : ['chrome', 'firefox']
 const { version } = JSON.parse(await readFile('package.json', 'utf8')) as { version: string }
 
+// The emulator build's Firebase connection: src/background/emulator.ts (which does nothing) is swapped for
+// scripts/emulator-firebase.ts, so the code that connects to the emulators is only ever in that build
+const useEmulators: Plugin = {
+  name: 'use-emulators',
+  setup(build) {
+    build.onResolve({ filter: /^\.\/emulator$/ }, args =>
+      args.importer.endsWith(join('background', 'firebase.ts'))
+        ? { path: resolve('scripts', 'emulator-firebase.ts') }
+        : undefined,
+    )
+  },
+}
+
 async function build(browser: Browser) {
-  const outdir = join('dist', browser)
+  const outdir = join('dist', emulator ? `${browser}-emulator` : browser)
   await rm(outdir, { recursive: true, force: true })
   await mkdir(outdir, { recursive: true })
-  await writeFile(join(outdir, 'manifest.json'), JSON.stringify(createManifest(browser, version), null, 2))
+  const manifest = createManifest(browser, version)
+  if (emulator) manifest.name = `${String(manifest.name)} (emulator)`
+  await writeFile(join(outdir, 'manifest.json'), JSON.stringify(manifest, null, 2))
   await cp('icons', join(outdir, 'icons'), { recursive: true, filter: source => !source.endsWith('icon-full.png') })
 
   const options: BuildOptions = {
@@ -36,6 +54,7 @@ async function build(browser: Browser) {
     sourcemap: watch ? 'inline' : false,
     legalComments: 'none',
     define: { 'process.env.NODE_ENV': JSON.stringify(watch ? 'development' : 'production') },
+    plugins: emulator ? [useEmulators] : [],
     logLevel: 'info',
   }
   const ctx = await context(options)

@@ -501,7 +501,14 @@ async function run(colorScheme: 'light' | 'dark') {
     assert.equal(await ui('.search-result-address').first().textContent(), '97 Yates Avenue')
     // Results can be re-sorted or filtered
     const options = await ui('.search .view-select option').allTextContents()
-    assert.deepEqual(options, ['Best match', 'Newest', 'Most comments', 'With images'])
+    assert.deepEqual(options, [
+      'Best match',
+      'Newest',
+      'Most comments',
+      'With images',
+      'Community comments',
+      'ShitRentals reviews',
+    ])
   })
 
   await step('opens a search result’s comments', async () => {

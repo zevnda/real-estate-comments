@@ -432,6 +432,11 @@ export function expandStreetWord(word: string): string {
   return STREET_TYPES[word] ?? word
 }
 
+// A street type we know, spelled out or abbreviated: "road", "rd"
+export function isStreetType(word: string): boolean {
+  return Object.hasOwn(STREET_TYPES, word) || Object.hasOwn(STREET_ABBREVIATIONS, word)
+}
+
 export function slugify(text: string): string {
   return text
     .toLowerCase()

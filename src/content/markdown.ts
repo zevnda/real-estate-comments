@@ -3,7 +3,7 @@ import type { CommentImage } from '../shared/images'
 import DOMPurify from 'dompurify'
 import { Marked } from 'marked'
 
-import { findImages } from '../shared/images'
+import { findImages, MAX_COMMENT_IMAGES } from '../shared/images'
 
 const marked = new Marked({
   gfm: true,
@@ -51,6 +51,12 @@ export function renderMarkdown(text: string): DocumentFragment {
 
 // The images linked from a comment, shown as thumbnails under it. Taken from the rendered links, so only links that
 // survive sanitizing count, and a URL inside `code` doesn't.
+// Everything shown as a thumbnail under a comment: an imported review's photos, then images linked from the text
+export function allCommentImages(comment: { text: string; photos?: string[] }): CommentImage[] {
+  const photos = (comment.photos ?? []).map(src => ({ src, href: src, alt: '' }))
+  return [...photos, ...commentImages(comment.text)].slice(0, MAX_COMMENT_IMAGES)
+}
+
 export function commentImages(text: string): CommentImage[] {
   const links = [...renderMarkdown(text).querySelectorAll('a[href]')].map(link => ({
     href: link.getAttribute('href') ?? '',

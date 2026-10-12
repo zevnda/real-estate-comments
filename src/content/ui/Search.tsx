@@ -17,6 +17,12 @@ import { ViewSelect } from './ViewSelect'
 import { WatchButton, watchEntry } from './Watchlist'
 
 const DEBOUNCE_MS = 300
+// When a filter leaves none of the results
+const EMPTY_TITLES: Partial<Record<ResultsView, string>> = {
+  images: 'No results with images',
+  community: 'No community comments in these results',
+  shitrentals: 'No ShitRentals reviews in these results',
+}
 
 // Search existing comments by address, without opening the property's listing. The query lives in the panel so it
 // survives switching tabs.
@@ -166,7 +172,10 @@ export function SearchTab({ query, onQuery }: { query: string; onQuery: (query: 
             />
           </div>
           {shown.length === 0 && (
-            <Notice icon={<ImageIcon />} title='No results with images'>
+            <Notice
+              icon={resultsView === 'images' ? <ImageIcon /> : <SearchIcon size={20} />}
+              title={EMPTY_TITLES[resultsView] ?? 'No results'}
+            >
               <button type='button' class='button button--ghost' onClick={() => setResultsView('match')}>
                 Show all results
               </button>

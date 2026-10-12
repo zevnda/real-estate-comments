@@ -24,6 +24,9 @@
   --text-faint: light-dark(#8c857c, #7f7971);
   --danger: light-dark(#b42318, #f97066);
   --star: light-dark(#d97706, #fbbf24);
+  /* Reviews imported from ShitRentals: their badge, avatar and link */
+  --shitrentals-soft: light-dark(#f1e8ff, #2e1065);
+  --shitrentals-text: light-dark(#6d28d9, #c4b5fd);
   /* The footer's "Support this extension" heart */
   --heart: light-dark(#e11d48, #fb7185);
   --danger-soft: light-dark(#fef3f2, #3a1714);
@@ -619,7 +622,8 @@ button.reply-to:hover .reply-to-excerpt {
   margin-top: 4px;
 }
 
-.property-links a {
+.property-links a,
+.review-link {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -652,6 +656,42 @@ button.reply-to:hover .reply-to-excerpt {
   color: inherit;
 }
 
+/* In a comment's actions (Recent) they line up with the other actions; the gap above is for headings */
+.comment-actions .property-links {
+  margin-top: 0;
+}
+
+/* An imported review's link to ShitRentals: the property links' button, purple on hover */
+.review-link .icon {
+  color: var(--text-faint);
+}
+
+.review-link:hover {
+  border-color: var(--shitrentals-text);
+  background: var(--shitrentals-soft);
+  color: var(--shitrentals-text);
+}
+
+.review-link:hover .icon {
+  color: inherit;
+}
+
+/* After a shortened review's text */
+.read-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  color: var(--shitrentals-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.read-more:hover {
+  text-decoration: underline;
+}
+
 .comment-meta {
   display: flex;
   flex-wrap: wrap;
@@ -680,6 +720,20 @@ button.reply-to:hover .reply-to-excerpt {
 .chip--accent {
   background: var(--accent-soft);
   color: var(--accent-text);
+}
+
+/* An imported review: the badge stands in for the author's name */
+.chip--shitrentals {
+  padding: 2px 8px;
+  background: var(--shitrentals-soft);
+  color: var(--shitrentals-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.avatar.avatar--shitrentals {
+  background: var(--shitrentals-soft);
+  color: var(--shitrentals-text);
 }
 
 .comment-actions {

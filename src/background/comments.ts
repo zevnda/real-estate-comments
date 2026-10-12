@@ -24,9 +24,11 @@ import {
   where,
 } from 'firebase/firestore/lite'
 
+import { MAX_COMMENT_IMAGES } from '../shared/images'
 import { RECENT_PAGE } from '../shared/messages'
 import { buildPropertyKeys, canonicalAddress, propertyLinks, titleCase } from '../shared/property'
 import { MIN_SCORE, parseSearchQuery, scoreMatch, searchLookups } from '../shared/search'
+import { SHITRENTALS_SOURCE, shitRentalsImageUrl, splitReviewLink } from '../shared/shitrentals'
 import { cleanUsername, EDIT_WINDOW_MS } from '../shared/validation'
 import { cached, invalidate } from './cache'
 import { db, ensureSignedIn } from './firebase'
@@ -55,6 +57,9 @@ interface CommentDoc {
   // address and suburb, so the property's comment query finds it (and old versions show it as a normal comment).
   parentId?: string
   replyToId?: string
+  // Reviews imported from ShitRentals (scripts/shitrentals): `source` 'shitrentals', and their photos' attachment IDs
+  source?: string
+  images?: { id?: unknown }[]
   votes?: number
   // Voter user ID → 'up'
   userVotes?: Record<string, 'up'>
@@ -76,6 +81,9 @@ interface CommentRecord {
   editedAt?: number
   parentId?: string
   replyToId?: string
+  source?: 'shitrentals'
+  photos?: string[]
+  review?: { url: string; shortened: boolean }
   votes: number
   userVotes?: Record<string, 'up'>
 }
@@ -536,6 +544,20 @@ function toRecord(snap: DocumentSnapshot): CommentRecord {
   if (data.editedAt) record.editedAt = data.editedAt.toMillis()
   if (data.parentId) record.parentId = data.parentId
   if (data.replyToId) record.replyToId = data.replyToId
+  if (data.source === SHITRENTALS_SOURCE) {
+    record.source = SHITRENTALS_SOURCE
+    // Built from the attachment IDs only, so a photo can only ever come from our image server
+    const photos = (Array.isArray(data.images) ? data.images : [])
+      .map(image => (typeof image.id === 'string' ? shitRentalsImageUrl(image.id) : null))
+      .filter(url => url !== null)
+      .slice(0, MAX_COMMENT_IMAGES)
+    if (photos.length) record.photos = photos
+    const review = splitReviewLink(record.text)
+    if (review) {
+      record.text = review.text
+      record.review = { url: review.url, shortened: review.shortened }
+    }
+  }
   return record
 }
 
@@ -555,5 +577,8 @@ function toView(record: CommentRecord, userId: string, authUid: string): Comment
   if (record.editedAt) view.editedAt = record.editedAt
   if (record.parentId) view.parentId = record.parentId
   if (record.replyToId) view.replyToId = record.replyToId
+  if (record.source) view.source = record.source
+  if (record.photos) view.photos = record.photos
+  if (record.review) view.review = record.review
   return view
 }
