@@ -1,1 +1,0 @@
-- Stronger spam protection and bot detection

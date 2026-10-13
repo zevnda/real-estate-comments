@@ -1,3 +1,7 @@
+## v2.2.0 (13 October 2026)
+
+- Stronger spam protection and bot detection
+
 ## v2.1.0 (12 October 2026)
 
 - **Reply** to comments
