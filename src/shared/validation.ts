@@ -1,12 +1,16 @@
-import type { PropertyInput } from './property'
+import type { PropertyInput } from './property.ts'
 
-import { getSite, hasStreetNumber, STATES } from './property'
+import { getSite, hasStreetNumber, STATES } from './property.ts'
 
 export const COMMENT_MIN_LENGTH = 5
 export const COMMENT_MAX_LENGTH = 1200
 export const COMMENT_MAX_LINES = 50
+// Room for MAX_COMMENT_IMAGES (4) image links and a few others; more is usually link spam
+export const COMMENT_MAX_LINKS = 8
 export const USERNAME_MAX_LENGTH = 50
 export const DEFAULT_USERNAME = 'Anonymous'
+// How long after posting a comment can be edited. The security rules enforce the same window.
+export const EDIT_WINDOW_MS = 15 * 60 * 1000
 
 // Returns a user-facing reason the comment can't be posted, or null if it's fine. Runs in the panel (for instant
 // feedback) and again in the background script (which is the one that matters).
@@ -16,7 +20,13 @@ export function validateCommentText(text: string): string | null {
   if (trimmed.length > COMMENT_MAX_LENGTH) return `Comments can't be longer than ${COMMENT_MAX_LENGTH} characters.`
   if (trimmed.split('\n').length > COMMENT_MAX_LINES) return `Comments can't have more than ${COMMENT_MAX_LINES} lines.`
   if (/(.)\1{10,}/.test(trimmed)) return 'Your comment has too many repeated characters.'
+  if (countLinks(trimmed) > COMMENT_MAX_LINKS) return `Comments can't have more than ${COMMENT_MAX_LINKS} links.`
   return null
+}
+
+// Web addresses in the text, however they're written: a link, an image, or a bare address (shown as a link)
+export function countLinks(text: string): number {
+  return text.match(/\bhttps?:\/\/|(?<![\w./])www\./gi)?.length ?? 0
 }
 
 export function cleanUsername(name: string): string {

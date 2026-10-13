@@ -30,7 +30,7 @@ async function build(browser: Browser) {
     target: TARGETS[browser],
     jsx: 'automatic',
     jsxImportSource: 'preact',
-    loader: { '.css': 'text' },
+    loader: { '.css': 'text', '.md': 'text' },
     // Not minified: store reviewers (Firefox Add-ons especially) need to be able to read the shipped code
     minify: false,
     sourcemap: watch ? 'inline' : false,

@@ -1,5 +1,6 @@
 import type { PageState } from '../page-state'
 import type { Store } from '../store'
+import type { Draft } from './Composer'
 
 import { useEffect, useRef, useState } from 'preact/hooks'
 
@@ -7,6 +8,7 @@ import { log } from '../../shared/log'
 import { callBackground } from '../../shared/messages'
 import { useComments, useStored } from '../hooks'
 import { useStore } from '../store'
+import { draftKey, EMPTY_DRAFT } from './Composer'
 import { BrandIcon } from './icons'
 import { Panel } from './Panel'
 
@@ -29,6 +31,10 @@ export function App({ host, page: pageStore, toggles }: AppProps) {
   const [theme, saveTheme] = useStored('theme', 'system')
   const systemDark = useSystemDark()
   const dark = theme === 'dark' || (theme === 'system' && systemDark)
+  // Held here rather than in the composer, so closing the panel doesn't lose it. Dropped on the next property.
+  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
+  const propertyKey = property ? draftKey(property.input) : null
+  useEffect(() => setDraft(EMPTY_DRAFT), [propertyKey])
 
   useEffect(() => {
     if (theme === 'system') delete host.dataset.theme
@@ -61,6 +67,20 @@ export function App({ host, page: pageStore, toggles }: AppProps) {
     return () => document.removeEventListener('pointerdown', onPointerDown, true)
   }, [open, host])
 
+  // While the panel is open, keys pressed with focus on the page (e.g. after tabbing out of the panel) don't reach the
+  // site's shortcuts either. Keys pressed in the panel are stopped at the host (see index.tsx).
+  useEffect(() => {
+    if (!open) return
+    const onKey = (event: KeyboardEvent) => {
+      if (!event.composedPath().includes(host)) event.stopImmediatePropagation()
+    }
+    const types = ['keydown', 'keyup', 'keypress'] as const
+    for (const type of types) window.addEventListener(type, onKey, true)
+    return () => {
+      for (const type of types) window.removeEventListener(type, onKey, true)
+    }
+  }, [open, host])
+
   const count = comments.state.status === 'ready' ? comments.state.data.length : null
   useEffect(() => {
     callBackground('setBadge', { count }).catch(error => log.debug('Setting the toolbar badge failed:', error))
@@ -83,6 +103,8 @@ export function App({ host, page: pageStore, toggles }: AppProps) {
           dark={dark}
           onToggleTheme={() => saveTheme(dark ? 'light' : 'dark')}
           onClose={() => changeOpen(false)}
+          draft={draft}
+          onDraft={change => setDraft(current => ({ ...current, ...change }))}
         />
       </>
     )

@@ -1,4 +1,8 @@
 allowBuilds:
   esbuild: true
+  # Cloudflare's Workers runtime, for `pnpm worker:dev`
+  workerd: true
   '@firebase/util': false
   protobufjs: false
+  # Optional native regex engine for firebase-tools (rules emulator); not needed
+  re2: false

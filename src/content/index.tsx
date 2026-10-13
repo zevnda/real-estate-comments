@@ -26,6 +26,13 @@ function start() {
   shadow.append(style, mount)
   document.documentElement.append(host)
 
+  // Keys pressed in the UI are ours: don't let them bubble out to the site, whose shortcuts (e.g. a photo gallery's
+  // arrow keys) would otherwise act on them, and may preventDefault() them so the caret can't move in the text box.
+  // Our own handlers are all inside the shadow root, so they've already run by the time it reaches the host.
+  for (const type of ['keydown', 'keyup', 'keypress']) {
+    host.addEventListener(type, event => event.stopPropagation())
+  }
+
   const page = createStore<PageState>({ status: 'browse' })
   const toggles = createStore(0)
 

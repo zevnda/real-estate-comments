@@ -1,0 +1,119 @@
+rules_version = '2';
+
+// A copy of the rules deployed in the Firebase console. The console is the source of truth:
+// editing this file changes nothing until the same text is published there. Keep the two in sync (see CLAUDE.md).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Legacy comments (only very early versions used this). Locked; the data stays, viewable in the console.
+    match /comments/{commentId} {
+      allow read, write: if false;
+    }
+
+    // Comments
+    match /listingcomments/{commentId} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+        && isValidComment(request.resource.data);
+
+      // A vote (one voter added or removed, count moves by at most 1), or the poster editing the text within 15
+      // minutes of posting. Nothing else can be changed.
+      allow update: if request.auth != null
+        && (isValidVote(request.resource.data, resource.data)
+          || isValidEdit(request.resource.data, resource.data));
+
+      // Only by the poster: comments record the poster's Firebase Auth UID, which can't be faked (unlike `uid`).
+      // Comments from older versions don't have it, so only the maintainer can delete them, in the console.
+      allow delete: if request.auth != null
+        && resource.data.get('authorAuthUid', null) == request.auth.uid;
+    }
+
+    // Bans: the extension reads them; only you add or remove them, in the console
+    match /bannedUsers/{document} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Comment reports: users can file them, only you can read them (with `pnpm moderate`, which uses the Admin SDK and
+    // bypasses these rules). The ID is `<commentId>_<reporter's Auth UID>` and there's no update, so each person can
+    // report a comment once. Reasons must match REPORT_REASONS in src/shared/reports.ts.
+    match /reports/{reportId} {
+      allow create: if request.auth != null
+        && reportId == request.resource.data.commentId + '_' + request.auth.uid
+        && isValidReport(request.resource.data)
+        && exists(/databases/$(database)/documents/listingcomments/$(request.resource.data.commentId));
+      allow read, update, delete: if false;
+    }
+
+    function isValidReport(data) {
+      return data.keys().hasAll(['commentId', 'reason', 'details', 'reporterAuthUid', 'createdAt'])
+        && data.keys().hasOnly(['commentId', 'reason', 'details', 'reporterAuthUid', 'createdAt'])
+        && data.commentId is string
+        && data.commentId.size() <= 64
+        && data.reason in ['identifies-person', 'defamatory', 'harassment', 'personal-info', 'spam', 'other']
+        && data.details is string
+        && data.details.size() <= 1000
+        && data.reporterAuthUid == request.auth.uid
+        && data.createdAt == request.time;
+    }
+
+    function isValidComment(data) {
+      return data.keys().hasAll(['address', 'suburb', 'text', 'username', 'timestamp', 'createdAt'])
+        && data.keys().hasOnly(['address', 'suburb', 'state', 'postcode', 'url', 'text', 'username',
+             'timestamp', 'createdAt', 'uid', 'authorAuthUid', 'parentId', 'replyToId'])
+        && data.text is string
+        && data.text.size() >= 5
+        && data.text.size() <= 1200
+        && data.username is string
+        && data.username.size() <= 50
+        && data.address is string
+        && data.address.size() <= 200
+        && data.suburb is string
+        && data.suburb.size() <= 100
+        && data.timestamp is string
+        && data.createdAt is timestamp
+        && data.get('uid', '') is string
+        && data.get('uid', '').size() <= 64
+        && data.get('authorAuthUid', request.auth.uid) == request.auth.uid
+        && ('parentId' in data) == ('replyToId' in data)
+        && (!('parentId' in data) || isValidReply(data));
+    }
+
+    // Replies are one level deep: the parent must be a top-level comment on the same property (same stored address
+    // and suburb). replyToId is the parent or another reply; it's only used to show what's being answered.
+    function isValidReply(data) {
+      let parent = get(/databases/$(database)/documents/listingcomments/$(data.parentId)).data;
+      return data.parentId is string
+        && data.parentId.size() <= 64
+        && data.replyToId is string
+        && data.replyToId.size() <= 64
+        && !('parentId' in parent)
+        && parent.address == data.address
+        && parent.suburb == data.suburb;
+    }
+
+    // Only the poster (by Firebase Auth UID), only the text (plus editedAt = now), and only within 15 minutes of
+    // posting (EDIT_WINDOW_MS in src/shared/validation.ts)
+    function isValidEdit(after, before) {
+      return before.get('authorAuthUid', null) == request.auth.uid
+        && after.diff(before).affectedKeys().hasOnly(['text', 'editedAt'])
+        && after.text is string
+        && after.text.size() >= 5
+        && after.text.size() <= 1200
+        && after.editedAt == request.time
+        && before.createdAt is timestamp
+        && request.time < before.createdAt + duration.value(15, 'm');
+    }
+
+    function isValidVote(after, before) {
+      return after.diff(before).affectedKeys().hasOnly(['votes', 'userVotes'])
+        && after.votes is int
+        && after.votes >= 0
+        && after.votes - before.get('votes', 0) <= 1
+        && after.votes - before.get('votes', 0) >= -1
+        && after.userVotes is map
+        && after.userVotes.diff(before.get('userVotes', {})).affectedKeys().size() == 1;
+    }
+  }
+}

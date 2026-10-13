@@ -1,10 +1,11 @@
-import type { PageProperty } from '../shared/property'
+import type { Area, PageProperty } from '../shared/property'
 
-import { identifyProperty, isPropertyUrl, pageKey } from '../shared/property'
+import { identifyProperty, isPropertyUrl, pageKey, parseAreaUrl } from '../shared/property'
 
 export type PageState =
-  // A supported site, but not a property page (search results, home page, ...)
-  | { status: 'browse' }
+  // A supported site, but not a property page (search results, home page, ...). `area`: the suburb a search results
+  // page is for.
+  | { status: 'browse'; area?: Area }
   // A property page whose address can't be confirmed yet, usually because the title hasn't updated after navigation
   | { status: 'resolving' }
   // A property page whose address couldn't be read
@@ -27,7 +28,10 @@ export interface PageSnapshot {
 }
 
 export function resolvePageState(page: PageSnapshot): PageState {
-  if (!isPropertyUrl(page.url)) return { status: 'browse' }
+  if (!isPropertyUrl(page.url)) {
+    const area = parseAreaUrl(page.url)
+    return area ? { status: 'browse', area } : { status: 'browse' }
+  }
   const property = identifyProperty(page.url, page.title)
   if (property) {
     // The street address in the URL matches the title, so the title is current
@@ -43,6 +47,7 @@ export function resolvePageState(page: PageSnapshot): PageState {
 
 export function sameState(a: PageState | null, b: PageState): boolean {
   if (!a || a.status !== b.status) return false
+  if (a.status === 'browse' && b.status === 'browse') return JSON.stringify(a.area) === JSON.stringify(b.area)
   if (a.status !== 'property' || b.status !== 'property') return true
   const x = a.property.input
   const y = b.property.input

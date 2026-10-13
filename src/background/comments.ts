@@ -1,10 +1,19 @@
-import type { DocumentSnapshot, Timestamp } from 'firebase/firestore/lite'
-import type { CommentView, RecentCommentView, SearchResult } from '../shared/messages'
-import type { PropertyInput } from '../shared/property'
+import type { DocumentSnapshot } from 'firebase/firestore/lite'
+import type { AreaStats, CommentView, RecentCommentView, ReplyNotice, Result, SearchResult } from '../shared/messages'
+import type { Area, PropertyInput } from '../shared/property'
+import type {
+  RelayComment,
+  RelayCommentRequest,
+  RelayEdit,
+  RelayEditRequest,
+  RelayReportRequest,
+  RelayVote,
+  RelayVoteRequest,
+} from '../shared/relay'
+import type { ReportReason } from '../shared/reports'
 import type { SearchLookup, SearchQuery } from '../shared/search'
 
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -13,16 +22,18 @@ import {
   limit,
   orderBy,
   query,
-  runTransaction,
-  serverTimestamp,
+  startAfter,
+  Timestamp,
   where,
 } from 'firebase/firestore/lite'
 
+import { RECENT_PAGE } from '../shared/messages'
 import { buildPropertyKeys, canonicalAddress, propertyLinks, titleCase } from '../shared/property'
+import { RELAY_URL } from '../shared/relay'
 import { MIN_SCORE, parseSearchQuery, scoreMatch, searchLookups } from '../shared/search'
-import { cleanUsername } from '../shared/validation'
+import { cleanUsername, EDIT_WINDOW_MS } from '../shared/validation'
 import { cached, invalidate } from './cache'
-import { db, ensureSignedIn } from './firebase'
+import { db, ensureSignedIn, getIdToken } from './firebase'
 
 // A document in the `listingcomments` collection. The field set is fixed by the deployed security rules and by
 // comments saved by 1.x versions, so don't rename or add fields without updating the rules first (see CLAUDE.md).
@@ -38,7 +49,16 @@ interface CommentDoc {
   username?: string
   // The poster's anonymous extension user ID (not the Firebase Auth UID)
   uid?: string
+  // The poster's Firebase Auth UID. The security rules only allow deleting a comment whose authorAuthUid is the
+  // caller's, since `uid` is visible to everyone and can't be verified. Missing on comments from older versions.
+  authorAuthUid?: string
   createdAt?: Timestamp
+  // Set when the poster edits it (within EDIT_WINDOW_MS)
+  editedAt?: Timestamp
+  // Replies only: the top-level comment it's under, and the comment it answers. A reply copies its parent's
+  // address and suburb, so the property's comment query finds it (and old versions show it as a normal comment).
+  parentId?: string
+  replyToId?: string
   votes?: number
   // Voter user ID → 'up'
   userVotes?: Record<string, 'up'>
@@ -54,8 +74,12 @@ interface CommentRecord {
   text: string
   username?: string
   uid?: string
+  authorAuthUid?: string
   // Milliseconds since the epoch, or 0 if unknown
   createdAt: number
+  editedAt?: number
+  parentId?: string
+  replyToId?: string
   votes: number
   userVotes?: Record<string, 'up'>
 }
@@ -63,13 +87,17 @@ interface CommentRecord {
 const COMMENTS = 'listingcomments'
 const BANNED_USERS = 'bannedUsers'
 const MAX_COMMENTS_PER_PROPERTY = 100
-const RECENT_COMMENTS = 10
 const SEARCH_SCAN_LIMIT = 300
 // Upper bound for prefix range queries: `>= prefix` and `< prefix + PREFIX_END` matches everything starting with prefix
 const PREFIX_END = String.fromCharCode(0xf8ff)
 // Comments scanned when a search has no street number, postcode or suburb to look up by
 const SEARCH_RECENT_SCAN = 500
 const SEARCH_RESULTS = 20
+// Notifications: the user's comments looked at for replies, and replies read per lookup
+const MAX_OWN_COMMENTS = 200
+const MAX_REPLIES = 100
+// Firestore's limit on `in` values
+const IN_LIMIT = 30
 
 // How long reads are cached. New comments are rare, so other people's comments may take up to these to appear; the
 // user's own posts, votes and deletes clear the cache straight away, and the panel's refresh button skips it.
@@ -79,10 +107,14 @@ const TTL = {
   recent: 5 * MINUTE,
   search: 5 * MINUTE,
   searchScan: 10 * MINUTE,
+  area: 10 * MINUTE,
   ban: 60 * MINUTE,
+  // Opening the panel is answered from the cache, so opening and closing it repeatedly doesn't query again; its timed
+  // checks while open skip the cache (down to MIN_REFRESH_INTERVAL)
+  notices: 5 * MINUTE,
 }
 // Cache key prefixes, so a write can clear everything that shows comments
-const COMMENT_CACHES = ['property:', 'recent', 'search:']
+const COMMENT_CACHES = ['property:', 'recent', 'search:', 'area:']
 
 // An error whose message is safe and useful to show the user as-is.
 export class UserError extends Error {
@@ -90,6 +122,7 @@ export class UserError extends Error {
 }
 
 export async function listComments(property: PropertyInput, userId: string, fresh = false): Promise<CommentView[]> {
+  const authUid = await ensureSignedIn()
   const keys = buildPropertyKeys(property)
   const records = await cached(
     `property:${JSON.stringify([keys.addressVariants, keys.suburb])}`,
@@ -116,18 +149,27 @@ export async function listComments(property: PropertyInput, userId: string, fres
       // The query can't include the postcode (no index for it), so drop same-named streets in same-named suburbs
       // elsewhere, e.g. Richmond VIC and Richmond NSW
       .filter(record => !record.postcode || record.postcode === keys.postcode)
-      .map(record => toView(record, userId))
+      .map(record => toView(record, userId, authUid))
   )
 }
 
-export async function recentComments(userId: string, fresh = false): Promise<RecentCommentView[]> {
+// The newest comments across every property, a page at a time: `before` (ms) is the createdAt of the last comment
+// already shown, so a comment posted while the user scrolls can't shift the pages and repeat or skip one. Served by
+// the automatic single-field index on createdAt. Each page is cached; the user's writes clear them all ('recent').
+export async function recentComments(userId: string, fresh = false, before?: number): Promise<RecentCommentView[]> {
+  const authUid = await ensureSignedIn()
   const records = await cached(
-    'recent',
+    before === undefined ? 'recent' : `recent:${before}`,
     TTL.recent,
     async () => {
       await ensureSignedIn()
       const snapshot = await getDocs(
-        query(collection(db, COMMENTS), orderBy('createdAt', 'desc'), limit(RECENT_COMMENTS)),
+        query(
+          collection(db, COMMENTS),
+          orderBy('createdAt', 'desc'),
+          ...(before === undefined ? [] : [startAfter(Timestamp.fromMillis(before))]),
+          limit(RECENT_PAGE),
+        ),
       )
       return snapshot.docs.map(toRecord)
     },
@@ -136,12 +178,74 @@ export async function recentComments(userId: string, fresh = false): Promise<Rec
   return records.map(record => {
     const { address, suburb, state, postcode } = record
     return {
-      ...toView(record, userId),
-      displayAddress: titleCase(canonicalAddress(address)),
-      displayLocality: [titleCase(suburb), state?.toUpperCase(), postcode].filter(Boolean).join(' '),
+      ...toView(record, userId, authUid),
+      ...displayFields(record),
       links: state && postcode ? propertyLinks({ address, suburb, state, postcode }) : null,
     }
   })
+}
+
+// Replies to the user's comments: anything under their top-level comments, and replies answering their replies in
+// other people's threads. Each lookup is served by an automatic single-field index (`uid`, `parentId`, `replyToId`),
+// and cached for TTL.notices; the user's own replies are left out.
+export async function replyNotices(userId: string, fresh = false): Promise<ReplyNotice[]> {
+  const authUid = await ensureSignedIn()
+  const own = await cached(
+    `notices:own:${userId}`,
+    TTL.notices,
+    async () => {
+      const snapshot = await getDocs(
+        query(collection(db, COMMENTS), where('uid', '==', userId), limit(MAX_OWN_COMMENTS)),
+      )
+      return snapshot.docs.map(toRecord)
+    },
+    fresh,
+  )
+  const ownIds = new Set(own.map(record => record.id))
+  const lookups = [
+    ...chunk(own.filter(record => !record.parentId).map(record => record.id)).map(ids => ({ field: 'parentId', ids })),
+    ...chunk(own.filter(record => record.parentId).map(record => record.id)).map(ids => ({ field: 'replyToId', ids })),
+  ]
+  const batches = await Promise.all(
+    lookups.map(({ field, ids }) =>
+      cached(
+        `notices:${field}:${ids.join(',')}`,
+        TTL.notices,
+        async () => {
+          const snapshot = await getDocs(query(collection(db, COMMENTS), where(field, 'in', ids), limit(MAX_REPLIES)))
+          return snapshot.docs.map(toRecord)
+        },
+        fresh,
+      ),
+    ),
+  )
+  const replies = new Map<string, CommentRecord>()
+  for (const record of batches.flat()) if (record.uid !== userId) replies.set(record.id, record)
+  return [...replies.values()].map(record => {
+    const { address, suburb, state, postcode } = record
+    return {
+      comment: toView(record, userId, authUid),
+      direct: !!record.replyToId && ownIds.has(record.replyToId),
+      property:
+        state && postcode
+          ? { address: canonicalAddress(address), suburb, state, postcode, ...displayFields(record) }
+          : null,
+    }
+  })
+}
+
+function chunk<T>(items: T[]): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < items.length; i += IN_LIMIT) chunks.push(items.slice(i, i + IN_LIMIT))
+  return chunks
+}
+
+function displayFields(record: CommentRecord): { displayAddress: string; displayLocality: string } {
+  const { address, suburb, state, postcode } = record
+  return {
+    displayAddress: titleCase(canonicalAddress(address)),
+    displayLocality: [titleCase(suburb), state?.toUpperCase(), postcode].filter(Boolean).join(' '),
+  }
 }
 
 // Finds properties that have comments by address (see shared/search.ts for how). Results are grouped by property,
@@ -150,12 +254,13 @@ export async function searchComments(text: string, userId: string): Promise<Sear
   const search = parseSearchQuery(text)
   if (!search) return []
 
+  const viewer = { userId, authUid: await ensureSignedIn() }
   let records = await runLookups(searchLookups(search))
-  let results = rankSearchResults(search, records, userId)
+  let results = rankSearchResults(search, records, viewer)
   // Nothing specific matched (a street on its own, a misspelt suburb): fuzzy-match recent comments instead
   if (!results.length) {
     records = await runLookups([{ kind: 'recent' }])
-    results = rankSearchResults(search, records, userId)
+    results = rankSearchResults(search, records, viewer)
   }
   return results
 }
@@ -197,7 +302,11 @@ function fetchLookup(lookup: SearchLookup): Promise<CommentRecord[]> {
 }
 
 // Groups comments by property, scores each property against the query, and returns the best matches
-function rankSearchResults(search: SearchQuery, records: CommentRecord[], userId: string): SearchResult[] {
+function rankSearchResults(
+  search: SearchQuery,
+  records: CommentRecord[],
+  viewer: { userId: string; authUid: string },
+): SearchResult[] {
   // Old spellings of the same address ("97  yates ave") join their property's group
   const groups = new Map<string, CommentRecord[]>()
   for (const record of records) {
@@ -209,7 +318,9 @@ function rankSearchResults(search: SearchQuery, records: CommentRecord[], userId
     .map(([id, group]) => ({ id, group, score: scoreMatch(search, group[0]!) }))
     .filter(({ score }) => score >= MIN_SCORE)
     .map(({ id, group, score }) => {
-      const comments = group.map(record => toView(record, userId)).sort((a, b) => b.createdAt - a.createdAt)
+      const comments = group
+        .map(record => toView(record, viewer.userId, viewer.authUid))
+        .sort((a, b) => b.createdAt - a.createdAt)
       const { suburb, state = '', postcode = '' } = group[0]!
       const address = canonicalAddress(group[0]!.address)
       return {
@@ -219,6 +330,7 @@ function rankSearchResults(search: SearchQuery, records: CommentRecord[], userId
           displayAddress: titleCase(address),
           displayLocality: [titleCase(suburb), state.toUpperCase(), postcode].filter(Boolean).join(' '),
           links: propertyLinks({ address, suburb, state, postcode }),
+          property: state && postcode ? { address, suburb, state, postcode } : null,
           latestAt: comments[0]?.createdAt ?? 0,
           comments,
         },
@@ -229,77 +341,136 @@ function rankSearchResults(search: SearchQuery, records: CommentRecord[], userId
     .map(({ result }) => result)
 }
 
+// Writes go through the comment relay (worker/), which checks the poster's Firebase sign-in (and, for new comments, a
+// Turnstile token) and the limits for their network, then writes to Firestore itself. Returns its data, or throws its
+// user-facing error.
+async function relay<T>(
+  path: string,
+  body: RelayCommentRequest | RelayEditRequest | RelayReportRequest | RelayVoteRequest,
+): Promise<T> {
+  let response: Response
+  try {
+    response = await fetch(`${RELAY_URL}${path}`, {
+      method: 'POST',
+      headers: { 'authorization': `Bearer ${await getIdToken()}`, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  } catch {
+    throw new UserError('Couldn’t reach the comments server. Check your connection and try again.')
+  }
+  const result = (await response.json().catch(() => null)) as Result<T> | null
+  if (!result) throw new UserError('The comments server didn’t answer properly. Please try again.')
+  if (!result.ok) throw new UserError(result.error)
+  return result.data
+}
+
 export async function createComment(
   property: PropertyInput,
   text: string,
   username: string,
   userId: string,
+  turnstileToken: string,
+  replyToId?: string,
 ): Promise<CommentView> {
   await ensureSignedIn()
   if (await isBanned(userId)) throw new UserError('You can’t post comments right now (error 90001).')
 
-  const keys = buildPropertyKeys(property)
-  const now = new Date()
-  const data = {
-    address: keys.address,
-    suburb: keys.suburb,
-    state: keys.state,
-    postcode: keys.postcode,
-    url: property.url,
-    text: text.trim(),
-    timestamp: now.toISOString(),
-    username: cleanUsername(username),
-    uid: userId,
-    createdAt: serverTimestamp(),
+  const body: RelayCommentRequest = {
+    property,
+    text,
+    username,
+    userId,
+    turnstileToken,
+    ...(replyToId && { replyTo: replyToId }),
   }
-  const ref = await addDoc(collection(db, COMMENTS), data)
+  const result = await relay<RelayComment>('/comment', body)
   await invalidate(...COMMENT_CACHES)
+  const { id, createdAt, parentId, replyToId: answers } = result
   return {
-    id: ref.id,
-    text: data.text,
-    username: data.username,
-    createdAt: now.getTime(),
+    id,
+    text: text.trim(),
+    username: cleanUsername(username),
+    createdAt,
     votes: 0,
     hasVoted: false,
     isOwn: true,
+    canDelete: true,
+    editableUntil: createdAt + EDIT_WINDOW_MS,
+    ...(parentId && answers && { parentId, replyToId: answers }),
   }
 }
 
-// Upvotes a comment, or removes the user's upvote if they've already voted. A transaction, so simultaneous votes
-// from different users can't overwrite each other.
+// The poster can change the text for EDIT_WINDOW_MS after posting; the relay checks it (and the new text) again
+export async function editComment(
+  commentId: string,
+  text: string,
+  userId: string,
+): Promise<{ text: string; editedAt: number }> {
+  await ensureSignedIn()
+  if (await isBanned(userId)) throw new UserError('You can’t edit comments right now (error 90001).')
+  const body: RelayEditRequest = { commentId, text, userId }
+  const edit = await relay<RelayEdit>('/edit', body)
+  await invalidate(...COMMENT_CACHES)
+  return edit
+}
+
+// Upvotes a comment, or takes the user's upvote back, through the relay: one upvote per comment per network
 export async function toggleVote(commentId: string, userId: string): Promise<{ votes: number; hasVoted: boolean }> {
   await ensureSignedIn()
   if (await isBanned(userId)) throw new UserError('You can’t vote right now (error 90001).')
-
-  const ref = doc(db, COMMENTS, commentId)
-  const result = await runTransaction(db, async transaction => {
-    const snap = await transaction.get(ref)
-    if (!snap.exists()) throw new UserError('This comment has been deleted.')
-    const data = snap.data() as CommentDoc
-    if (data.uid === userId) throw new UserError('You can’t vote on your own comment.')
-
-    const userVotes = { ...data.userVotes }
-    const hasVoted = userVotes[userId] !== 'up'
-    if (hasVoted) userVotes[userId] = 'up'
-    else delete userVotes[userId]
-    const votes = Math.max(0, (data.votes ?? 0) + (hasVoted ? 1 : -1))
-
-    transaction.update(ref, { votes, userVotes })
-    return { votes, hasVoted }
-  })
+  const body: RelayVoteRequest = { commentId, userId }
+  const result = await relay<RelayVote>('/vote', body)
   await invalidate(...COMMENT_CACHES)
   return result
 }
 
 export async function deleteComment(commentId: string, userId: string): Promise<void> {
-  await ensureSignedIn()
+  const authUid = await ensureSignedIn()
   const ref = doc(db, COMMENTS, commentId)
   const snap = await getDoc(ref)
   if (snap.exists()) {
-    if ((snap.data() as CommentDoc).uid !== userId) throw new UserError('You can only delete your own comments.')
+    const data = snap.data() as CommentDoc
+    if (data.authorAuthUid !== authUid) {
+      throw new UserError(
+        data.uid === userId
+          ? 'Comments posted with older versions of the extension can’t be deleted.'
+          : 'You can only delete your own comments.',
+      )
+    }
     await deleteDoc(ref)
   }
   await invalidate(...COMMENT_CACHES)
+}
+
+// Comment and property counts for a suburb (for its search results pages). One query on `suburb`, served by the
+// automatic single-field index, capped like the search scan; postcodes are checked here, since the query can't.
+export async function areaStats(area: Area): Promise<AreaStats> {
+  const records = await cached(`area:${area.suburb}|${area.postcode}`, TTL.area, async () => {
+    await ensureSignedIn()
+    const snapshot = await getDocs(
+      query(collection(db, COMMENTS), where('suburb', '==', area.suburb), limit(SEARCH_RECENT_SCAN)),
+    )
+    return snapshot.docs.map(toRecord)
+  })
+  // Old comments without a postcode are counted: the suburb and state are usually enough
+  const here = records.filter(record => !record.postcode || record.postcode === area.postcode)
+  return {
+    comments: here.length,
+    properties: new Set(here.map(record => canonicalAddress(record.address))).size,
+    capped: records.length === SEARCH_RECENT_SCAN,
+  }
+}
+
+// Reports go to a collection only the maintainer can read (with `pnpm moderate`), through the relay, which allows one
+// report per person and per network for each comment. Comment text isn't copied: the moderator reads the comment.
+export async function reportComment(
+  commentId: string,
+  reason: ReportReason,
+  details: string,
+  userId: string,
+): Promise<void> {
+  const body: RelayReportRequest = { commentId, reason, details, userId }
+  await relay<null>('/report', body)
 }
 
 function isBanned(userId: string): Promise<boolean> {
@@ -324,12 +495,17 @@ function toRecord(snap: DocumentSnapshot): CommentRecord {
   if (data.postcode) record.postcode = data.postcode
   if (data.username) record.username = data.username
   if (data.uid) record.uid = data.uid
+  if (data.authorAuthUid) record.authorAuthUid = data.authorAuthUid
   if (data.userVotes) record.userVotes = data.userVotes
+  if (data.editedAt) record.editedAt = data.editedAt.toMillis()
+  if (data.parentId) record.parentId = data.parentId
+  if (data.replyToId) record.replyToId = data.replyToId
   return record
 }
 
-function toView(record: CommentRecord, userId: string): CommentView {
-  return {
+function toView(record: CommentRecord, userId: string, authUid: string): CommentView {
+  const canDelete = record.authorAuthUid === authUid
+  const view: CommentView = {
     id: record.id,
     text: record.text,
     username: record.username?.trim() || 'Anonymous',
@@ -337,5 +513,11 @@ function toView(record: CommentRecord, userId: string): CommentView {
     votes: record.votes,
     hasVoted: record.userVotes?.[userId] === 'up',
     isOwn: record.uid === userId,
+    canDelete,
   }
+  if (canDelete && record.createdAt) view.editableUntil = record.createdAt + EDIT_WINDOW_MS
+  if (record.editedAt) view.editedAt = record.editedAt
+  if (record.parentId) view.parentId = record.parentId
+  if (record.replyToId) view.replyToId = record.replyToId
+  return view
 }

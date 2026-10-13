@@ -1,8 +1,8 @@
 /* Scoped to the extension's shadow root. Use px, not rem: rem follows the host site's root font size. */
 
 /* Theme: every colour is light-dark(light, dark), resolved by color-scheme. It follows the system until the user
-   picks one with the theme button, which sets data-theme on the host. Warm neutrals with the extension's blue as the
-   only accent (the launcher's colour since 1.x). */
+   picks one with the theme button, which sets data-theme on the host. Neutrals (in light mode white, with cool
+   blue-white muted areas and cool grey borders) and the extension's blue as the only accent (the launcher's colour since 1.x). */
 :host {
   all: initial;
   color-scheme: light dark;
@@ -10,18 +10,29 @@
   --accent-hover: light-dark(#1d4ed8, #60a5fa);
   --on-accent: #ffffff;
   --accent-soft: light-dark(#eef3ff, #172554);
+  /* For accent backgrounds on --surface-muted, where --accent-soft barely shows */
+  --accent-tint: light-dark(#dbe6fe, #172554);
+  --accent-border: light-dark(#bfd2fd, #1e3a8a);
   --accent-text: light-dark(#1d4ed8, #93c5fd);
   --surface: light-dark(#ffffff, #1b1a18);
-  --surface-muted: light-dark(#f6f5f2, #141311);
+  --surface-muted: light-dark(#f3f6fb, #141311);
   --surface-raised: light-dark(#ffffff, #24221f);
-  --border: light-dark(#e8e5df, #302d29);
-  --border-strong: light-dark(#d4cfc6, #45403a);
+  --border: light-dark(#e2e8f0, #302d29);
+  --border-strong: light-dark(#cbd5e1, #45403a);
   --text: light-dark(#1c1917, #f3f1ee);
   --text-muted: light-dark(#5c5650, #b3ada5);
   --text-faint: light-dark(#8c857c, #7f7971);
   --danger: light-dark(#b42318, #f97066);
+  --star: light-dark(#d97706, #fbbf24);
+  /* The footer's "Support this extension" heart */
+  --heart: light-dark(#e11d48, #fb7185);
   --danger-soft: light-dark(#fef3f2, #3a1714);
   --backdrop: light-dark(rgba(28, 25, 23, 0.32), rgba(0, 0, 0, 0.55));
+  /* The image lightbox is dark in both themes, like a photo viewer */
+  --lightbox-backdrop: rgba(12, 11, 10, 0.92);
+  --lightbox-text: #f3f1ee;
+  --lightbox-control: rgba(255, 255, 255, 0.12);
+  --lightbox-control-hover: rgba(255, 255, 255, 0.22);
   --shadow-color: light-dark(rgba(28, 25, 23, 0.16), rgba(0, 0, 0, 0.55));
   --shadow-lg: 0 24px 48px -12px var(--shadow-color), 0 4px 12px var(--shadow-color);
   --shadow-md: 0 8px 20px -4px color-mix(in srgb, var(--accent) 45%, transparent), 0 2px 6px var(--shadow-color);
@@ -59,6 +70,7 @@ button {
    disappears (the launcher opening the panel, Close, a search result) left a selection drag pending, and the next
    click anywhere completed it, selecting a large part of the page. */
 button,
+.text-button,
 .launcher,
 .page-backdrop {
   user-select: none;
@@ -147,6 +159,7 @@ button:disabled {
 /* Panel */
 
 .panel {
+  container: panel / inline-size;
   position: fixed;
   top: 16px;
   right: 16px;
@@ -212,6 +225,8 @@ button:disabled {
 }
 
 .header-actions {
+  /* Anchors the notifications dropdown */
+  position: relative;
   display: flex;
   flex: none;
   gap: 2px;
@@ -276,28 +291,73 @@ button:disabled {
   color: var(--text);
 }
 
-/* Tabs */
+/* The header's Watch star, when the property is on the watchlist */
+.icon-button--active,
+.icon-button--active:hover {
+  color: var(--star);
+}
+
+.icon-button:disabled {
+  opacity: 0.5;
+}
+
+/* The header's bell, with the unread count over its corner */
+.bell-button {
+  position: relative;
+}
+
+.bell-count {
+  position: absolute;
+  top: 3px;
+  right: 2px;
+  min-width: 16px;
+  padding: 0 4px;
+  border: 2px solid var(--surface);
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+}
+
+/* Tabs: a segmented control under the header. On a narrow panel the labels are hidden (still read out by screen
+   readers) and the icons remain. */
+
+.tabs-bar {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
 
 .tabs {
   display: flex;
   gap: 4px;
-  padding: 0 14px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  /* Room around the selected tab, so it doesn't touch the holder's edge */
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--surface-muted);
 }
 
 .tabs button {
   display: flex;
+  flex: 1 1 0;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  margin-bottom: -1px;
-  padding: 12px 8px 10px;
+  min-width: 0;
+  padding: 6px 8px;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-radius: 8px;
   background: none;
   color: var(--text-muted);
+  font-size: 12.5px;
   font-weight: 600;
-  font-size: 13px;
+  white-space: nowrap;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .tabs button:hover {
@@ -305,24 +365,51 @@ button:disabled {
 }
 
 .tabs button[aria-selected='true'] {
-  border-bottom-color: var(--accent);
+  background: var(--surface);
   color: var(--accent-text);
+  box-shadow:
+    0 0 0 1px var(--border),
+    0 1px 2px var(--shadow-color);
+}
+
+.tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tab-count {
-  min-width: 20px;
-  padding: 0 6px;
-  border-radius: 10px;
-  background: var(--surface-muted);
+  flex: none;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--border);
   color: var(--text-muted);
-  font-size: 11px;
-  line-height: 18px;
+  font-size: 10.5px;
+  line-height: 17px;
   text-align: center;
 }
 
 .tabs button[aria-selected='true'] .tab-count {
   background: var(--accent-soft);
   color: var(--accent-text);
+}
+
+/* New comments on watched properties */
+.tab-count--new,
+.tabs button[aria-selected='true'] .tab-count--new {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+@container panel (max-width: 460px) {
+  .tab-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 /* Lists */
@@ -361,27 +448,36 @@ button:disabled {
   animation: spin 0.8s linear infinite;
 }
 
-.segmented {
-  display: flex;
-  padding: 2px;
+/* Sort and filter dropdown in list toolbars: a native select, styled as a small pill */
+.view-select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.view-select select {
+  appearance: none;
+  height: 28px;
+  padding: 0 28px 0 11px;
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
-  background: var(--surface-muted);
-}
-
-.segmented button {
-  padding: 3px 10px;
-  border: none;
-  border-radius: 6px;
-  background: none;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.segmented button[aria-pressed='true'] {
-  background: var(--surface-raised);
+  background: var(--surface);
   color: var(--text);
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.12);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.view-select select:hover {
+  border-color: var(--text-faint);
+}
+
+.view-select .icon {
+  position: absolute;
+  right: 9px;
+  color: var(--text-muted);
+  pointer-events: none;
 }
 
 .comment-list {
@@ -393,15 +489,92 @@ button:disabled {
   display: flex;
   gap: 12px;
   padding: 14px 22px;
+}
+
+/* Threads (a comment and its replies) and plain lists (Recent) are separated by a line */
+.thread + .thread,
+.comment-list > .comment + .comment {
   border-top: 1px solid var(--border);
 }
 
-.comment:first-child {
-  border-top: none;
+/* Replies: one level, indented to the parent's text, with a line down the side */
+.replies {
+  margin: -4px 22px 10px 68px;
+  border-left: 2px solid var(--border);
 }
 
-.comment--own {
-  background: linear-gradient(90deg, var(--accent-soft), transparent 70%);
+.comment--reply {
+  gap: 10px;
+  padding: 8px 0 8px 12px;
+}
+
+.comment--reply .avatar {
+  width: 26px;
+  height: 26px;
+  font-size: 11px;
+}
+
+/* The comment the composer is replying to */
+.comment--replying {
+  background: var(--accent-soft);
+}
+
+.comment--reply.comment--replying {
+  border-radius: 0 6px 6px 0;
+}
+
+.comment--flash {
+  animation: flash 1.6s ease-out;
+}
+
+@keyframes flash {
+  from {
+    background-color: var(--accent-soft);
+  }
+}
+
+/* Above a reply that answers another reply: "↪ Sam  the start of their comment" */
+.reply-to {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  margin: 0 0 3px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  font-size: 12px;
+  text-align: left;
+}
+
+button.reply-to:hover .reply-to-excerpt {
+  color: var(--text-muted);
+}
+
+.reply-to-name {
+  flex: none;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.reply-to-excerpt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reply-to--deleted {
+  font-style: italic;
+}
+
+.comment-edited {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.edit-form {
+  margin-top: 6px;
 }
 
 .avatar {
@@ -563,6 +736,10 @@ button.vote:hover {
   font-weight: 600;
 }
 
+a.text-button {
+  text-decoration: none;
+}
+
 .text-button:hover {
   color: var(--text);
 }
@@ -570,6 +747,11 @@ button.vote:hover {
 .text-button--danger,
 .text-button--danger:hover {
   color: var(--danger);
+}
+
+.text-button--static,
+.text-button--static:hover {
+  color: var(--text-faint);
 }
 
 .confirm {
@@ -653,6 +835,192 @@ button.vote:hover {
   background: none;
 }
 
+/* Images linked from a comment: thumbnails under the text, and a lightbox over the whole window */
+
+.comment-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.comment-image {
+  width: 76px;
+  height: 76px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  cursor: zoom-in;
+  transition: border-color 0.15s ease;
+}
+
+.comment-images--xs .comment-image {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+}
+
+.comment-image:hover {
+  border-color: var(--accent);
+}
+
+.comment-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483001;
+  display: flex;
+  flex-direction: column;
+  background: var(--lightbox-backdrop);
+  color: var(--lightbox-text);
+  font: 400 14px/1.5 var(--font);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  animation: fade-in 0.15s ease-out;
+}
+
+.lightbox-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.lightbox-count {
+  flex: 1;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.lightbox-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 10px;
+  background: var(--lightbox-control);
+  color: var(--lightbox-text);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.lightbox-button--icon {
+  width: 36px;
+  padding: 0;
+  justify-content: center;
+}
+
+.lightbox-button:hover,
+.lightbox-nav:hover {
+  background: var(--lightbox-control-hover);
+}
+
+.lightbox-figure {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 0;
+  margin: 0;
+  padding: 0 64px 24px;
+}
+
+.lightbox-image {
+  display: block;
+  max-width: 100%;
+  min-height: 0;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+  /* Gestures are handled by the lightbox (pinch, drag, swipe), not the browser, which would zoom the whole page */
+  touch-action: none;
+  cursor: zoom-in;
+  animation: pop-in 0.18s ease-out;
+}
+
+.lightbox-image--zoomed {
+  position: relative;
+  z-index: 1;
+  cursor: grab;
+}
+
+.lightbox-image--zoomed:active {
+  cursor: grabbing;
+}
+
+.lightbox-figure figcaption {
+  flex: none;
+  max-width: 640px;
+  font-size: 13.5px;
+  text-align: center;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.lightbox-error {
+  margin: 0;
+  opacity: 0.8;
+}
+
+.lightbox-nav {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-top: -22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--lightbox-control);
+  color: var(--lightbox-text);
+  transition: background-color 0.15s ease;
+}
+
+.lightbox-nav--prev {
+  left: 12px;
+}
+
+.lightbox-nav--next {
+  right: 12px;
+}
+
+@media (max-width: 520px) {
+  .lightbox-figure {
+    padding: 0 12px 72px;
+  }
+
+  .lightbox-nav {
+    top: auto;
+    bottom: 16px;
+    margin-top: 0;
+  }
+
+  .lightbox-nav--prev {
+    left: calc(50% - 52px);
+  }
+
+  .lightbox-nav--next {
+    right: calc(50% - 52px);
+  }
+}
+
 /* Empty, loading and error states */
 
 .notice {
@@ -708,6 +1076,49 @@ button.vote:hover {
 
 .hint-banner .icon {
   margin-top: 2px;
+}
+
+/* A suburb's comment counts, on its search results pages */
+.area-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 16px 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-muted);
+}
+
+.area-card-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.area-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.area-card-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.area-card-stats {
+  margin: 1px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.area-card .button {
+  flex: none;
 }
 
 .skeleton {
@@ -785,6 +1196,40 @@ button.vote:hover {
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
+}
+
+/* Our own clear button instead of the browser's (Chrome has one, Firefox doesn't, and they look different) */
+.search-box input::-webkit-search-cancel-button {
+  appearance: none;
+  display: none;
+}
+
+.search-box input {
+  padding-right: 40px;
+}
+
+.search-clear {
+  position: absolute;
+  right: 22px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--text-muted);
+}
+
+.search-clear:hover {
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.search-clear .icon {
+  width: 16px;
+  height: 16px;
 }
 
 .search-box input::placeholder {
@@ -875,6 +1320,58 @@ button.vote:hover {
   border-bottom: 1px solid var(--border);
 }
 
+/* Title with a Watch button beside it (search results and the watchlist) */
+.detail-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.watch-button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.watch-button:hover {
+  color: var(--text);
+}
+
+.watch-button--active,
+.watch-button--active:hover {
+  border-color: var(--star);
+  color: var(--star);
+}
+
+.watch-result {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.watch-result .search-result {
+  flex: 1;
+  min-width: 0;
+}
+
+.watch-result .search-result-meta {
+  gap: 2px;
+}
+
+.watch-result .search-result-meta .chip--accent {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
 .search-detail-heading h3 {
   margin: 0;
   font-size: 17px;
@@ -894,9 +1391,12 @@ button.vote:hover {
   background: var(--surface-muted);
 }
 
-.composer textarea,
 .composer input {
+  display: block;
   width: 100%;
+  height: 36px;
+  margin-bottom: 8px;
+  padding: 0 12px;
   border: 1px solid var(--border-strong);
   border-radius: 10px;
   background: var(--surface);
@@ -907,36 +1407,258 @@ button.vote:hover {
     box-shadow 0.15s ease;
 }
 
-.composer textarea {
-  display: block;
-  min-height: 76px;
-  max-height: 220px;
-  padding: 10px 12px;
-  resize: none;
-  line-height: 1.5;
-}
-
-.composer input {
-  display: block;
-  height: 36px;
-  margin-bottom: 8px;
-  padding: 0 12px;
-}
-
-.composer textarea::placeholder,
 .composer input::placeholder {
   color: var(--text-faint);
 }
 
-.composer textarea:focus,
 .composer input:focus {
   border-color: var(--accent);
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
-.composer textarea[aria-invalid='true'] {
+/* The comment box: Write and Preview tabs over a text box or the rendered preview (composer and editing) */
+.editor {
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.editor:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.editor:has(textarea[aria-invalid='true']) {
   border-color: var(--danger);
+}
+
+.editor-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 4px 6px 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-muted);
+}
+
+.editor-tabs button {
+  margin-bottom: -1px;
+  padding: 4px 10px 5px;
+  border: 1px solid transparent;
+  border-radius: 7px 7px 0 0;
+  background: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.editor-tabs button:hover {
+  color: var(--text);
+}
+
+.editor-tabs button[aria-selected='true'] {
+  border-color: var(--border);
+  border-bottom-color: var(--surface);
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* "Add image" at the end of the Write/Preview strip, and its helper */
+.editor-tabs .editor-image {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.editor-tabs .editor-image[aria-expanded='true'] {
+  color: var(--accent-text);
+}
+
+.add-image {
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13px;
+}
+
+.add-image-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.add-image-steps {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-muted);
+}
+
+.add-image-steps li + li {
+  margin-top: 8px;
+}
+
+.add-image-hosts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.add-image-hosts a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.add-image-hosts a:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.add-image-field {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.add-image-field input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.add-image-field input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.add-image-field input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.add-image-field .button {
+  height: 32px;
+  padding: 0 14px;
+}
+
+.add-image-status {
+  margin: 8px 0 0;
+}
+
+.add-image-status--ok {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.add-image-status--ok img {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.editor-hint {
+  margin: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.editor textarea {
+  display: block;
+  width: 100%;
+  min-height: 76px;
+  max-height: 220px;
+  padding: 10px 12px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+  resize: none;
+}
+
+.editor textarea:focus {
+  outline: none;
+}
+
+/* Hidden while previewing (kept in the page so its focus and size survive) */
+.editor textarea[hidden] {
+  display: none;
+}
+
+.editor textarea::placeholder {
+  color: var(--text-faint);
+}
+
+.editor-preview {
+  min-height: 76px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 10px 12px;
+}
+
+.editor-preview .markdown {
+  margin-top: 0;
+  /* As in the text box */
+  line-height: 1.5;
+}
+
+.editor-empty {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: 13px;
+}
+
+/* "Replying to Sam: …" above the composer's text box */
+.reply-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  padding: 1px 1px 1px 9px;
+  border: 1px solid var(--accent-border);
+  border-radius: 8px;
+  background: var(--accent-tint);
+  color: var(--accent-text);
+  font-size: 12.5px;
+}
+
+.reply-bar-text {
+  display: flex;
+  flex: 1;
+  gap: 6px;
+  min-width: 0;
+}
+
+.reply-bar-excerpt {
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .composer-row {
@@ -964,6 +1686,23 @@ button.vote:hover {
   margin: 0 2px;
   color: var(--text-faint);
   font-size: 11.5px;
+}
+
+/* The bot check's frame (Challenge.tsx): takes no space until Cloudflare wants the user to tick its box */
+.challenge {
+  display: block;
+  width: 100%;
+  height: 0;
+  border: 0;
+  color-scheme: normal;
+}
+
+.challenge--visible {
+  height: 68px;
+}
+
+.challenge-hint {
+  margin-top: 8px;
 }
 
 .button {
@@ -1006,27 +1745,83 @@ button.vote:hover {
   background: var(--surface-muted);
 }
 
-.terms h3 {
-  margin: 0 0 4px;
-  font-size: 15px;
-}
-
-.terms p {
-  margin: 0 0 8px;
-  color: var(--text-muted);
-  font-size: 13px;
-}
-
-.terms ul {
-  max-height: 180px;
+.terms ul,
+.legal ul {
   margin: 0 0 12px;
   padding-left: 18px;
-  overflow-y: auto;
   font-size: 13px;
 }
 
-.terms li + li {
+.terms li + li,
+.legal li + li {
   margin-top: 4px;
+}
+
+/* Report a comment */
+
+.report-reasons {
+  margin: 4px 0 12px;
+  padding: 0;
+  border: none;
+}
+
+.report-reasons legend {
+  margin-bottom: 6px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.report-reason {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.report-reason input {
+  flex: none;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.report-details {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.report-details textarea {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 400;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.report-details textarea::placeholder {
+  color: var(--text-faint);
+}
+
+.report-details textarea:focus {
+  border-color: var(--accent);
+}
+
+.report .dialog-footnote {
+  margin: 8px 0 12px;
+}
+
+.report .inline-error {
+  margin: 0 0 10px;
 }
 
 .terms-actions {
@@ -1050,7 +1845,198 @@ button.vote:hover {
   color: var(--accent-hover);
 }
 
-/* Formatting help dialog, over the panel with a backdrop */
+/* Dialogs (formatting help, terms, privacy), over the panel with a backdrop */
+
+/* The end of the Recent list: Show more, or that there's nothing more */
+.load-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 22px 20px;
+  border-top: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: 13px;
+  text-align: center;
+}
+
+.load-more p {
+  margin: 0;
+}
+
+/* Notifications: the header bell's dropdown, under the header's buttons */
+.icon-button--pressed {
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.notifications-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  width: min(380px, calc(var(--panel-width, 420px) - 28px));
+  max-height: min(520px, calc(100vh - 140px));
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+  animation: pop-in 0.15s ease-out;
+  transform-origin: top right;
+}
+
+.notifications-menu:focus {
+  outline: none;
+}
+
+.notifications-menu-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px 4px;
+}
+
+.notifications-menu-header h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.notifications-menu-header span {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.notifications-menu-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 16px 8px;
+}
+
+.notifications-empty {
+  margin: 8px 0 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Two halves: Mark all as read | Archive all */
+.notifications-menu-footer {
+  display: flex;
+  flex: none;
+  border-top: 1px solid var(--border);
+  background: var(--surface-muted);
+}
+
+.notifications-menu-footer button {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 12px;
+  border: none;
+  background: none;
+  color: var(--accent-text);
+  font-size: 13px;
+  font-weight: 600;
+  transition: background-color 0.15s ease;
+}
+
+.notifications-menu-footer button + button {
+  border-left: 1px solid var(--border);
+}
+
+.notifications-menu-footer button:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+
+.notifications-menu-footer button:disabled {
+  color: var(--text-faint);
+}
+
+.notification-group h4 {
+  margin: 12px 0 4px;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.notification-list {
+  margin: 0 -8px;
+  padding: 0;
+  list-style: none;
+}
+
+.notification-list li + li {
+  margin-top: 2px;
+}
+
+.notification {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 8px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+
+.notification:hover {
+  background: var(--surface-muted);
+}
+
+.notification--unread {
+  background: var(--accent-soft);
+}
+
+.notification--unread:hover {
+  background: var(--accent-tint);
+}
+
+.notification-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+}
+
+.notification--unread .notification-icon {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.notification-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.notification-text {
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notification-meta {
+  color: var(--text-faint);
+  font-size: 12px;
+}
 
 .overlay {
   position: absolute;
@@ -1140,16 +2126,58 @@ button.vote:hover {
   white-space: pre-wrap;
 }
 
-.formatting-note {
-  display: block;
-  margin-top: 4px;
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
 .formatting-table td .markdown {
   margin-top: 18px;
   font-size: 13px;
+}
+
+/* The review request */
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 12px;
+  margin-top: 12px;
+}
+
+.review-actions .link-button {
+  margin-right: auto;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.review-actions a.button {
+  text-decoration: none;
+}
+
+/* What's new (the changelog) */
+.whats-new .markdown {
+  margin: 4px 0 14px;
+  font-size: 13.5px;
+}
+
+.whats-new .markdown li + li {
+  margin-top: 5px;
+}
+
+/* Terms of use and privacy policy */
+
+.legal h4 {
+  margin: 14px 0 4px;
+  font-size: 13.5px;
+}
+
+.legal p {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.legal a,
+.report a {
+  color: var(--accent-text);
 }
 
 kbd {
@@ -1165,24 +2193,40 @@ kbd {
 
 .panel-footer {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 12px;
+  gap: 4px 12px;
   padding: 8px 18px;
   border-top: 1px solid var(--border);
   font-size: 12px;
 }
 
-.panel-footer a {
+.panel-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.panel-footer a,
+.panel-footer button {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  padding: 0;
+  border: none;
+  background: none;
   color: var(--text-faint);
   text-decoration: none;
 }
 
-.panel-footer a:hover {
+.panel-footer a:hover,
+.panel-footer button:hover {
   color: var(--text-muted);
   text-decoration: underline;
+}
+
+.panel-footer .icon {
+  color: var(--heart);
 }
 
 /* Small screens: take the whole viewport */
@@ -1203,6 +2247,11 @@ kbd {
   .launcher {
     right: 16px;
     bottom: 16px;
+  }
+
+  /* Less indentation on phones, so replies keep room for their text */
+  .replies {
+    margin-left: 40px;
   }
 }
 

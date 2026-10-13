@@ -1,6 +1,6 @@
 {
   "name": "real-estate-comments",
-  "version": "2.0.0",
+  "version": "2.2.0",
   "private": true,
   "description": "Adds a comment section to realestate.com.au and domain.com.au property listings",
   "license": "MIT",
@@ -17,9 +17,17 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "test:rules": "node scripts/test-rules.ts",
     "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build && web-ext lint --source-dir dist/firefox",
     "e2e": "node scripts/e2e.ts",
     "live-check": "node scripts/live-check.ts",
+    "moderate": "node --env-file-if-exists=.env scripts/moderate.ts",
+    "check-reports": "node --env-file-if-exists=.env scripts/check-reports.ts",
+    "worker:dev": "wrangler dev --config worker/wrangler.jsonc",
+    "worker:deploy": "wrangler deploy --config worker/wrangler.jsonc",
+    "worker:login": "wrangler login",
+    "worker:secret": "wrangler secret put --config worker/wrangler.jsonc",
+    "worker:logs": "wrangler tail --config worker/wrangler.jsonc",
     "lint:firefox": "pnpm build && web-ext lint --source-dir dist/firefox",
     "sign": "node scripts/bump-version.ts && pnpm build && node --env-file=.env node_modules/web-ext/bin/web-ext.js sign --source-dir dist/firefox --channel unlisted --artifacts-dir web-ext-artifacts"
   },
@@ -31,18 +39,23 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@firebase/rules-unit-testing": "^6.0.0",
     "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
     "@types/chrome": "^0.3.5",
     "@types/node": "^26.6.5",
     "esbuild": "^0.28.2",
     "eslint": "^10.12.0",
+    "firebase-admin": "^14.5.0",
+    "firebase-tools": "^15.33.0",
     "globals": "^17.13.0",
+    "jose": "6.2.12",
     "jsdom": "^30.1.2",
     "playwright": "1.49.1",
     "prettier": "^3.9.9",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.1",
     "vitest": "^5.0.3",
-    "web-ext": "^10.7.0"
+    "web-ext": "^10.7.0",
+    "wrangler": "4.149.0"
   }
 }

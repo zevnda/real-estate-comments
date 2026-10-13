@@ -1,15 +1,8 @@
+import { SITE_MATCHES as SITES } from './shared/sites.ts'
+
 // Builds manifest.json for each browser. This is the only manifest source; the version comes from package.json.
 
 export type Browser = 'chrome' | 'firefox'
-
-const SITES = [
-  'https://www.realestate.com.au/*',
-  'https://realestate.com.au/*',
-  'https://www.domain.com.au/*',
-  'https://domain.com.au/*',
-  'https://www.homely.com.au/*',
-  'https://homely.com.au/*',
-]
 
 const ICONS = {
   '48': 'icons/icon-48.png',
@@ -54,8 +47,20 @@ export function createManifest(browser: Browser, version: string): Record<string
     // Firefox runs MV3 background scripts as an event page rather than a service worker
     background: { scripts: ['background.js'] },
     browser_specific_settings: {
-      // Must never change: it's how Firefox Add-ons identifies the published extension
-      gecko: { id: 'real-estate-comments@zevnda.com', strict_min_version: '128.0' },
+      gecko: {
+        // Must never change: it's how Firefox Add-ons identifies the published extension
+        id: 'real-estate-comments@zevnda.com',
+        strict_min_version: '128.0',
+        // Firefox data collection declaration: disabled until Mozilla requires it for existing extensions, because
+        // adding it prompts every Firefox user to approve it on update, and once a version declares it every later
+        // version must. To enable: uncomment this, set strict_min_version to '140.0', uncomment gecko_android below,
+        // and set firefox140 in scripts/build.ts (see CLAUDE.md, "Firefox data collection declaration").
+        // Viewing a listing sends its address to look up comments (browsingActivity), and posting sends the comment
+        // and name (personalCommunications).
+        // data_collection_permissions: { required: ['browsingActivity', 'personalCommunications'] },
+      },
+      // Firefox for Android added data_collection_permissions in 142
+      // gecko_android: { strict_min_version: '142.0' },
     },
   }
 }

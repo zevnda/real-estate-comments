@@ -1,5 +1,6 @@
 import type { CommentView, SearchResult } from '../../shared/messages'
 import type { Loadable } from '../hooks'
+import type { ResultsView } from '../views'
 
 import { useEffect, useRef, useState } from 'preact/hooks'
 
@@ -7,10 +8,13 @@ import { callBackground } from '../../shared/messages'
 import { parseSearchQuery } from '../../shared/search'
 import { formatRelative, pluralize } from '../format'
 import { errorMessage } from '../hooks'
-import { Comment } from './Comment'
-import { ChevronLeftIcon, ChevronRightIcon, SearchIcon } from './icons'
+import { RESULT_VIEWS, viewResults } from '../views'
+import { DetailComments } from './DetailComments'
+import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, ImageIcon, SearchIcon } from './icons'
 import { PropertyLinks } from './PropertyLinks'
 import { Notice, Skeleton } from './states'
+import { ViewSelect } from './ViewSelect'
+import { WatchButton, watchEntry } from './Watchlist'
 
 const DEBOUNCE_MS = 300
 
@@ -42,7 +46,16 @@ export function SearchTab({ query, onQuery }: { query: string; onQuery: (query: 
     return () => clearTimeout(timer)
   }, [trimmed, searchable])
 
+  const [resultsView, setResultsView] = useState<ResultsView>('match')
+  const input = useRef<HTMLInputElement>(null)
   const results = state.status === 'ready' ? state.data : []
+
+  const clear = () => {
+    onQuery('')
+    setOpenId(null)
+    input.current?.focus()
+  }
+  const shown = viewResults(results, resultsView)
   const open = results.find(result => result.id === openId) ?? null
 
   const updateComments = (id: string, change: (comments: CommentView[]) => CommentView[]) =>
@@ -65,20 +78,20 @@ export function SearchTab({ query, onQuery }: { query: string; onQuery: (query: 
           All results
         </button>
         <div class='search-detail-heading'>
-          <h3>{open.displayAddress}</h3>
+          <div class='detail-title'>
+            <h3>{open.displayAddress}</h3>
+            {open.property && (
+              <WatchButton
+                entry={watchEntry(open.property, open.displayAddress, open.displayLocality)}
+                newestAt={open.latestAt}
+                variant='text'
+              />
+            )}
+          </div>
           <p>{open.displayLocality}</p>
           <PropertyLinks links={open.links} />
         </div>
-        <div class='comment-list'>
-          {open.comments.map(comment => (
-            <Comment
-              key={comment.id}
-              comment={comment}
-              onChange={changed => updateComments(open.id, list => list.map(c => (c.id === changed.id ? changed : c)))}
-              onDelete={id => updateComments(open.id, list => list.filter(c => c.id !== id))}
-            />
-          ))}
-        </div>
+        <DetailComments comments={open.comments} onUpdate={change => updateComments(open.id, change)} />
       </div>
     )
   }
@@ -99,6 +112,7 @@ export function SearchTab({ query, onQuery }: { query: string; onQuery: (query: 
         </label>
         <input
           id='rec-search'
+          ref={input}
           type='search'
           value={query}
           placeholder='Address, street, suburb or postcode'
@@ -110,12 +124,25 @@ export function SearchTab({ query, onQuery }: { query: string; onQuery: (query: 
             onQuery(event.currentTarget.value)
             setOpenId(null)
           }}
+          onKeyDown={event => {
+            // Esc clears the search first; with nothing to clear, it closes the panel as usual
+            if (event.key === 'Escape' && query) {
+              event.stopPropagation()
+              clear()
+            }
+          }}
         />
+        {query && (
+          <button type='button' class='search-clear' onClick={clear} aria-label='Clear search' title='Clear search'>
+            <CloseIcon />
+          </button>
+        )}
       </form>
 
       {state.status === 'idle' ? (
         <Notice icon={<SearchIcon size={20} />} title='Search comments'>
-          Search by full address, street, suburb or postcode, e.g. “123 Main Street, Sydney”, “Main Street” or “Sydney”.
+          Search by address, street, suburb, state, or postcode, e.g. “123 Main Street, Sydney”, “Main Street”,
+          “Sydney”, "NSW", "2000".
         </Notice>
       ) : state.status === 'loading' ? (
         <Skeleton label='Searching…' />
@@ -128,23 +155,41 @@ export function SearchTab({ query, onQuery }: { query: string; onQuery: (query: 
           Nobody has commented on a property matching that yet. Check the spelling, or try fewer words.
         </Notice>
       ) : (
-        <ul class='search-results' aria-label='Properties with comments'>
-          {results.map(result => (
-            <li key={result.id}>
-              <button type='button' class='search-result' onClick={() => setOpenId(result.id)}>
-                <span class='search-result-main'>
-                  <span class='search-result-address'>{result.displayAddress}</span>
-                  <span class='search-result-locality'>{result.displayLocality}</span>
-                </span>
-                <span class='search-result-meta'>
-                  {pluralize(result.comments.length, 'comment')}
-                  <span>{formatRelative(result.latestAt)}</span>
-                </span>
-                <ChevronRightIcon />
+        <>
+          <div class='list-toolbar'>
+            <span>{pluralize(results.length, 'property', 'properties')}</span>
+            <ViewSelect
+              label='Sort or filter results'
+              value={resultsView}
+              options={RESULT_VIEWS}
+              onChange={setResultsView}
+            />
+          </div>
+          {shown.length === 0 && (
+            <Notice icon={<ImageIcon />} title='No results with images'>
+              <button type='button' class='button button--ghost' onClick={() => setResultsView('match')}>
+                Show all results
               </button>
-            </li>
-          ))}
-        </ul>
+            </Notice>
+          )}
+          <ul class='search-results' aria-label='Properties with comments'>
+            {shown.map(result => (
+              <li key={result.id}>
+                <button type='button' class='search-result' onClick={() => setOpenId(result.id)}>
+                  <span class='search-result-main'>
+                    <span class='search-result-address'>{result.displayAddress}</span>
+                    <span class='search-result-locality'>{result.displayLocality}</span>
+                  </span>
+                  <span class='search-result-meta'>
+                    {pluralize(result.comments.length, 'comment')}
+                    <span>{formatRelative(result.latestAt)}</span>
+                  </span>
+                  <ChevronRightIcon />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </div>
   )

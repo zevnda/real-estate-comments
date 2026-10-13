@@ -47,6 +47,86 @@ export const TrashIcon = () => (
   </Icon>
 )
 
+const STAR =
+  'M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z'
+
+// Filled when the property is on the watchlist
+export const StarIcon = ({ size = 16, filled = false }: { size?: number; filled?: boolean }) => (
+  <Icon size={size}>
+    <path d={STAR} fill={filled ? 'currentColor' : 'none'} />
+  </Icon>
+)
+
+export const ArchiveIcon = ({ size = 16 }: { size?: number }) => (
+  <Icon size={size}>
+    <rect width='20' height='5' x='2' y='3' rx='1' />
+    <path d='M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8' />
+    <path d='M10 12h4' />
+  </Icon>
+)
+
+export const CheckIcon = ({ size = 16 }: { size?: number }) => (
+  <Icon size={size}>
+    <path d='M20 6 9 17l-5-5' />
+  </Icon>
+)
+
+export const BellIcon = ({ size = 18 }: { size?: number }) => (
+  <Icon size={size}>
+    <path d='M10.268 21a2 2 0 0 0 3.464 0' />
+    <path d='M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326' />
+  </Icon>
+)
+
+export const ClockIcon = ({ size = 16 }: { size?: number }) => (
+  <Icon size={size}>
+    <circle cx='12' cy='12' r='10' />
+    <path d='M12 6v6l4 2' />
+  </Icon>
+)
+
+export const ChevronDownIcon = () => (
+  <Icon size={14}>
+    <path d='m6 9 6 6 6-6' />
+  </Icon>
+)
+
+export const ImageIcon = ({ size = 20 }: { size?: number }) => (
+  <Icon size={size}>
+    <rect width='18' height='18' x='3' y='3' rx='2' ry='2' />
+    <circle cx='9' cy='9' r='2' />
+    <path d='m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21' />
+  </Icon>
+)
+
+export const MapPinIcon = () => (
+  <Icon size={20}>
+    <path d='M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0' />
+    <circle cx='12' cy='10' r='3' />
+  </Icon>
+)
+
+export const ReplyIcon = () => (
+  <Icon size={14}>
+    <path d='M20 18v-2a4 4 0 0 0-4-4H4' />
+    <path d='m9 17-5-5 5-5' />
+  </Icon>
+)
+
+export const PencilIcon = () => (
+  <Icon size={14}>
+    <path d='M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z' />
+    <path d='m15 5 4 4' />
+  </Icon>
+)
+
+export const FlagIcon = () => (
+  <Icon size={16}>
+    <path d='M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z' />
+    <path d='M4 22v-7' />
+  </Icon>
+)
+
 export const ExternalIcon = () => (
   <Icon size={14}>
     <path d='M15 3h6v6' />
@@ -74,12 +154,15 @@ export const InfoIcon = () => (
 
 export const HeartIcon = () => (
   <Icon size={14}>
-    <path d='M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z' />
+    <path
+      d='M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z'
+      fill='currentColor'
+    />
   </Icon>
 )
 
-export const HomeIcon = () => (
-  <Icon size={16}>
+export const HomeIcon = ({ size = 16 }: { size?: number }) => (
+  <Icon size={size}>
     <path d='M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8' />
     <path d='M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' />
   </Icon>
@@ -92,14 +175,14 @@ export const SearchIcon = ({ size = 16 }: { size?: number }) => (
   </Icon>
 )
 
-export const ChevronRightIcon = () => (
-  <Icon size={16}>
+export const ChevronRightIcon = ({ size = 16 }: { size?: number }) => (
+  <Icon size={size}>
     <path d='m9 18 6-6-6-6' />
   </Icon>
 )
 
-export const ChevronLeftIcon = () => (
-  <Icon size={16}>
+export const ChevronLeftIcon = ({ size = 16 }: { size?: number }) => (
+  <Icon size={size}>
     <path d='m15 18-6-6 6-6' />
   </Icon>
 )

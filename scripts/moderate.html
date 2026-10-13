@@ -1,0 +1,1307 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Moderation · Real Estate Comments</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: light-dark(#f4f6f9, #0f1115);
+        --surface: light-dark(#ffffff, #171a20);
+        --surface-muted: light-dark(#f7f9fc, #1d2128);
+        --border: light-dark(#dfe4ec, #2a2f38);
+        --border-strong: light-dark(#c9d0db, #3a404b);
+        --text: light-dark(#161a21, #eef1f5);
+        --muted: light-dark(#5b6472, #9aa3b2);
+        --accent: light-dark(#2563eb, #5b8def);
+        --accent-bg: light-dark(#eaf1fe, #1c2a45);
+        --danger: light-dark(#b42318, #f97066);
+        --danger-bg: light-dark(#fdecea, #3a1d1b);
+        --warn: light-dark(#9a5b00, #f5b454);
+        --warn-bg: light-dark(#fff4e5, #3a2a10);
+        --ok: light-dark(#17703a, #6fd39a);
+        --ok-bg: light-dark(#e7f6ec, #15301f);
+        --shadow-colour: light-dark(rgb(16 24 40 / 6%), rgb(0 0 0 / 40%));
+        --shadow: 0 1px 2px var(--shadow-colour);
+        --on-solid: #ffffff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.5 system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+      }
+      a {
+        color: var(--accent);
+      }
+
+      /* Top bar */
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
+      }
+      .topbar-inner,
+      main {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 0 16px;
+      }
+      .topbar-inner {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 16px;
+        min-height: 56px;
+      }
+      .brand {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 700;
+      }
+      .brand span {
+        color: var(--muted);
+        font-weight: 500;
+      }
+      nav {
+        display: flex;
+        flex: 1;
+        gap: 2px;
+      }
+      nav button {
+        position: relative;
+        padding: 16px 12px;
+        border: 0;
+        border-radius: 0;
+        background: none;
+        color: var(--muted);
+      }
+      nav button[aria-current='page'] {
+        color: var(--text);
+        box-shadow: inset 0 -2px 0 var(--accent);
+      }
+      nav button:hover {
+        color: var(--text);
+      }
+
+      main {
+        padding-top: 20px;
+        padding-bottom: 64px;
+      }
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      .toolbar .spacer {
+        flex: 1;
+      }
+      .summary {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      /* Controls */
+      button {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border: 1px solid var(--border-strong);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--text);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        user-select: none;
+      }
+      button:hover {
+        background: var(--surface-muted);
+      }
+      button:focus-visible,
+      input:focus-visible,
+      textarea:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+      button.primary {
+        border-color: var(--accent);
+        background: var(--accent);
+        color: var(--on-solid);
+      }
+      button.danger {
+        border-color: var(--danger);
+        color: var(--danger);
+      }
+      button.danger:hover {
+        background: var(--danger-bg);
+      }
+      button.danger.solid {
+        background: var(--danger);
+        color: var(--on-solid);
+      }
+      button.link {
+        padding: 4px 8px;
+        border-color: transparent;
+        background: none;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      button.link:hover {
+        background: var(--surface-muted);
+        color: var(--text);
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: wait;
+      }
+      .segmented {
+        display: inline-flex;
+        padding: 2px;
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        background: var(--surface-muted);
+      }
+      .segmented button {
+        padding: 4px 12px;
+        border: 0;
+        border-radius: 7px;
+        background: none;
+        color: var(--muted);
+      }
+      .segmented button[aria-pressed='true'] {
+        background: var(--surface);
+        color: var(--text);
+        box-shadow: var(--shadow);
+      }
+      input[type='search'],
+      input[type='text'],
+      textarea {
+        padding: 7px 10px;
+        border: 1px solid var(--border-strong);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--text);
+        font: inherit;
+      }
+      input[type='search'] {
+        width: min(280px, 100%);
+      }
+      textarea {
+        width: 100%;
+        min-height: 180px;
+        resize: vertical;
+      }
+
+      /* Edit form: the comment box with its toolbar */
+      .field {
+        display: grid;
+        gap: 4px;
+      }
+      .field > label {
+        font-weight: 600;
+      }
+      .editor {
+        border: 1px solid var(--border-strong);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .editor:focus-within {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+      .editor-toolbar {
+        display: flex;
+        gap: 2px;
+        padding: 4px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface-muted);
+      }
+      .editor-toolbar button {
+        padding: 5px;
+        border-color: transparent;
+        background: none;
+        color: var(--muted);
+      }
+      .editor-toolbar button:hover:not(:disabled) {
+        background: var(--surface);
+        color: var(--text);
+      }
+      .editor-toolbar button:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .editor textarea {
+        display: block;
+        border: 0;
+        border-radius: 0;
+      }
+      .editor textarea:focus-visible {
+        outline: none;
+      }
+      .icon {
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      /* Badges */
+      .count,
+      .badge {
+        display: inline-block;
+        padding: 0 7px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 18px;
+      }
+      .count {
+        background: var(--surface-muted);
+        color: var(--muted);
+      }
+      .count.alert {
+        background: var(--danger);
+        color: var(--on-solid);
+      }
+      .badge {
+        border: 1px solid var(--border);
+        color: var(--muted);
+      }
+      .badge.danger {
+        border-color: transparent;
+        background: var(--danger-bg);
+        color: var(--danger);
+      }
+      .badge.warn {
+        border-color: transparent;
+        background: var(--warn-bg);
+        color: var(--warn);
+      }
+      .badge.ok {
+        border-color: transparent;
+        background: var(--ok-bg);
+        color: var(--ok);
+      }
+      .badge.accent {
+        border-color: transparent;
+        background: var(--accent-bg);
+        color: var(--accent);
+      }
+
+      /* Scope chip (poster, property or thread) */
+      .scope {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 4px 3px 12px;
+        border-radius: 999px;
+        background: var(--accent-bg);
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .scope button {
+        padding: 0 8px;
+        border: 0;
+        background: none;
+        color: inherit;
+        font-size: 16px;
+        line-height: 22px;
+      }
+
+      /* Cards */
+      .card {
+        margin-bottom: 12px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+      .card.highlight {
+        border-color: var(--accent);
+      }
+      .card-section {
+        padding: 14px 16px;
+      }
+      .card-section + .card-section {
+        border-top: 1px solid var(--border);
+      }
+      .reports {
+        background: var(--surface-muted);
+      }
+      .card-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 4px 12px;
+        margin-bottom: 6px;
+      }
+      .property {
+        margin: 0;
+        font-weight: 600;
+      }
+      .property span {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .links {
+        display: flex;
+        gap: 10px;
+        font-size: 13px;
+      }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 8px;
+        margin: 0 0 10px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .meta strong {
+        color: var(--text);
+      }
+      .mono {
+        font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+        font-size: 12px;
+      }
+      .text {
+        margin: 0;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: var(--surface-muted);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .text mark {
+        padding: 0 2px;
+        border-radius: 3px;
+        background: var(--warn-bg);
+        color: var(--warn);
+        font-weight: 600;
+        box-shadow: inset 0 -1px 0 var(--warn);
+      }
+      .gone {
+        margin: 0;
+        color: var(--muted);
+        font-style: italic;
+      }
+      .report-list {
+        margin: 8px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+      .report-list li {
+        padding: 6px 0;
+      }
+      .report-list li + li {
+        border-top: 1px dashed var(--border);
+      }
+      .details {
+        display: block;
+        margin-top: 2px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 16px;
+        border-top: 1px solid var(--border);
+      }
+      .actions .spacer {
+        flex: 1;
+      }
+
+      /* Bans table */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+        overflow: hidden;
+      }
+      th,
+      td {
+        padding: 10px 14px;
+        text-align: left;
+        vertical-align: middle;
+      }
+      th {
+        background: var(--surface-muted);
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      tr + tr td {
+        border-top: 1px solid var(--border);
+      }
+      td.row-actions {
+        text-align: right;
+        white-space: nowrap;
+      }
+      td.row-actions button + button {
+        margin-left: 6px;
+      }
+
+      .empty,
+      .status {
+        padding: 48px 16px;
+        border: 1px dashed var(--border-strong);
+        border-radius: 12px;
+        color: var(--muted);
+        text-align: center;
+      }
+      .error {
+        margin: 0 0 16px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        background: var(--danger-bg);
+        color: var(--danger);
+      }
+      .more {
+        display: flex;
+        justify-content: center;
+        margin-top: 8px;
+      }
+
+      /* Dialog */
+      dialog {
+        width: min(560px, calc(100vw - 32px));
+        padding: 0;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface);
+        color: var(--text);
+        box-shadow: 0 20px 50px rgb(0 0 0 / 30%);
+      }
+      dialog::backdrop {
+        background: rgb(10 14 20 / 45%);
+      }
+      dialog h2 {
+        margin: 0;
+        padding: 16px 18px 0;
+        font-size: 16px;
+      }
+      .dialog-body {
+        display: grid;
+        gap: 12px;
+        padding: 12px 18px 4px;
+      }
+      .dialog-body p {
+        margin: 0;
+      }
+      .dialog-body label {
+        display: grid;
+        gap: 4px;
+        font-weight: 600;
+      }
+      .dialog-body label.check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 400;
+      }
+      .hint {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 400;
+      }
+      .dialog-error {
+        color: var(--danger);
+      }
+      .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        padding: 16px 18px;
+      }
+
+      /* Toast */
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        z-index: 10;
+        padding: 10px 16px;
+        border-radius: 10px;
+        background: var(--text);
+        color: var(--bg);
+        font-weight: 600;
+        transform: translateX(-50%);
+        box-shadow: 0 8px 24px rgb(0 0 0 / 25%);
+      }
+
+      @media (max-width: 560px) {
+        .brand {
+          width: 100%;
+          padding-top: 10px;
+        }
+        nav button {
+          padding: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <p class="brand">Real Estate Comments <span>· Moderation</span></p>
+        <nav>
+          <button type="button" data-view="reports">Reports <span class="count" id="count-reports"></span></button>
+          <button type="button" data-view="comments">Comments</button>
+          <button type="button" data-view="bans">Bans <span class="count" id="count-bans"></span></button>
+        </nav>
+        <button type="button" id="refresh">Refresh</button>
+      </div>
+    </header>
+    <main>
+      <p class="error" id="error" hidden></p>
+      <div class="toolbar" id="toolbar"></div>
+      <div id="list"><p class="status">Loading…</p></div>
+    </main>
+    <dialog id="dialog"></dialog>
+    <div class="toast" id="toast" role="status" hidden></div>
+    <script>
+      // Everything from the database (comment text, names, report details) is shown with textContent, never as HTML:
+      // it's written by anyone.
+      const token = location.hash.slice(1)
+      const DAY = 24 * 60 * 60 * 1000
+
+      const state = {
+        view: 'reports',
+        showOpen: true,
+        reports: [],
+        bans: [],
+        // Comments view: the comments shown, the cursor for the next page, and what they're limited to (null: all)
+        comments: [],
+        next: null,
+        scope: null,
+        filter: '',
+        loading: false,
+      }
+
+      const el = (tag, props = {}, ...children) => {
+        const element = Object.assign(document.createElement(tag), props)
+        element.append(...children.filter(child => child !== null && child !== undefined && child !== false))
+        return element
+      }
+      const button = (label, onclick, className = '') => el('button', { type: 'button', className, onclick }, label)
+      const date = ms =>
+        ms ? new Date(ms).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' }) : 'unknown'
+      const shortId = uid => uid.slice(0, 8)
+      const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
+      // How long a ban covers the poster's internet connections: NETWORK_BAN_DAYS in moderate.ts
+      const NETWORK_BAN_DAYS = 60
+      const isBanned = uid => !!uid && state.bans.some(ban => ban.uid === uid)
+
+      // Words that often mean a comment is about a person rather than the property (the posting rules' line), so
+      // they're highlighted in every comment. Covers plurals, possessives, US spellings and common misspellings.
+      const WATCH_WORDS = [
+        String.raw`owner(?:s|ship)?`,
+        String.raw`land[\s-]?(?:lord|lady|ladies)s?`,
+        String.raw`lessors?`,
+        String.raw`n(?:ei|ie|e)g?h?t?bou?rs?`, // neighbour, neighbor, nieghbour, neibour, neightbour
+        String.raw`real[\s-]?estates?`,
+        String.raw`agen(?:t|ts|cy|cies)`,
+        String.raw`(?:property|building|strata)[\s-]?manag(?:er|ers|ement)`,
+        String.raw`manag(?:er|ers|ement)`,
+        String.raw`strata`,
+        String.raw`body[\s-]?corp(?:orate)?`,
+        String.raw`caretakers?`,
+        String.raw`(?:previous|old|former|current|other)\s+tenants?`,
+        String.raw`(?:mr|mrs|ms)\.?(?=\s+[a-z])`, // a title before a name
+        // Agencies people name
+        String.raw`ray\s+white`,
+        String.raw`lj\s+hooker`,
+        String.raw`mc\s?grath`,
+        String.raw`harcourts`,
+        String.raw`belle\s+property`,
+        String.raw`first\s+national`,
+        String.raw`century\s+21`,
+        String.raw`raine\s*(?:&|and)\s*horne`,
+        String.raw`barry\s+plant`,
+        String.raw`jellis\s+craig`,
+        String.raw`nelson\s+alexander`,
+        String.raw`marshall\s+white`,
+        String.raw`richardson\s*(?:&|and)\s*wrench`,
+        String.raw`laing\s*(?:\+|&|and)\s*simmons`,
+        String.raw`starr\s+partners`,
+      ]
+      const WATCH_PATTERN = new RegExp(String.raw`\b(?:${WATCH_WORDS.join('|')})\b`, 'gi')
+
+      // The text with watch words in <mark>s, built from text nodes so it stays safe
+      function highlighted(text) {
+        const fragment = document.createDocumentFragment()
+        let last = 0
+        for (const match of text.matchAll(WATCH_PATTERN)) {
+          fragment.append(text.slice(last, match.index), el('mark', { textContent: match[0] }))
+          last = match.index + match[0].length
+        }
+        fragment.append(text.slice(last))
+        return fragment
+      }
+      const openReportsFor = id =>
+        state.reports.find(item => item.commentId === id)?.reports.filter(report => report.status === 'open').length ??
+        0
+
+      async function api(path, body) {
+        const response = await fetch(path, {
+          method: body ? 'POST' : 'GET',
+          headers: { 'X-Token': token, 'Content-Type': 'application/json' },
+          body: body && JSON.stringify(body),
+        })
+        const result = await response.json()
+        if (!response.ok) throw new Error(result.error ?? response.statusText)
+        return result
+      }
+
+      function showError(message) {
+        const error = document.getElementById('error')
+        error.textContent = message ?? ''
+        error.hidden = !message
+      }
+
+      let toastTimer
+      function toast(message) {
+        const toast = document.getElementById('toast')
+        toast.textContent = message
+        toast.hidden = false
+        clearTimeout(toastTimer)
+        toastTimer = setTimeout(() => (toast.hidden = true), 3000)
+      }
+
+      // A modal dialog. `fields` are extra elements; `onConfirm` runs the action and may throw to show an error in
+      // the dialog. Resolves true once the action succeeded.
+      function openDialog({ title, message, fields = [], confirmLabel, danger = false, onConfirm }) {
+        const dialog = document.getElementById('dialog')
+        const error = el('p', { className: 'dialog-error', hidden: true })
+        const cancel = button('Cancel', () => dialog.close())
+        const confirm = el('button', { type: 'submit', className: danger ? 'danger solid' : 'primary' }, confirmLabel)
+        const form = el(
+          'form',
+          { method: 'dialog' },
+          el('h2', { textContent: title }),
+          el('div', { className: 'dialog-body' }, message && el('p', { textContent: message }), ...fields, error),
+          el('div', { className: 'dialog-actions' }, cancel, confirm),
+        )
+        dialog.replaceChildren(form)
+        return new Promise(resolve => {
+          form.onsubmit = async event => {
+            event.preventDefault()
+            confirm.disabled = cancel.disabled = true
+            try {
+              await onConfirm(form)
+              dialog.close()
+              resolve(true)
+            } catch (err) {
+              error.textContent = err.message
+              error.hidden = false
+              confirm.disabled = cancel.disabled = false
+            }
+          }
+          dialog.onclose = () => resolve(false)
+          dialog.showModal()
+          dialog.querySelector('textarea, input, button[type="submit"]')?.focus()
+        })
+      }
+
+      const checkbox = (name, label, checked = false) =>
+        el('label', { className: 'check' }, el('input', { type: 'checkbox', name, checked }), label)
+
+      // Loading
+
+      async function loadReports() {
+        state.reports = await api('/api/reports')
+      }
+      async function loadBans() {
+        state.bans = await api('/api/bans')
+      }
+      async function loadComments({ more = false } = {}) {
+        state.loading = true
+        render()
+        const params = new URLSearchParams()
+        const { scope } = state
+        if (scope?.kind === 'poster') params.set('poster', scope.uid)
+        if (scope?.kind === 'property') {
+          params.set('address', scope.address)
+          params.set('suburb', scope.suburb)
+        }
+        if (scope?.kind === 'thread') params.set('thread', scope.id)
+        if (more && state.next) params.set('after', state.next)
+        try {
+          const result = await api(`/api/comments?${params}`)
+          state.comments = more ? [...state.comments, ...result.comments] : result.comments
+          state.next = result.next
+        } catch (error) {
+          showError(`Couldn’t load comments: ${error.message}`)
+        } finally {
+          state.loading = false
+          render()
+        }
+      }
+
+      async function loadAll() {
+        showError(null)
+        try {
+          await Promise.all([loadReports(), loadBans()])
+        } catch (error) {
+          showError(`Couldn’t load: ${error.message}`)
+        }
+        render()
+        if (state.view === 'comments') await loadComments()
+      }
+
+      function showComments(scope) {
+        state.view = 'comments'
+        state.scope = scope
+        state.filter = ''
+        state.comments = []
+        state.next = null
+        window.scrollTo(0, 0)
+        loadComments()
+      }
+
+      // Actions
+
+      // A Lucide icon from its SVG markup (our own constant, never data)
+      function icon(markup) {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+        svg.setAttribute('viewBox', '0 0 24 24')
+        svg.setAttribute('class', 'icon')
+        svg.setAttribute('aria-hidden', 'true')
+        svg.innerHTML = markup
+        return svg
+      }
+      const EYE_OFF_ICON =
+        '<path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/>'
+      const REDACTED = '[redacted]'
+
+      // Replaces the selected text with [redacted]. insertText keeps it on the text box's undo stack (Ctrl+Z).
+      function redactSelection(textarea) {
+        const { selectionStart: start, selectionEnd: end } = textarea
+        if (start === end) return
+        textarea.focus()
+        if (!document.execCommand('insertText', false, REDACTED)) textarea.setRangeText(REDACTED, start, end, 'end')
+      }
+
+      function editComment(comment) {
+        const textarea = el('textarea', { id: 'edit-text', name: 'text', value: comment.text, maxLength: 1200 })
+        const redact = el(
+          'button',
+          {
+            type: 'button',
+            title: 'Redact selection: replace the selected text with [redacted]',
+            ariaLabel: 'Redact selection',
+            disabled: true,
+            // Keep the text box focused, so its selection stays visible
+            onmousedown: event => event.preventDefault(),
+            onclick: () => redactSelection(textarea),
+          },
+          icon(EYE_OFF_ICON),
+        )
+        const updateTools = () => (redact.disabled = textarea.selectionStart === textarea.selectionEnd)
+        for (const type of ['select', 'selectionchange', 'input', 'keyup', 'mouseup']) {
+          textarea.addEventListener(type, updateTools)
+        }
+        const name = el('input', { type: 'text', name: 'username', value: comment.username, maxLength: 50 })
+        return openDialog({
+          title: 'Edit comment',
+          fields: [
+            el('label', {}, 'Name', name),
+            el(
+              'div',
+              { className: 'field' },
+              el('label', { htmlFor: 'edit-text' }, 'Comment'),
+              el('div', { className: 'editor' }, el('div', { className: 'editor-toolbar' }, redact), textarea),
+              el('span', {
+                className: 'hint',
+                textContent: '5–1200 characters, markdown. Select text and press the eye to redact it.',
+              }),
+            ),
+            checkbox('markEdited', 'Show it as “(edited)”'),
+          ],
+          confirmLabel: 'Save',
+          onConfirm: async form => {
+            const markEdited = form.elements.markEdited.checked
+            await api('/api/edit', { id: comment.id, text: textarea.value, username: name.value, markEdited })
+            comment.text = textarea.value.trim()
+            comment.username = name.value.replace(/\s+/g, ' ').trim() || 'Anonymous'
+            if (markEdited) comment.editedAt = Date.now()
+            toast('Comment saved')
+            render()
+          },
+        })
+      }
+
+      // Deletes a comment; from a report card this is "Remove", which also closes its reports
+      function deleteComment(comment, { ban = false } = {}) {
+        const fields = []
+        if (!comment.parentId) fields.push(checkbox('withReplies', 'Also delete the replies under it'))
+        if (comment.uid && !isBanned(comment.uid)) fields.push(checkbox('ban', 'Ban the poster', ban))
+        return openDialog({
+          title: 'Delete comment?',
+          message: `${comment.username}’s comment on ${comment.address} will be deleted. This can’t be undone. Any open reports on it are closed as removed.`,
+          fields,
+          confirmLabel: 'Delete',
+          danger: true,
+          onConfirm: async form => {
+            const withReplies = !!form.elements.withReplies?.checked
+            const banPoster = !!form.elements.ban?.checked
+            const { deleted } = await api('/api/delete', { id: comment.id, withReplies, ban: banPoster })
+            toast(`${plural(deleted, 'comment')} deleted${banPoster ? ', poster banned' : ''}`)
+            const ids = new Set([comment.id])
+            if (withReplies) for (const c of state.comments) if (c.parentId === comment.id) ids.add(c.id)
+            state.comments = state.comments.filter(c => !ids.has(c.id))
+            await Promise.all([loadReports(), banPoster && loadBans()])
+            render()
+          },
+        })
+      }
+
+      function resolveGone(item) {
+        return openDialog({
+          title: 'Mark resolved?',
+          message: 'The comment has already been deleted. Its open reports will be closed as removed.',
+          confirmLabel: 'Mark resolved',
+          onConfirm: async () => {
+            await api('/api/delete', { id: item.commentId })
+            await loadReports()
+            toast('Reports resolved')
+            render()
+          },
+        })
+      }
+
+      function dismissReports(comment) {
+        return openDialog({
+          title: 'Dismiss reports?',
+          message: 'The comment stays up, and its open reports are closed as dismissed.',
+          confirmLabel: 'Dismiss reports',
+          onConfirm: async () => {
+            await api('/api/dismiss', { id: comment.id })
+            await loadReports()
+            toast('Reports dismissed')
+            render()
+          },
+        })
+      }
+
+      function banPoster(uid, commentId) {
+        return openDialog({
+          title: 'Ban this poster?',
+          message: `User ${shortId(uid)}… will no longer be able to post, edit, vote or report. So will anyone on the internet connections they’ve posted from in the last 90 days, for ${NETWORK_BAN_DAYS} days, so reinstalling doesn’t get around it. Their existing comments stay up.`,
+          confirmLabel: 'Ban',
+          danger: true,
+          onConfirm: async () => {
+            const { networks } = await api('/api/ban', { uid, commentId })
+            await loadBans()
+            toast(
+              `Poster banned${networks ? `, with ${plural(networks, 'internet connection')}` : ' (no recent connection on record)'}`,
+            )
+            render()
+          },
+        })
+      }
+
+      // Bans the poster (if they aren't already) and deletes everything they've posted
+      async function purgePoster(uid, commentId) {
+        let count
+        try {
+          const { comments } = await api(`/api/comments?${new URLSearchParams({ poster: uid })}`)
+          // The poster lookup stops at 200; the purge itself deletes them all
+          count = comments.length >= 200 ? '200+' : String(comments.length)
+        } catch (error) {
+          return showError(`Couldn’t count the poster’s comments: ${error.message}`)
+        }
+        const banned = isBanned(uid)
+        return openDialog({
+          title: banned ? 'Purge this poster?' : 'Ban and purge this poster?',
+          message: `${banned ? `User ${shortId(uid)}… is already banned.` : `User ${shortId(uid)}… will be banned, with the internet connections they’ve posted from recently.`} ${count === '1' ? 'Their 1 comment' : `All ${count} of their comments and replies`} will be deleted, and any open reports on them closed as removed. This can’t be undone. Other people’s replies to them stay up.`,
+          confirmLabel: banned ? 'Purge' : 'Ban and purge',
+          danger: true,
+          onConfirm: async () => {
+            const { deleted } = await api('/api/purge', { uid, commentId })
+            state.comments = state.comments.filter(comment => comment.uid !== uid)
+            await Promise.all([loadReports(), loadBans()])
+            toast(`Poster banned, ${plural(deleted, 'comment')} deleted`)
+            render()
+          },
+        })
+      }
+
+      function unbanPoster(uid) {
+        return openDialog({
+          title: 'Unban this poster?',
+          message: `User ${shortId(uid)}… will be able to post, edit, vote and report again, and so will their internet connections.`,
+          confirmLabel: 'Unban',
+          onConfirm: async () => {
+            await api('/api/unban', { uid })
+            await loadBans()
+            toast('Poster unbanned')
+            render()
+          },
+        })
+      }
+
+      // Rendering
+
+      function commentSection(comment) {
+        const open = openReportsFor(comment.id)
+        return el(
+          'div',
+          { className: 'card-section' },
+          el(
+            'div',
+            { className: 'card-head' },
+            el('p', { className: 'property' }, comment.address, el('span', { textContent: `, ${comment.locality}` })),
+            comment.links &&
+              el(
+                'div',
+                { className: 'links' },
+                el('a', { href: comment.links.realestate, target: '_blank', rel: 'noopener noreferrer' }, 'realestate'),
+                el('a', { href: comment.links.domain, target: '_blank', rel: 'noopener noreferrer' }, 'domain'),
+              ),
+          ),
+          el(
+            'p',
+            { className: 'meta' },
+            el('strong', { textContent: comment.username }),
+            comment.uid && el('span', { className: 'mono', title: comment.uid, textContent: shortId(comment.uid) }),
+            el('span', { textContent: date(comment.createdAt) }),
+            el('span', { textContent: `▲ ${comment.votes}` }),
+            comment.parentId && el('span', { className: 'badge accent', textContent: 'Reply' }),
+            comment.editedAt &&
+              el('span', { className: 'badge', title: date(comment.editedAt), textContent: 'Edited' }),
+            isBanned(comment.uid) && el('span', { className: 'badge danger', textContent: 'Poster banned' }),
+            open > 0 && el('span', { className: 'badge warn', textContent: plural(open, 'open report') }),
+          ),
+          el('p', { className: 'text' }, highlighted(comment.text)),
+        )
+      }
+
+      // The tools every comment has. `remove` is false on report cards, which have their own Remove buttons.
+      function commentTools(comment, { remove = true } = {}) {
+        const tools = [button('Edit', () => editComment(comment))]
+        if (comment.uid) {
+          tools.push(
+            button('Poster’s comments', () =>
+              showComments({
+                kind: 'poster',
+                uid: comment.uid,
+                label: `Posted by ${comment.username} (${shortId(comment.uid)})`,
+              }),
+            ),
+          )
+        }
+        tools.push(
+          button('Property', () =>
+            showComments({ kind: 'property', ...comment.key, label: `${comment.address}, ${comment.locality}` }),
+          ),
+          button('Thread', () =>
+            showComments({ kind: 'thread', id: comment.parentId ?? comment.id, label: `Thread on ${comment.address}` }),
+          ),
+        )
+        for (const tool of tools) tool.className = 'link'
+        const actions = [...tools, el('span', { className: 'spacer' })]
+        if (comment.uid) {
+          actions.push(
+            isBanned(comment.uid)
+              ? button('Unban poster', () => unbanPoster(comment.uid))
+              : button('Ban poster', () => banPoster(comment.uid, comment.id), 'danger'),
+            button(
+              isBanned(comment.uid) ? 'Purge poster' : 'Ban and purge',
+              () => purgePoster(comment.uid, comment.id),
+              'danger',
+            ),
+          )
+        }
+        if (remove) actions.push(button('Delete', () => deleteComment(comment), 'danger'))
+        return actions
+      }
+
+      function reportCard(item) {
+        const { comment, reports } = item
+        const open = reports.filter(report => report.status === 'open')
+        const age = open.length ? Math.floor((Date.now() - Math.min(...open.map(r => r.createdAt))) / DAY) : null
+
+        const reportSection = el(
+          'div',
+          { className: 'card-section reports' },
+          el(
+            'p',
+            { className: 'meta' },
+            el('strong', { textContent: plural(reports.length, 'report') }),
+            age !== null &&
+              el('span', {
+                className: `badge ${age >= 3 ? 'danger' : 'warn'}`,
+                textContent: age === 0 ? 'Oldest today' : `Oldest ${plural(age, 'day')} ago`,
+              }),
+          ),
+          el(
+            'ul',
+            { className: 'report-list' },
+            ...reports.map(report =>
+              el(
+                'li',
+                {},
+                el('strong', { textContent: report.reason }),
+                ` · ${date(report.createdAt)} `,
+                report.status !== 'open' &&
+                  el('span', {
+                    className: `badge ${report.status === 'removed' ? 'danger' : 'ok'}`,
+                    title: date(report.resolvedAt),
+                    textContent: report.status === 'removed' ? 'Removed' : 'Dismissed',
+                  }),
+                report.details && el('span', { className: 'details', textContent: report.details }),
+              ),
+            ),
+          ),
+        )
+
+        const body = comment
+          ? commentSection(comment)
+          : el(
+              'div',
+              { className: 'card-section' },
+              el('p', { className: 'gone', textContent: `Comment ${item.commentId} has been deleted.` }),
+            )
+
+        const actions = el('div', { className: 'actions' })
+        if (comment) actions.append(...commentTools(comment, { remove: false }))
+        if (item.open) {
+          if (comment) {
+            actions.append(
+              button('Dismiss reports', () => dismissReports(comment)),
+              button('Remove comment', () => deleteComment(comment), 'danger solid'),
+            )
+          } else {
+            actions.append(
+              el('span', { className: 'spacer' }),
+              button('Mark resolved', () => resolveGone(item)),
+            )
+          }
+        }
+        return el('article', { className: 'card' }, reportSection, body, actions.childElementCount ? actions : null)
+      }
+
+      function commentCard(comment) {
+        const highlight = state.scope?.kind === 'thread' && state.scope.id === comment.id
+        return el(
+          'article',
+          { className: `card${highlight ? ' highlight' : ''}` },
+          commentSection(comment),
+          el('div', { className: 'actions' }, ...commentTools(comment)),
+        )
+      }
+
+      function renderReports(toolbar, list) {
+        const openButton = button('Open', () => ((state.showOpen = true), render()))
+        const resolvedButton = button('Resolved', () => ((state.showOpen = false), render()))
+        openButton.setAttribute('aria-pressed', String(state.showOpen))
+        resolvedButton.setAttribute('aria-pressed', String(!state.showOpen))
+        toolbar.append(
+          el('div', { className: 'segmented' }, openButton, resolvedButton),
+          el('span', { className: 'spacer' }),
+          el('span', {
+            className: 'summary',
+            textContent: state.showOpen ? 'Oldest first · aim to deal with each within 7 days' : 'Newest first',
+          }),
+        )
+        const first = item => Math.min(...item.reports.map(report => report.createdAt))
+        const shown = state.reports
+          .filter(item => item.open === state.showOpen)
+          .sort((a, b) => (state.showOpen ? first(a) - first(b) : first(b) - first(a)))
+        list.append(
+          ...(shown.length
+            ? shown.map(reportCard)
+            : [
+                el('p', {
+                  className: 'empty',
+                  textContent: state.showOpen ? 'No open reports. 🎉' : 'No resolved reports.',
+                }),
+              ]),
+        )
+      }
+
+      function renderComments(toolbar, list) {
+        const search = el('input', {
+          type: 'search',
+          placeholder: 'Filter by text, name, address, ID…',
+          value: state.filter,
+          oninput: () => {
+            state.filter = search.value
+            renderCommentList(list)
+          },
+        })
+        if (state.scope) {
+          toolbar.append(
+            el(
+              'span',
+              { className: 'scope' },
+              state.scope.label,
+              el('button', { type: 'button', title: 'Show all comments', onclick: () => showComments(null) }, '×'),
+            ),
+          )
+        }
+        toolbar.append(
+          el('span', { className: 'spacer' }),
+          el('span', { className: 'summary', id: 'comment-summary' }),
+          search,
+        )
+        renderCommentList(list)
+      }
+
+      function renderCommentList(list) {
+        const query = state.filter.trim().toLowerCase()
+        const shown = query
+          ? state.comments.filter(c =>
+              [c.text, c.username, c.address, c.locality, c.id, c.uid ?? ''].some(field =>
+                field.toLowerCase().includes(query),
+              ),
+            )
+          : state.comments
+        const summary = document.getElementById('comment-summary')
+        if (summary) {
+          summary.textContent = query
+            ? `${shown.length} of ${plural(state.comments.length, 'loaded comment')}`
+            : `${plural(state.comments.length, 'comment')}${state.next ? ' loaded' : ''}`
+        }
+        const children = shown.map(commentCard)
+        if (!shown.length && !state.loading) {
+          children.push(
+            el('p', {
+              className: 'empty',
+              textContent: query ? 'No loaded comments match.' : 'No comments.',
+            }),
+          )
+        }
+        if (state.loading) children.push(el('p', { className: 'status', textContent: 'Loading…' }))
+        else if (state.next) {
+          children.push(
+            el(
+              'div',
+              { className: 'more' },
+              button('Load more', () => loadComments({ more: true })),
+            ),
+          )
+        }
+        list.replaceChildren(...children)
+      }
+
+      function renderBans(toolbar, list) {
+        toolbar.append(
+          el('span', {
+            className: 'summary',
+            textContent: `Banned posters can’t post, edit, vote or report, and nor can anyone on their recent internet connections for ${NETWORK_BAN_DAYS} days. Their existing comments stay up unless deleted.`,
+          }),
+        )
+        if (!state.bans.length) return list.append(el('p', { className: 'empty', textContent: 'No one is banned.' }))
+        list.append(
+          el(
+            'table',
+            {},
+            el(
+              'tr',
+              {},
+              el('th', {}, 'User ID'),
+              el('th', {}, 'Banned'),
+              el('th', {}, 'From comment'),
+              el('th', {}, 'Connections'),
+              el('th'),
+            ),
+            ...state.bans.map(ban =>
+              el(
+                'tr',
+                {},
+                el('td', { className: 'mono', textContent: ban.uid }),
+                el('td', { textContent: ban.bannedAt ? date(ban.bannedAt) : 'unknown' }),
+                el('td', { className: 'mono', textContent: ban.commentId ?? '—' }),
+                el('td', {
+                  textContent: ban.networks
+                    ? `${plural(ban.networks.count, 'connection')} until ${date(ban.networks.until)}`
+                    : 'None',
+                  title: ban.networks
+                    ? ''
+                    : 'No connection on record: no comments through the relay in the 90 days before the ban, or the ban has ended. Ban again to refresh.',
+                }),
+                el(
+                  'td',
+                  { className: 'row-actions' },
+                  button(
+                    'Comments',
+                    () => showComments({ kind: 'poster', uid: ban.uid, label: `Posted by ${shortId(ban.uid)}` }),
+                    'link',
+                  ),
+                  button('Purge', () => purgePoster(ban.uid, null), 'danger'),
+                  button('Unban', () => unbanPoster(ban.uid)),
+                ),
+              ),
+            ),
+          ),
+        )
+      }
+
+      function render() {
+        const openCount = state.reports.filter(item => item.open).length
+        const reportsCount = document.getElementById('count-reports')
+        reportsCount.textContent = String(openCount)
+        reportsCount.className = `count${openCount ? ' alert' : ''}`
+        document.getElementById('count-bans').textContent = String(state.bans.length)
+        for (const tab of document.querySelectorAll('nav button')) {
+          if (tab.dataset.view === state.view) tab.setAttribute('aria-current', 'page')
+          else tab.removeAttribute('aria-current')
+        }
+        document.title = `${openCount ? `${openCount} open · ` : ''}Moderation · Real Estate Comments`
+
+        const toolbar = document.getElementById('toolbar')
+        const list = document.getElementById('list')
+        // Keep the filter box focused while typing re-renders around it
+        const filterFocused = document.activeElement?.type === 'search'
+        toolbar.replaceChildren()
+        list.replaceChildren()
+        if (state.view === 'reports') renderReports(toolbar, list)
+        if (state.view === 'comments') renderComments(toolbar, list)
+        if (state.view === 'bans') renderBans(toolbar, list)
+        if (filterFocused) toolbar.querySelector('input[type="search"]')?.focus()
+      }
+
+      for (const tab of document.querySelectorAll('nav button')) {
+        tab.onclick = () => {
+          if (tab.dataset.view === state.view) return
+          if (tab.dataset.view === 'comments') return showComments(null)
+          state.view = tab.dataset.view
+          render()
+        }
+      }
+      document.getElementById('refresh').onclick = loadAll
+      if (!token) showError('Open this page from the URL printed by pnpm moderate.')
+      else loadAll()
+    </script>
+  </body>
+</html>

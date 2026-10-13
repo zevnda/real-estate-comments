@@ -106,6 +106,47 @@ export function parsePropertyUrl(url: string): PropertyUrl | null {
   return null
 }
 
+// A suburb a search results page is for, from its URL. Only the first suburb of a multi-suburb search.
+export interface Area {
+  // Lowercase, single-spaced, as comments store it
+  suburb: string
+  state: string
+  postcode: string
+}
+
+//   realestate.com.au: /rent/in-epping,+nsw+2121/list-1, /buy/in-north+strathfield,+nsw+2137/list-1 (also /sold, /leased)
+//   domain.com.au:     /rent/epping-nsw-2121/, /sale/north-strathfield-nsw-2137/, /sold-listings/epping-nsw-2121/, or
+//                      /rent/?suburb=epping-nsw-2121,carlingford-nsw-2118
+export function parseAreaUrl(url: string): Area | null {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return null
+  }
+  const site = getSite(parsed.hostname)
+  if (!site) return null
+  const path = safeDecode(parsed.pathname).toLowerCase().replace(/\/+$/, '')
+  if (site === 'realestate') {
+    const match = path.match(
+      new RegExp(`^/(?:rent|buy|sold|leased)/in-([a-z' +-]+?),[+ ]*(${STATE_PATTERN})[+ ]+(\\d{4})(?:[;/]|$)`),
+    )
+    return match ? { suburb: collapse(match[1]!.replace(/\+/g, ' ')), state: match[2]!, postcode: match[3]! } : null
+  }
+  const slug =
+    path.match(/^\/(?:rent|sale|sold-listings)\/([a-z0-9-]+)$/)?.[1] ??
+    (/^\/(?:rent|sale|sold-listings)$/.test(path)
+      ? parsed.searchParams.get('suburb')?.toLowerCase().split(',')[0]
+      : null)
+  const match = slug?.match(new RegExp(`^([a-z-]+)-(${STATE_PATTERN})-(\\d{4})$`))
+  return match ? { suburb: collapse(match[1]!.replace(/-/g, ' ')), state: match[2]!, postcode: match[3]! } : null
+}
+
+// "Epping NSW 2121"
+export function areaLabel(area: Area): string {
+  return `${titleCase(area.suburb)} ${area.state.toUpperCase()} ${area.postcode}`
+}
+
 export interface TitleAddress {
   address: string
   // The address part of the title before removing status prefixes, when different

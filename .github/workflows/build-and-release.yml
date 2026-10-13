@@ -29,6 +29,14 @@ jobs:
           node-version: 24
           cache: pnpm
 
+      # The changelog becomes the release notes and the extension's "What's new" dialog, so it can't be empty
+      - name: Check the changelog
+        run: |
+          if ! grep -q '[^[:space:]]' CHANGELOG.md; then
+            echo "::error::CHANGELOG.md is empty. Add this release's changes before releasing."
+            exit 1
+          fi
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -65,3 +73,25 @@ jobs:
             real-estate-comments-chrome-v${{ github.event.inputs.version }}.zip
             real-estate-comments-firefox-v${{ github.event.inputs.version }}.zip
             real-estate-comments-source-v${{ github.event.inputs.version }}.zip
+
+      # The release (and the extension built for it) has its notes. Keep them in CHANGELOG-ARCHIVE.md (newest first,
+      # dated in Sydney time), then start the next release's changelog empty, so they don't carry over into the next
+      # version's "What's new". `pnpm check` above has already format-checked CHANGELOG.md, so the archive stays
+      # Prettier-clean.
+      - name: Archive and clear the changelog
+        run: |
+          VERSION=${{ github.event.inputs.version }}
+          DATE=$(TZ=Australia/Sydney date '+%-d %B %Y')
+          {
+            printf '## v%s (%s)\n\n' "$VERSION" "$DATE"
+            cat CHANGELOG.md
+            if [ -s CHANGELOG-ARCHIVE.md ]; then
+              printf '\n'
+              cat CHANGELOG-ARCHIVE.md
+            fi
+          } > CHANGELOG-ARCHIVE.md.new
+          mv CHANGELOG-ARCHIVE.md.new CHANGELOG-ARCHIVE.md
+          : > CHANGELOG.md
+          git add CHANGELOG.md CHANGELOG-ARCHIVE.md
+          git commit -m "chore: archive and clear changelog after v$VERSION"
+          git push origin HEAD:${{ github.ref }}

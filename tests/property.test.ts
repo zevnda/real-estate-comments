@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  areaLabel,
   buildPropertyKeys,
   canonicalAddress,
   getSite,
@@ -8,6 +9,7 @@ import {
   matchAddressToUrl,
   pageKey,
   parseAddressFromTitle,
+  parseAreaUrl,
   parsePropertyUrl,
   propertyLinks,
 } from '../src/shared/property'
@@ -549,6 +551,41 @@ describe('propertyLinks', () => {
     expect(links.realestate).toBe('https://www.realestate.com.au/property/35-churchill-cres-concord-nsw-2137/')
     expect(decodeURIComponent(links.search)).toBe(
       'https://www.google.com/search?q=35 Churchill Crescent, Concord NSW 2137',
+    )
+  })
+})
+
+describe('parseAreaUrl', () => {
+  const epping = { suburb: 'epping', state: 'nsw', postcode: '2121' }
+
+  it('reads the suburb of a search results page on either site', () => {
+    expect(parseAreaUrl('https://www.realestate.com.au/rent/in-epping,+nsw+2121/list-1')).toEqual(epping)
+    expect(parseAreaUrl('https://www.realestate.com.au/sold/in-epping,+nsw+2121/list-2')).toEqual(epping)
+    expect(parseAreaUrl('https://www.domain.com.au/rent/epping-nsw-2121/')).toEqual(epping)
+    expect(parseAreaUrl('https://www.domain.com.au/sold-listings/epping-nsw-2121/?page=2')).toEqual(epping)
+  })
+
+  it('handles multi-word suburbs, and takes the first of several', () => {
+    const north = { suburb: 'north strathfield', state: 'nsw', postcode: '2137' }
+    expect(parseAreaUrl('https://www.realestate.com.au/buy/in-north+strathfield,+nsw+2137/list-1')).toEqual(north)
+    expect(parseAreaUrl('https://www.domain.com.au/sale/north-strathfield-nsw-2137/')).toEqual(north)
+    expect(
+      parseAreaUrl('https://www.realestate.com.au/rent/in-epping,+nsw+2121%3b+carlingford,+nsw+2118/list-1'),
+    ).toEqual(epping)
+    expect(parseAreaUrl('https://www.domain.com.au/rent/?suburb=epping-nsw-2121,carlingford-nsw-2118')).toEqual(epping)
+  })
+
+  it('ignores pages that aren’t for a suburb', () => {
+    expect(parseAreaUrl('https://www.realestate.com.au/buy')).toBeNull()
+    expect(parseAreaUrl('https://www.domain.com.au/rent/')).toBeNull()
+    expect(parseAreaUrl('https://www.realestate.com.au/property-house-nsw-epping-441106232')).toBeNull()
+    expect(parseAreaUrl('https://www.domain.com.au/2-5-chester-street-epping-nsw-2121-18359019')).toBeNull()
+    expect(parseAreaUrl('https://example.com/rent/epping-nsw-2121/')).toBeNull()
+  })
+
+  it('labels an area for display', () => {
+    expect(areaLabel({ suburb: 'north strathfield', state: 'nsw', postcode: '2137' })).toBe(
+      'North Strathfield NSW 2137',
     )
   })
 })

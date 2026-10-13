@@ -1,7 +1,22 @@
+import type { CommentImage } from '../shared/images'
+
 import DOMPurify from 'dompurify'
 import { Marked } from 'marked'
 
-const marked = new Marked({ gfm: true, breaks: true, async: false })
+import { findImages } from '../shared/images'
+
+const marked = new Marked({
+  gfm: true,
+  breaks: true,
+  async: false,
+  renderer: {
+    // Images are never embedded in the text. Markdown image syntax (![alt](url)) becomes a link instead, so it shows the
+    // same as [alt](url): readable in the text, and a thumbnail under the comment if it's from a supported image host.
+    image({ href, title, text, raw }) {
+      return this.link({ type: 'link', raw, href, title, text: text.trim() || href, tokens: [], autolink: true })
+    },
+  },
+})
 
 const purify = DOMPurify(window)
 purify.addHook('afterSanitizeAttributes', node => {
@@ -32,4 +47,14 @@ export function renderMarkdown(text: string): DocumentFragment {
     fragment.append(paragraph)
     return fragment
   }
+}
+
+// The images linked from a comment, shown as thumbnails under it. Taken from the rendered links, so only links that
+// survive sanitizing count, and a URL inside `code` doesn't.
+export function commentImages(text: string): CommentImage[] {
+  const links = [...renderMarkdown(text).querySelectorAll('a[href]')].map(link => ({
+    href: link.getAttribute('href') ?? '',
+    text: link.textContent ?? '',
+  }))
+  return findImages(links)
 }

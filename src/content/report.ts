@@ -4,6 +4,11 @@ import { ext } from '../shared/ext'
 import { pageKey } from '../shared/property'
 
 const NEW_ISSUE_URL = 'https://github.com/zevnda/real-estate-comments/issues/new'
+export const COMPLAINTS_EMAIL = 'zevnda@gmail.com'
+
+export function complaintsMailto(): string {
+  return `mailto:${COMPLAINTS_EMAIL}?subject=${encodeURIComponent('Real Estate Comments complaint')}`
+}
 
 // A link to a new GitHub issue, prefilled with a short template and the details that help reproduce a problem. The
 // user sees all of it before submitting and can edit or remove anything.

@@ -1,22 +1,29 @@
 import type { BackgroundApi, BackgroundRequest, ContentMessage, Result } from '../shared/messages'
+import type { Area } from '../shared/property'
 
 import { FirebaseError } from 'firebase/app'
 
 import { ext } from '../shared/ext'
 import { log } from '../shared/log'
-import { buildPropertyKeys } from '../shared/property'
+import { getSite, STATES } from '../shared/property'
+import { isReportReason, REPORT_DETAILS_MAX_LENGTH } from '../shared/reports'
+import { SITE_MATCHES } from '../shared/sites'
+import { getStored, setStored } from '../shared/storage'
 import { isPropertyInput, validateCommentText } from '../shared/validation'
 import {
+  areaStats,
   createComment,
   deleteComment,
+  editComment,
   listComments,
   recentComments,
+  replyNotices,
+  reportComment,
   searchComments,
   toggleVote,
   UserError,
 } from './comments'
 import { getUserId } from './identity'
-import { checkRateLimit, recordPost } from './rate-limit'
 
 // The background script owns all Firestore access, so there's one signed-in session and the page can't interfere
 // with it. Listeners are registered synchronously at the top level, as MV3 service workers require.
@@ -34,24 +41,32 @@ const handlers: Handlers = {
     return listComments(property, await getUserId(), fresh === true)
   },
 
-  async recentComments({ fresh }) {
-    return recentComments(await getUserId(), fresh === true)
+  async recentComments({ fresh, before }) {
+    if (before !== undefined && !(typeof before === 'number' && Number.isFinite(before) && before > 0)) {
+      throw new UserError('Invalid request.')
+    }
+    return recentComments(await getUserId(), fresh === true, before)
   },
 
-  async createComment({ property, text, username }) {
+  async createComment({ property, text, username, replyTo, turnstileToken }) {
     if (!isPropertyInput(property)) throw new UserError('Couldn’t read this property’s address.')
     if (typeof text !== 'string' || typeof username !== 'string') throw new UserError('Invalid comment.')
+    if (typeof turnstileToken !== 'string' || !turnstileToken || turnstileToken.length > 4096) {
+      throw new UserError('Couldn’t confirm you’re not a bot. Please try posting again.')
+    }
+    if (replyTo !== undefined && !isCommentId(replyTo)) throw new UserError('Invalid reply.')
     const invalid = validateCommentText(text)
     if (invalid) throw new UserError(invalid)
 
-    const propertyKey = buildPropertyKeys(property)
-    const rateKey = `${propertyKey.address}|${propertyKey.suburb}|${propertyKey.postcode}`
-    const limited = await checkRateLimit(rateKey)
-    if (limited) throw new UserError(limited)
+    // Posting limits are the comment relay's (per network), so they can't be reset by reinstalling
+    return createComment(property, text, username, await getUserId(), turnstileToken, replyTo)
+  },
 
-    const comment = await createComment(property, text, username, await getUserId())
-    await recordPost(rateKey)
-    return comment
+  async editComment({ commentId, text }) {
+    if (!isCommentId(commentId) || typeof text !== 'string') throw new UserError('Invalid comment.')
+    const invalid = validateCommentText(text)
+    if (invalid) throw new UserError(invalid)
+    return editComment(commentId, text, await getUserId())
   },
 
   async toggleVote({ commentId }) {
@@ -65,9 +80,28 @@ const handlers: Handlers = {
     return null
   },
 
+  async reportComment({ commentId, reason, details }) {
+    if (!isCommentId(commentId)) throw new UserError('Invalid comment.')
+    if (!isReportReason(reason)) throw new UserError('Choose why you’re reporting this comment.')
+    if (typeof details !== 'string' || details.trim().length > REPORT_DETAILS_MAX_LENGTH) {
+      throw new UserError(`Details can’t be longer than ${REPORT_DETAILS_MAX_LENGTH} characters.`)
+    }
+    await reportComment(commentId, reason, details.trim(), await getUserId())
+    return null
+  },
+
+  async areaStats({ area }) {
+    if (!isArea(area)) throw new UserError('Invalid suburb.')
+    return areaStats(area)
+  },
+
   async searchComments({ query }) {
     if (typeof query !== 'string' || query.length > 200) throw new UserError('Invalid search.')
     return searchComments(query, await getUserId())
+  },
+
+  async replyNotices({ fresh }) {
+    return replyNotices(await getUserId(), fresh === true)
   },
 
   async setBadge({ count }, sender) {
@@ -99,14 +133,64 @@ ext.runtime.onMessage.addListener((message: BackgroundRequest, sender, sendRespo
   return true
 })
 
-// The toolbar button (and its keyboard shortcut) opens or closes the panel on supported sites
+// Whether the user has let the extension run on the two sites. Firefox lets users switch Manifest V3 site access off
+// (and Chrome has "on click" access); without it the content script never runs and the extension silently does
+// nothing. Null until checked, e.g. just after the background has started.
+let siteAccess: boolean | null = null
+const checkSiteAccess = () =>
+  ext.permissions.contains({ origins: SITE_MATCHES }).then(
+    granted => (siteAccess = granted),
+    () => {},
+  )
+void checkSiteAccess()
+ext.permissions.onAdded.addListener(() => void checkSiteAccess())
+ext.permissions.onRemoved.addListener(() => void checkSiteAccess())
+
+// The toolbar button (and its keyboard shortcut) opens or closes the panel on supported sites. Without site access, it
+// asks for it first.
 ext.action.onClicked.addListener(tab => {
   if (tab.id === undefined) return
+  const tabId = tab.id
+  if (siteAccess === true) return togglePanel(tabId)
+  // Asked for straight away, still inside the click: Firefox only allows the prompt from a user action. If access is
+  // already granted (siteAccess just wasn't known yet), this resolves without a prompt.
+  ext.permissions.request({ origins: SITE_MATCHES }).then(
+    granted => {
+      siteAccess = granted
+      if (granted) void startOnTab(tabId)
+    },
+    (error: unknown) => log.warn('Requesting site access failed:', error),
+  )
+})
+
+function togglePanel(tabId: number) {
   const message: ContentMessage = { type: 'togglePanel' }
-  ext.tabs.sendMessage(tab.id, message).catch(() => {
+  ext.tabs.sendMessage(tabId, message).catch(() => {
     // No content script in this tab: it isn't realestate.com.au or domain.com.au
   })
-})
+}
+
+// Just granted access: open the panel, or, if the page loaded before access was granted (so the content script isn't
+// there), reload it with the panel set to open
+async function startOnTab(tabId: number) {
+  const message: ContentMessage = { type: 'togglePanel' }
+  try {
+    await ext.tabs.sendMessage(tabId, message)
+  } catch {
+    const tab = await ext.tabs.get(tabId)
+    if (!tab.url || !isSupportedSite(tab.url)) return
+    await setStored('panelOpen', true)
+    await ext.tabs.reload(tabId)
+  }
+}
+
+function isSupportedSite(url: string): boolean {
+  try {
+    return getSite(new URL(url).hostname) !== null
+  } catch {
+    return false
+  }
+}
 
 // Clear a tab's comment count when it starts loading another page. The content script sets it again if the new page
 // is a property.
@@ -114,9 +198,36 @@ ext.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (changeInfo.status === 'loading') ext.action.setBadgeText({ tabId, text: '' }).catch(() => {})
 })
 
-ext.runtime.onInstalled.addListener(() => {
+ext.runtime.onInstalled.addListener(details => {
   ext.action.setBadgeBackgroundColor({ color: '#2563eb' }).catch(() => {})
+  // When it was installed, to time the review request (see ReviewPrompt). Existing users count from their update.
+  if (details.reason === 'install' || details.reason === 'update') {
+    getStored('installedAt')
+      .then(async installedAt => {
+        if (!installedAt) await setStored('installedAt', Date.now())
+      })
+      .catch(error => log.warn('Saving installedAt failed:', error))
+  }
+  // After an update (not a fresh install), the panel shows what's new the next time it opens
+  if (details.reason === 'update') {
+    setStored('whatsNewFor', ext.runtime.getManifest().version).catch(error =>
+      log.warn('Saving whatsNewFor failed:', error),
+    )
+  }
 })
+
+function isArea(value: unknown): value is Area {
+  if (!value || typeof value !== 'object') return false
+  const { suburb, state, postcode } = value as Record<string, unknown>
+  return (
+    typeof suburb === 'string' &&
+    /^[a-z][a-z' -]{0,60}$/.test(suburb) &&
+    typeof state === 'string' &&
+    (STATES as readonly string[]).includes(state) &&
+    typeof postcode === 'string' &&
+    /^\d{4}$/.test(postcode)
+  )
+}
 
 function isCommentId(value: unknown): value is string {
   return typeof value === 'string' && /^[A-Za-z0-9]{1,64}$/.test(value)

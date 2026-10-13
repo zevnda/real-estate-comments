@@ -1,6 +1,6 @@
 import type { ComponentChildren } from 'preact'
 
-import { RefreshIcon } from './icons'
+import { ImageIcon, RefreshIcon } from './icons'
 
 // Empty, error and loading states shared by the panel's tabs
 
@@ -49,5 +49,16 @@ export function Skeleton({ label }: { label: string }) {
         </div>
       ))}
     </div>
+  )
+}
+
+// "With images" chosen, and none of the comments have any
+export function NoImages({ onShowAll }: { onShowAll: () => void }) {
+  return (
+    <Notice icon={<ImageIcon />} title='No comments with images'>
+      <button type='button' class='button button--ghost' onClick={onShowAll}>
+        Show all comments
+      </button>
+    </Notice>
   )
 }
