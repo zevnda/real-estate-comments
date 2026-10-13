@@ -5,7 +5,7 @@ import { FirebaseError } from 'firebase/app'
 
 import { ext } from '../shared/ext'
 import { log } from '../shared/log'
-import { buildPropertyKeys, getSite, STATES } from '../shared/property'
+import { getSite, STATES } from '../shared/property'
 import { isReportReason, REPORT_DETAILS_MAX_LENGTH } from '../shared/reports'
 import { SITE_MATCHES } from '../shared/sites'
 import { getStored, setStored } from '../shared/storage'
@@ -24,7 +24,6 @@ import {
   UserError,
 } from './comments'
 import { getUserId } from './identity'
-import { checkRateLimit, recordPost } from './rate-limit'
 
 // The background script owns all Firestore access, so there's one signed-in session and the page can't interfere
 // with it. Listeners are registered synchronously at the top level, as MV3 service workers require.
@@ -49,22 +48,18 @@ const handlers: Handlers = {
     return recentComments(await getUserId(), fresh === true, before)
   },
 
-  async createComment({ property, text, username, replyTo }) {
+  async createComment({ property, text, username, replyTo, turnstileToken }) {
     if (!isPropertyInput(property)) throw new UserError('Couldn’t read this property’s address.')
     if (typeof text !== 'string' || typeof username !== 'string') throw new UserError('Invalid comment.')
+    if (typeof turnstileToken !== 'string' || !turnstileToken || turnstileToken.length > 4096) {
+      throw new UserError('Couldn’t confirm you’re not a bot. Please try posting again.')
+    }
     if (replyTo !== undefined && !isCommentId(replyTo)) throw new UserError('Invalid reply.')
     const invalid = validateCommentText(text)
     if (invalid) throw new UserError(invalid)
 
-    const propertyKey = buildPropertyKeys(property)
-    const rateKey = `${propertyKey.address}|${propertyKey.suburb}|${propertyKey.postcode}`
-    const reply = replyTo !== undefined
-    const limited = await checkRateLimit(rateKey, reply)
-    if (limited) throw new UserError(limited)
-
-    const comment = await createComment(property, text, username, await getUserId(), replyTo)
-    await recordPost(rateKey, reply)
-    return comment
+    // Posting limits are the comment relay's (per network), so they can't be reset by reinstalling
+    return createComment(property, text, username, await getUserId(), turnstileToken, replyTo)
   },
 
   async editComment({ commentId, text }) {
@@ -91,7 +86,7 @@ const handlers: Handlers = {
     if (typeof details !== 'string' || details.trim().length > REPORT_DETAILS_MAX_LENGTH) {
       throw new UserError(`Details can’t be longer than ${REPORT_DETAILS_MAX_LENGTH} characters.`)
     }
-    await reportComment(commentId, reason, details.trim())
+    await reportComment(commentId, reason, details.trim(), await getUserId())
     return null
   },
 

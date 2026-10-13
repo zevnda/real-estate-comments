@@ -34,3 +34,12 @@ export function ensureSignedIn(): Promise<string> {
   })
   return signingIn
 }
+
+// A Firebase ID token for the signed-in user, which the comment relay checks to learn the poster's Auth UID. The SDK
+// refreshes it when it's close to expiring.
+export async function getIdToken(): Promise<string> {
+  await ensureSignedIn()
+  const user = auth.currentUser
+  if (!user) throw new Error('Not signed in')
+  return user.getIdToken()
+}

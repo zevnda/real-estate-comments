@@ -4,7 +4,8 @@ import { ext } from './ext'
 
 // Everything the extension keeps in `storage.local`. The user ID predates 2.0 and must keep its name, or existing
 // users would lose their identity (and with it their votes and "You" on their comments). 1.x and early 2.x also
-// stored `tos_accepted`, for older terms; it's no longer read (see postingRulesAccepted).
+// stored `tos_accepted`, for older terms; it's no longer read (see postingRulesAccepted). Versions up to 2.1.x kept
+// `postHistory` for their own posting limits, now the comment relay's; also no longer read.
 export interface StoredData {
   // Anonymous user ID, generated on first use. Legacy key name.
   CTextFilterStore_strCleanPattern_1039531631: string
@@ -23,8 +24,6 @@ export interface StoredData {
   reviewAsked: number | 'done'
   // Set to the new version when the extension updates; the panel then shows "What's new" once and clears it
   whatsNewFor: string
-  // Timestamps (ms) of this user's recent comments, for rate limiting
-  postHistory: { at: number; property: string; reply?: boolean }[]
   // The bell's notifications: replies to the user's comments and new comments on watched properties
   notifications: NotificationsState
 }

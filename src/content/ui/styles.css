@@ -1688,6 +1688,23 @@ a.text-button {
   font-size: 11.5px;
 }
 
+/* The bot check's frame (Challenge.tsx): takes no space until Cloudflare wants the user to tick its box */
+.challenge {
+  display: block;
+  width: 100%;
+  height: 0;
+  border: 0;
+  color-scheme: normal;
+}
+
+.challenge--visible {
+  height: 68px;
+}
+
+.challenge-hint {
+  margin-top: 8px;
+}
+
 .button {
   display: inline-flex;
   align-items: center;

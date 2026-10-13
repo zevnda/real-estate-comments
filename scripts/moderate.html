@@ -608,6 +608,8 @@
         ms ? new Date(ms).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' }) : 'unknown'
       const shortId = uid => uid.slice(0, 8)
       const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
+      // How long a ban covers the poster's internet connections: NETWORK_BAN_DAYS in moderate.ts
+      const NETWORK_BAN_DAYS = 60
       const isBanned = uid => !!uid && state.bans.some(ban => ban.uid === uid)
       const openReportsFor = id =>
         state.reports.find(item => item.commentId === id)?.reports.filter(report => report.status === 'open').length ??
@@ -858,13 +860,15 @@
       function banPoster(uid, commentId) {
         return openDialog({
           title: 'Ban this poster?',
-          message: `User ${shortId(uid)}… will no longer be able to post or vote. Their existing comments stay up.`,
+          message: `User ${shortId(uid)}… will no longer be able to post, edit, vote or report. So will anyone on the internet connections they’ve posted from in the last 90 days, for ${NETWORK_BAN_DAYS} days, so reinstalling doesn’t get around it. Their existing comments stay up.`,
           confirmLabel: 'Ban',
           danger: true,
           onConfirm: async () => {
-            await api('/api/ban', { uid, commentId })
+            const { networks } = await api('/api/ban', { uid, commentId })
             await loadBans()
-            toast('Poster banned')
+            toast(
+              `Poster banned${networks ? `, with ${plural(networks, 'internet connection')}` : ' (no recent connection on record)'}`,
+            )
             render()
           },
         })
@@ -883,7 +887,7 @@
         const banned = isBanned(uid)
         return openDialog({
           title: banned ? 'Purge this poster?' : 'Ban and purge this poster?',
-          message: `${banned ? `User ${shortId(uid)}… is already banned.` : `User ${shortId(uid)}… will be banned from posting and voting.`} ${count === '1' ? 'Their 1 comment' : `All ${count} of their comments and replies`} will be deleted, and any open reports on them closed as removed. This can’t be undone. Other people’s replies to them stay up.`,
+          message: `${banned ? `User ${shortId(uid)}… is already banned.` : `User ${shortId(uid)}… will be banned, with the internet connections they’ve posted from recently.`} ${count === '1' ? 'Their 1 comment' : `All ${count} of their comments and replies`} will be deleted, and any open reports on them closed as removed. This can’t be undone. Other people’s replies to them stay up.`,
           confirmLabel: banned ? 'Purge' : 'Ban and purge',
           danger: true,
           onConfirm: async () => {
@@ -899,7 +903,7 @@
       function unbanPoster(uid) {
         return openDialog({
           title: 'Unban this poster?',
-          message: `User ${shortId(uid)}… will be able to post and vote again.`,
+          message: `User ${shortId(uid)}… will be able to post, edit, vote and report again, and so will their internet connections.`,
           confirmLabel: 'Unban',
           onConfirm: async () => {
             await api('/api/unban', { uid })
@@ -1159,7 +1163,7 @@
         toolbar.append(
           el('span', {
             className: 'summary',
-            textContent: 'Banned posters can’t post or vote. Their existing comments stay up unless deleted.',
+            textContent: `Banned posters can’t post, edit, vote or report, and nor can anyone on their recent internet connections for ${NETWORK_BAN_DAYS} days. Their existing comments stay up unless deleted.`,
           }),
         )
         if (!state.bans.length) return list.append(el('p', { className: 'empty', textContent: 'No one is banned.' }))
@@ -1167,7 +1171,15 @@
           el(
             'table',
             {},
-            el('tr', {}, el('th', {}, 'User ID'), el('th', {}, 'Banned'), el('th', {}, 'From comment'), el('th')),
+            el(
+              'tr',
+              {},
+              el('th', {}, 'User ID'),
+              el('th', {}, 'Banned'),
+              el('th', {}, 'From comment'),
+              el('th', {}, 'Connections'),
+              el('th'),
+            ),
             ...state.bans.map(ban =>
               el(
                 'tr',
@@ -1175,6 +1187,14 @@
                 el('td', { className: 'mono', textContent: ban.uid }),
                 el('td', { textContent: ban.bannedAt ? date(ban.bannedAt) : 'unknown' }),
                 el('td', { className: 'mono', textContent: ban.commentId ?? '—' }),
+                el('td', {
+                  textContent: ban.networks
+                    ? `${plural(ban.networks.count, 'connection')} until ${date(ban.networks.until)}`
+                    : 'None',
+                  title: ban.networks
+                    ? ''
+                    : 'No connection on record: no comments through the relay in the 90 days before the ban, or the ban has ended. Ban again to refresh.',
+                }),
                 el(
                   'td',
                   { className: 'row-actions' },

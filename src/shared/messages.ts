@@ -68,9 +68,10 @@ export interface BackgroundApi {
   listComments: { request: { property: PropertyInput; fresh?: boolean }; response: CommentView[] }
   // A page of RECENT_PAGE, older than `before` (ms) when given
   recentComments: { request: { fresh?: boolean; before?: number }; response: RecentCommentView[] }
-  // `replyTo`: the comment being replied to, which must be on the same property
+  // `replyTo`: the comment being replied to, which must be on the same property. `turnstileToken`: from the comment
+  // box's challenge (ui/Challenge.tsx), checked by the comment relay
   createComment: {
-    request: { property: PropertyInput; text: string; username: string; replyTo?: string }
+    request: { property: PropertyInput; text: string; username: string; replyTo?: string; turnstileToken: string }
     response: CommentView
   }
   editComment: { request: { commentId: string; text: string }; response: { text: string; editedAt: number } }

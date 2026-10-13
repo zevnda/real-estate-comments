@@ -1,7 +1,9 @@
+import type { PostRecord } from '../src/shared/rate-limit'
+
 import { describe, expect, it } from 'vitest'
 
-import { MAX_POSTS_PER_HOUR, MAX_POSTS_PER_PROPERTY_PER_DAY, rateLimitReason } from '../src/background/rate-limit'
-import { cleanUsername, isPropertyInput, validateCommentText } from '../src/shared/validation'
+import { rateLimitReason } from '../src/shared/rate-limit'
+import { cleanUsername, countLinks, isPropertyInput, validateCommentText } from '../src/shared/validation'
 
 describe('validateCommentText', () => {
   it('accepts a normal comment', () => {
@@ -49,38 +51,39 @@ describe('isPropertyInput', () => {
 })
 
 describe('rateLimitReason', () => {
+  const limits = { cooldownMs: 30_000, perHour: 5, perDay: 15, things: 'comments', done: 'posted', doing: 'posting' }
   const now = Date.UTC(2026, 0, 1)
-  const minutesAgo = (minutes: number, property = 'a') => ({ at: now - minutes * 60_000, property })
+  const minutesAgo = (...minutes: number[]): PostRecord[] => minutes.map(m => ({ at: now - m * 60_000 }))
 
   it('allows posting with no history', () => {
-    expect(rateLimitReason([], 'a', now)).toBeNull()
+    expect(rateLimitReason([], now, limits)).toBeNull()
   })
 
-  it('limits posts per hour across all properties', () => {
-    const history = Array.from({ length: MAX_POSTS_PER_HOUR }, (_, i) => minutesAgo(i * 5, `p${i}`))
-    expect(rateLimitReason(history, 'new', now)).toMatch(/an hour/)
-    expect(
-      rateLimitReason(
-        history.map(p => ({ ...p, at: p.at - 60 * 60_000 })),
-        'new',
-        now,
-      ),
-    ).toBeNull()
+  it('makes posters wait between posts', () => {
+    expect(rateLimitReason([{ at: now - 10_000 }], now, limits)).toBe('Please wait 20 seconds before posting again.')
+    expect(rateLimitReason([{ at: now - 30_000 }], now, limits)).toBeNull()
   })
 
-  it('limits posts per property per day', () => {
-    const history = Array.from({ length: MAX_POSTS_PER_PROPERTY_PER_DAY }, (_, i) => minutesAgo(120 + i * 60))
-    expect(rateLimitReason(history, 'a', now)).toMatch(/same property/)
-    expect(rateLimitReason(history, 'b', now)).toBeNull()
+  it('limits posts per hour and per day', () => {
+    expect(rateLimitReason(minutesAgo(1, 10, 20, 30, 40), now, limits)).toMatch(/5 comments an hour/)
+    expect(rateLimitReason(minutesAgo(10, 20, 30, 40, 61), now, limits)).toBeNull()
+    const day = minutesAgo(...Array.from({ length: 15 }, (_, i) => 61 + i * 60))
+    expect(rateLimitReason(day, now, limits)).toMatch(/15 comments a day/)
+    expect(rateLimitReason(day.slice(1), now, limits)).toBeNull()
+  })
+})
+
+describe('countLinks', () => {
+  it('counts links, images and bare addresses', () => {
+    expect(countLinks('No links here, just a www-less comment.')).toBe(0)
+    expect(countLinks('[pic](https://i.imgur.com/a.jpg) ![b](http://x.com/b.png) see www.example.com')).toBe(3)
+    // A www inside a URL is one link, not two
+    expect(countLinks('https://www.example.com/page')).toBe(1)
   })
 
-  it('lets replies continue a conversation, within the hourly limit', () => {
-    const comments = Array.from({ length: MAX_POSTS_PER_PROPERTY_PER_DAY }, (_, i) => minutesAgo(120 + i * 60))
-    expect(rateLimitReason(comments, 'a', now, true)).toBeNull()
-    // Replies don't use up the property's daily comments
-    const replies = comments.map(post => ({ ...post, reply: true }))
-    expect(rateLimitReason(replies, 'a', now)).toBeNull()
-    const busyHour = Array.from({ length: MAX_POSTS_PER_HOUR }, (_, i) => ({ ...minutesAgo(i * 5), reply: true }))
-    expect(rateLimitReason(busyHour, 'a', now, true)).toMatch(/an hour/)
+  it('limits links per comment', () => {
+    const links = (n: number) => Array.from({ length: n }, (_, i) => `https://example.com/${i}`).join(' ')
+    expect(validateCommentText(links(8))).toBeNull()
+    expect(validateCommentText(links(9))).toMatch(/8 links/)
   })
 })

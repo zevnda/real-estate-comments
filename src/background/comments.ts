@@ -1,12 +1,19 @@
 import type { DocumentSnapshot } from 'firebase/firestore/lite'
-import type { AreaStats, CommentView, RecentCommentView, ReplyNotice, SearchResult } from '../shared/messages'
+import type { AreaStats, CommentView, RecentCommentView, ReplyNotice, Result, SearchResult } from '../shared/messages'
 import type { Area, PropertyInput } from '../shared/property'
+import type {
+  RelayComment,
+  RelayCommentRequest,
+  RelayEdit,
+  RelayEditRequest,
+  RelayReportRequest,
+  RelayVote,
+  RelayVoteRequest,
+} from '../shared/relay'
 import type { ReportReason } from '../shared/reports'
 import type { SearchLookup, SearchQuery } from '../shared/search'
 
-import { FirebaseError } from 'firebase/app'
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -15,21 +22,18 @@ import {
   limit,
   orderBy,
   query,
-  runTransaction,
-  serverTimestamp,
-  setDoc,
   startAfter,
   Timestamp,
-  updateDoc,
   where,
 } from 'firebase/firestore/lite'
 
 import { RECENT_PAGE } from '../shared/messages'
 import { buildPropertyKeys, canonicalAddress, propertyLinks, titleCase } from '../shared/property'
+import { RELAY_URL } from '../shared/relay'
 import { MIN_SCORE, parseSearchQuery, scoreMatch, searchLookups } from '../shared/search'
 import { cleanUsername, EDIT_WINDOW_MS } from '../shared/validation'
 import { cached, invalidate } from './cache'
-import { db, ensureSignedIn } from './firebase'
+import { db, ensureSignedIn, getIdToken } from './firebase'
 
 // A document in the `listingcomments` collection. The field set is fixed by the deployed security rules and by
 // comments saved by 1.x versions, so don't rename or add fields without updating the rules first (see CLAUDE.md).
@@ -82,7 +86,6 @@ interface CommentRecord {
 
 const COMMENTS = 'listingcomments'
 const BANNED_USERS = 'bannedUsers'
-const REPORTS = 'reports'
 const MAX_COMMENTS_PER_PROPERTY = 100
 const SEARCH_SCAN_LIMIT = 300
 // Upper bound for prefix range queries: `>= prefix` and `< prefix + PREFIX_END` matches everything starting with prefix
@@ -338,114 +341,85 @@ function rankSearchResults(
     .map(({ result }) => result)
 }
 
+// Writes go through the comment relay (worker/), which checks the poster's Firebase sign-in (and, for new comments, a
+// Turnstile token) and the limits for their network, then writes to Firestore itself. Returns its data, or throws its
+// user-facing error.
+async function relay<T>(
+  path: string,
+  body: RelayCommentRequest | RelayEditRequest | RelayReportRequest | RelayVoteRequest,
+): Promise<T> {
+  let response: Response
+  try {
+    response = await fetch(`${RELAY_URL}${path}`, {
+      method: 'POST',
+      headers: { 'authorization': `Bearer ${await getIdToken()}`, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  } catch {
+    throw new UserError('Couldn’t reach the comments server. Check your connection and try again.')
+  }
+  const result = (await response.json().catch(() => null)) as Result<T> | null
+  if (!result) throw new UserError('The comments server didn’t answer properly. Please try again.')
+  if (!result.ok) throw new UserError(result.error)
+  return result.data
+}
+
 export async function createComment(
   property: PropertyInput,
   text: string,
   username: string,
   userId: string,
+  turnstileToken: string,
   replyToId?: string,
 ): Promise<CommentView> {
-  const authUid = await ensureSignedIn()
+  await ensureSignedIn()
   if (await isBanned(userId)) throw new UserError('You can’t post comments right now (error 90001).')
 
-  const keys = buildPropertyKeys(property)
-  const reply = replyToId ? await replyFields(replyToId, keys) : null
-  const now = new Date()
-  const data = {
-    // A reply is stored under its parent's address spelling (which may be an older one), so the rules can check it
-    // belongs to the same property
-    address: reply?.address ?? keys.address,
-    suburb: keys.suburb,
-    state: keys.state,
-    postcode: keys.postcode,
-    url: property.url,
-    text: text.trim(),
-    timestamp: now.toISOString(),
-    username: cleanUsername(username),
-    uid: userId,
-    authorAuthUid: authUid,
-    createdAt: serverTimestamp(),
-    ...(reply && { parentId: reply.parentId, replyToId: reply.replyToId }),
+  const body: RelayCommentRequest = {
+    property,
+    text,
+    username,
+    userId,
+    turnstileToken,
+    ...(replyToId && { replyTo: replyToId }),
   }
-  const ref = await addDoc(collection(db, COMMENTS), data)
+  const result = await relay<RelayComment>('/comment', body)
   await invalidate(...COMMENT_CACHES)
+  const { id, createdAt, parentId, replyToId: answers } = result
   return {
-    id: ref.id,
-    text: data.text,
-    username: data.username,
-    createdAt: now.getTime(),
+    id,
+    text: text.trim(),
+    username: cleanUsername(username),
+    createdAt,
     votes: 0,
     hasVoted: false,
     isOwn: true,
     canDelete: true,
-    editableUntil: now.getTime() + EDIT_WINDOW_MS,
-    ...(reply && { parentId: reply.parentId, replyToId: reply.replyToId }),
+    editableUntil: createdAt + EDIT_WINDOW_MS,
+    ...(parentId && answers && { parentId, replyToId: answers }),
   }
 }
 
-// Replies are one level deep, like Discord: replying to a reply puts the new reply under the same top-level comment,
-// pointing at the reply it answers
-async function replyFields(
-  replyToId: string,
-  keys: ReturnType<typeof buildPropertyKeys>,
-): Promise<{ parentId: string; replyToId: string; address: string }> {
-  const target = await getDoc(doc(db, COMMENTS, replyToId))
-  if (!target.exists()) throw new UserError('The comment you’re replying to has been deleted.')
-  const data = target.data() as CommentDoc
-  if (data.suburb !== keys.suburb || !keys.addressVariants.includes(data.address)) {
-    throw new UserError('You can only reply to comments on this property.')
-  }
-  if (!data.parentId) return { parentId: target.id, replyToId, address: data.address }
-  const parent = await getDoc(doc(db, COMMENTS, data.parentId))
-  if (!parent.exists())
-    throw new UserError('This conversation’s first comment has been deleted, so it can’t be replied to.')
-  return { parentId: parent.id, replyToId, address: (parent.data() as CommentDoc).address }
-}
-
-// The poster can change the text for EDIT_WINDOW_MS after posting; the rules enforce the same
+// The poster can change the text for EDIT_WINDOW_MS after posting; the relay checks it (and the new text) again
 export async function editComment(
   commentId: string,
   text: string,
   userId: string,
 ): Promise<{ text: string; editedAt: number }> {
-  const authUid = await ensureSignedIn()
+  await ensureSignedIn()
   if (await isBanned(userId)) throw new UserError('You can’t edit comments right now (error 90001).')
-  const ref = doc(db, COMMENTS, commentId)
-  const snap = await getDoc(ref)
-  if (!snap.exists()) throw new UserError('This comment has been deleted.')
-  const data = snap.data() as CommentDoc
-  if (data.authorAuthUid !== authUid) throw new UserError('You can only edit your own comments.')
-  if (!data.createdAt || Date.now() > data.createdAt.toMillis() + EDIT_WINDOW_MS) {
-    throw new UserError('Comments can only be edited for 15 minutes after posting.')
-  }
-  const trimmed = text.trim()
-  await updateDoc(ref, { text: trimmed, editedAt: serverTimestamp() })
+  const body: RelayEditRequest = { commentId, text, userId }
+  const edit = await relay<RelayEdit>('/edit', body)
   await invalidate(...COMMENT_CACHES)
-  return { text: trimmed, editedAt: Date.now() }
+  return edit
 }
 
-// Upvotes a comment, or removes the user's upvote if they've already voted. A transaction, so simultaneous votes
-// from different users can't overwrite each other.
+// Upvotes a comment, or takes the user's upvote back, through the relay: one upvote per comment per network
 export async function toggleVote(commentId: string, userId: string): Promise<{ votes: number; hasVoted: boolean }> {
   await ensureSignedIn()
   if (await isBanned(userId)) throw new UserError('You can’t vote right now (error 90001).')
-
-  const ref = doc(db, COMMENTS, commentId)
-  const result = await runTransaction(db, async transaction => {
-    const snap = await transaction.get(ref)
-    if (!snap.exists()) throw new UserError('This comment has been deleted.')
-    const data = snap.data() as CommentDoc
-    if (data.uid === userId) throw new UserError('You can’t vote on your own comment.')
-
-    const userVotes = { ...data.userVotes }
-    const hasVoted = userVotes[userId] !== 'up'
-    if (hasVoted) userVotes[userId] = 'up'
-    else delete userVotes[userId]
-    const votes = Math.max(0, (data.votes ?? 0) + (hasVoted ? 1 : -1))
-
-    transaction.update(ref, { votes, userVotes })
-    return { votes, hasVoted }
-  })
+  const body: RelayVoteRequest = { commentId, userId }
+  const result = await relay<RelayVote>('/vote', body)
   await invalidate(...COMMENT_CACHES)
   return result
 }
@@ -487,26 +461,16 @@ export async function areaStats(area: Area): Promise<AreaStats> {
   }
 }
 
-// Reports go to a collection only the maintainer can read (with `pnpm moderate`). The document ID is the comment ID and
-// the reporter's Auth UID, and the rules allow creating but never overwriting, so each person can report a comment
-// once. Comment text isn't copied: the moderator reads the comment itself.
-export async function reportComment(commentId: string, reason: ReportReason, details: string): Promise<void> {
-  const authUid = await ensureSignedIn()
-  try {
-    await setDoc(doc(db, REPORTS, `${commentId}_${authUid}`), {
-      commentId,
-      reason,
-      details,
-      reporterAuthUid: authUid,
-      createdAt: serverTimestamp(),
-    })
-  } catch (error) {
-    // Writing over an existing report counts as an update, which the rules refuse; so does a deleted comment
-    if (error instanceof FirebaseError && error.code === 'permission-denied') {
-      throw new UserError('Couldn’t send the report. You may have reported this comment already, or it’s been removed.')
-    }
-    throw error
-  }
+// Reports go to a collection only the maintainer can read (with `pnpm moderate`), through the relay, which allows one
+// report per person and per network for each comment. Comment text isn't copied: the moderator reads the comment.
+export async function reportComment(
+  commentId: string,
+  reason: ReportReason,
+  details: string,
+  userId: string,
+): Promise<void> {
+  const body: RelayReportRequest = { commentId, reason, details, userId }
+  await relay<null>('/report', body)
 }
 
 function isBanned(userId: string): Promise<boolean> {

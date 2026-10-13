@@ -9,6 +9,8 @@ import { mkdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { chromium } from 'playwright'
 
+import { RELAY_URL } from '../src/shared/relay.ts'
+
 // Lets Playwright see the background service worker's requests (used to check the cache)
 process.env.PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS = '1'
 
@@ -27,6 +29,15 @@ const PAGES: Record<string, string> = {
   'https://www.domain.com.au/3-42-kent-street-epping-nsw-2121-17650798': '3/42 Kent Street, Epping NSW 2121 | Domain',
   'https://www.realestate.com.au/buy': 'Real Estate & Property for Sale - realestate.com.au',
 }
+
+const CHALLENGE_STUB = `<!doctype html><script>
+  const send = message => parent.postMessage(JSON.stringify({ source: 'rec-challenge', ...message }), '*')
+  send({ type: 'interactive', on: true })
+  setTimeout(() => {
+    send({ type: 'interactive', on: false })
+    send({ type: 'token', token: 'e2e-token' })
+  }, 1500)
+</script>`
 
 function fakePage(title: string): string {
   const filler = 'Lorem ipsum dolor sit amet. '.repeat(40)
@@ -69,6 +80,17 @@ async function run(colorScheme: 'light' | 'dark') {
   await page.route(/^https:\/\/(www\.)?(realestate|domain)\.com\.au\//, route => {
     const url = route.request().url().split(/[?#]/)[0]!
     return route.fulfill({ status: 200, contentType: 'text/html', body: fakePage(PAGES[url] ?? 'Not found') })
+  })
+
+  // The comment relay's bot check, stubbed: it asks the user to tick its box for a moment, then hands over a token.
+  // Posting itself is refused, so a mistake here can never post to production.
+  let relayPosts = 0
+  await page.route(`${RELAY_URL}/challenge*`, route =>
+    route.fulfill({ status: 200, contentType: 'text/html', body: CHALLENGE_STUB }),
+  )
+  await context.route(`${RELAY_URL}/comment`, route => {
+    relayPosts++
+    return route.abort()
   })
 
   const ui = (selector: string) => page.locator(`real-estate-comments >> css=${selector}`)
@@ -361,6 +383,20 @@ async function run(colorScheme: 'light' | 'dark') {
     assert.equal(await select.inputValue(), 'newest')
   })
 
+  // Reading never contacts Cloudflare: the check starts once there's something to post
+  await step('starts the bot check once the user writes, showing it only when it needs a tick', async () => {
+    assert.equal(await ui('.challenge').count(), 0)
+    await ui('#rec-comment').fill('Bot check test. This is never posted.')
+    assert.match((await ui('.challenge').getAttribute('src')) ?? '', /\/challenge\?theme=(auto|light|dark)$/)
+    await ui('.challenge--visible').waitFor()
+    await ui('.challenge-hint').waitFor()
+    await ui('.challenge-hint').waitFor({ state: 'detached' })
+    assert.equal(await ui('.challenge--visible').count(), 0)
+    // It keeps going if the text is cleared, so it's ready when they post
+    await ui('#rec-comment').fill('')
+    assert.equal(await ui('.challenge').count(), 1)
+  })
+
   // Only the helper: nothing is uploaded or posted
   await step('adds an image link with the image helper, checking the link first', async () => {
     await ui('#rec-comment').fill('Image helper test. This is never posted.')
@@ -590,6 +626,7 @@ async function run(colorScheme: 'light' | 'dark') {
   })
 
   assert.deepEqual(errors, [], 'page errors')
+  assert.equal(relayPosts, 0, 'nothing was posted')
   await context.close()
 }
 

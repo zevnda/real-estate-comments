@@ -16,7 +16,7 @@ export const POSTING_RULES = [
   'Your comment is public. You’re responsible for it, and it may be removed without notice.',
 ]
 
-const UPDATED = '12 October 2026'
+const UPDATED = '13 October 2026'
 
 // Bump when the posting rules change in substance, so everyone agrees to the new ones before their next post
 export const POSTING_RULES_VERSION = 1
@@ -158,6 +158,25 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
         you don’t want public. Votes are stored against the same random identifier.
       </p>
 
+      <h4>Spam protection</h4>
+      <p>
+        When you start writing a comment, the extension loads a check from Cloudflare Turnstile to confirm you’re not a
+        bot. For this, Cloudflare sees your IP address and some details of your browser and device, under Cloudflare’s
+        privacy policy. It isn’t told which page you’re on. Just reading comments never contacts Cloudflare.
+      </p>
+      <p>
+        New comments, edits, reports and votes are sent through our server (which runs on Cloudflare Workers). It checks
+        the result and limits how often comments can be posted, edited, reported or voted on from one internet
+        connection. For that it keeps, for about a day, a code made from your IP address that can’t be turned back into
+        the address, with the times of those actions and which comments were reported. Your IP address itself isn’t
+        stored or added to your comment. To stop the same text being posted over and over, it also keeps a similar code
+        made from each comment’s text for a week. To allow one upvote per comment from each internet connection, it
+        keeps, while your upvote stands, a code made from the comment and your IP address, with your random identifiers.
+        So that a moderator can block someone from posting, it keeps the code made from your IP address with each
+        comment you post, and your random identifiers, for 90 days. If you’re blocked, that code is kept for as long as
+        the block lasts (60 days).
+      </p>
+
       <h4>Images in comments</h4>
       <p>
         When a comment links to an image on a supported image host (such as Imgur), the extension shows it as a
@@ -170,9 +189,8 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
       <p>
         Your random identifier, your display name, your settings (theme, panel width, sort order), whether you’ve agreed
         to the posting rules, whether you’ve seen what’s new in an update, when you installed it and whether we’ve asked
-        you for a review, your notifications, and which properties you posted on in the last day, and when (to limit
-        posting rate), are kept in your browser’s extension storage, and never leave it except as described above.
-        Comments are cached in your browser for a few minutes.
+        you for a review, and your notifications are kept in your browser’s extension storage, and never leave it except
+        as described above. Comments are cached in your browser for a few minutes.
       </p>
       <p>
         The properties on your watchlist are kept in your browser’s synced extension storage, so if your browser syncs
@@ -189,8 +207,9 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
       <h4>Who holds the data</h4>
       <p>
         Comments are stored in Google Firebase (Firestore and anonymous Firebase Authentication), on Google’s servers,
-        which may be outside Australia. Google may log technical details such as IP addresses as part of providing that
-        service; see Google’s privacy policy. We don’t use analytics, advertising or tracking services.
+        which may be outside Australia. New comments pass through Cloudflare (Workers and Turnstile) on the way. Both
+        may log technical details such as IP addresses as part of providing their services; see Google’s and
+        Cloudflare’s privacy policies. We don’t use analytics, advertising or tracking services.
       </p>
 
       <h4>Reports and support</h4>

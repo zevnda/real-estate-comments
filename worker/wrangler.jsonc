@@ -1,0 +1,21 @@
+// The comment relay's Cloudflare Worker (see CLAUDE.md, "Comment relay"). `pnpm worker:deploy` deploys it as `rec`,
+// at https://rec.zevnda.workers.dev (RELAY_URL in src/shared/relay.ts).
+//
+// Secrets (`pnpm worker:secret <NAME>`, never in the repo): TURNSTILE_SECRET, GOOGLE_SERVICE_ACCOUNT (the
+// comment-relay service account's JSON key), IP_KEY_SECRET (random, 32+ characters). For `pnpm worker:dev`, put
+// them in worker/.dev.vars (git-ignored; see .dev.vars.example).
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "rec",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": true },
+  "vars": {
+    "FIREBASE_PROJECT": "realestatecomments",
+    // Public: it's in the challenge page
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAFVFndbLtODXzlJh",
+    "TURNSTILE_HOSTNAME": "rec.zevnda.workers.dev",
+  },
+}

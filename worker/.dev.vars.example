@@ -1,0 +1,11 @@
+# Local settings for `pnpm worker:dev`. Copy to worker/.dev.vars (git-ignored).
+# Cloudflare's Turnstile test keys always pass (https://developers.cloudflare.com/turnstile/troubleshooting/testing/),
+# and report example.com rather than the relay's hostname, so the hostname check is switched off.
+TURNSTILE_SITE_KEY=1x00000000000000000000AA
+TURNSTILE_SECRET=1x0000000000000000000000000000000AA
+TURNSTILE_HOSTNAME=
+IP_KEY_SECRET=local-development-only
+# Use the Firestore emulator (`pnpm exec firebase emulators:start --only firestore --project realestatecomments`)
+# rather than production. If you remove this, put a service account key's JSON in GOOGLE_SERVICE_ACCOUNT.
+FIRESTORE_EMULATOR=http://127.0.0.1:8080
+GOOGLE_SERVICE_ACCOUNT=

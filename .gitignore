@@ -7,3 +7,5 @@
 firestore-debug.log
 firebase-debug.log
 /.shitrentals
+/worker/.dev.vars
+/worker/.wrangler

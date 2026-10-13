@@ -7,6 +7,7 @@ import { callBackground } from '../../shared/messages'
 import { COMMENT_MAX_LENGTH, USERNAME_MAX_LENGTH, validateCommentText } from '../../shared/validation'
 import { errorMessage, useStored } from '../hooks'
 import { excerpt } from '../threads'
+import { useChallenge } from './Challenge'
 import { FormattingHelp } from './FormattingHelp'
 import { CloseIcon, ReplyIcon } from './icons'
 import { PostingRulesDialog, usePostingRules } from './Legal'
@@ -45,6 +46,13 @@ export function Composer({ property, draft, onDraft, onPosted }: ComposerProps) 
   const [touched, setTouched] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const textarea = useRef<HTMLTextAreaElement>(null)
+  const [theme] = useStored('theme', 'system')
+  // The bot check starts once there's something to post, and keeps going after that
+  const [writing, setWriting] = useState(false)
+  useEffect(() => {
+    if (text.trim()) setWriting(true)
+  }, [text])
+  const challenge = useChallenge(writing, theme)
 
   // App clears the draft on the next listing; clear what's left of the last attempt too. Only on an actual change,
   // not on mount (e.g. switching back to the Property tab).
@@ -70,10 +78,12 @@ export function Composer({ property, draft, onDraft, onPosted }: ComposerProps) 
     setPosting(true)
     setError(null)
     try {
+      const turnstileToken = await challenge.token()
       const comment = await callBackground('createComment', {
         property,
         text,
         username: name,
+        turnstileToken,
         ...(replyTo && { replyTo: replyTo.id }),
       })
       if (name.trim() !== savedName) saveName(name.trim())
@@ -176,6 +186,10 @@ export function Composer({ property, draft, onDraft, onPosted }: ComposerProps) 
           {posting ? 'Posting…' : replyTo ? 'Reply' : 'Post'}
         </button>
       </div>
+      {challenge.interactive && (
+        <p class='composer-hint challenge-hint'>Tick the box below to show you’re not a bot, then post.</p>
+      )}
+      {challenge.frame}
       {error && (
         <p class='inline-error' role='alert'>
           {error}

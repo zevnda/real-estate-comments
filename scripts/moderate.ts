@@ -12,7 +12,7 @@
 // websites open in your browser can't use it.
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import type { DocumentSnapshot, Query, Timestamp } from 'firebase-admin/firestore'
+import type { DocumentSnapshot, Query } from 'firebase-admin/firestore'
 import type { PropertyLinks } from '../src/shared/property.ts'
 
 import { spawn } from 'node:child_process'
@@ -20,7 +20,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { cert, initializeApp } from 'firebase-admin/app'
-import { FieldValue, getFirestore } from 'firebase-admin/firestore'
+import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
 
 import { canonicalAddress, propertyLinks, titleCase } from '../src/shared/property.ts'
 import { reportReasonLabel } from '../src/shared/reports.ts'
@@ -29,6 +29,14 @@ import { cleanUsername, USERNAME_MAX_LENGTH, validateCommentText } from '../src/
 const COMMENTS = 'listingcomments'
 const REPORTS = 'reports'
 const BANNED_USERS = 'bannedUsers'
+// Written by the comment relay: who posted each comment (network key, Auth UID, `uid`), kept 90 days
+const COMMENT_META = 'commentMeta'
+// Read by the comment relay: bans by network, until `expireAt`
+const NETWORK_BANS = 'networkBans'
+// How long a network stays banned. Home addresses change hands and mobile ones are shared, so not for ever.
+const NETWORK_BAN_DAYS = 60
+// The poster's recent comments looked at for their networks when banning
+const MAX_META = 50
 const MAX_REPORTS = 500
 const MAX_BANS = 1000
 // Comments per page in the Comments view, and the most shown for one poster, property or thread
@@ -67,8 +75,21 @@ interface CommentDoc {
 
 interface BanDoc {
   uid: string
+  // Their Firebase Auth UIDs, which the comment relay also checks (missing on bans from before it)
+  authUids?: string[]
   bannedAt?: Timestamp
   commentId?: string
+}
+
+interface CommentMetaDoc {
+  networkKey: string
+  authUid: string
+  uid: string
+}
+
+interface NetworkBanDoc {
+  uid: string
+  expireAt: Timestamp
 }
 
 // A comment as the page shows it
@@ -225,11 +246,27 @@ async function listComments(params: URLSearchParams): Promise<{ comments: Commen
 }
 
 async function listBans() {
-  const snapshot = await db.collection(BANNED_USERS).limit(MAX_BANS).get()
-  return snapshot.docs
+  const [bans, networkBans] = await Promise.all([
+    db.collection(BANNED_USERS).limit(MAX_BANS).get(),
+    db.collection(NETWORK_BANS).limit(MAX_BANS).get(),
+  ])
+  // Each poster's network bans: how many, and when the last one ends
+  const networks = new Map<string, { count: number; until: number }>()
+  for (const doc of networkBans.docs) {
+    const { uid, expireAt } = doc.data() as NetworkBanDoc
+    if (expireAt.toMillis() < Date.now()) continue
+    const entry = networks.get(uid) ?? { count: 0, until: 0 }
+    networks.set(uid, { count: entry.count + 1, until: Math.max(entry.until, expireAt.toMillis()) })
+  }
+  return bans.docs
     .map(doc => {
       const ban = doc.data() as BanDoc
-      return { uid: ban.uid, bannedAt: ban.bannedAt?.toMillis() ?? null, commentId: ban.commentId ?? null }
+      return {
+        uid: ban.uid,
+        bannedAt: ban.bannedAt?.toMillis() ?? null,
+        commentId: ban.commentId ?? null,
+        networks: networks.get(ban.uid) ?? null,
+      }
     })
     .sort((a, b) => (b.bannedAt ?? 0) - (a.bannedAt ?? 0))
 }
@@ -248,19 +285,55 @@ async function closeReports(commentIds: string[], status: Exclude<ReportStatus, 
   await batch.commit()
 }
 
-async function ban(uid: string, commentId: string | null) {
-  const existing = await db.collection(BANNED_USERS).where('uid', '==', uid).limit(1).get()
-  if (!existing.empty) return
-  // The extension looks bans up by `uid`; the other fields are for your reference
-  await db
-    .collection(BANNED_USERS)
-    .add({ uid, bannedAt: FieldValue.serverTimestamp(), ...(commentId ? { commentId } : {}) })
+// Bans a poster by their `uid` (what the extension checks), and, for the comment relay, by their Firebase Auth UIDs
+// and the networks they've posted from: everything recorded in `commentMeta` for this comment and their other
+// comments from the last 90 days. A reinstall changes both IDs but not the network, so the network ban is what keeps
+// them out; it lasts NETWORK_BAN_DAYS. Banning again adds anything new and restarts the network bans. Returns how many
+// networks were banned (0 for posters with no comments through the relay in the last 90 days).
+async function ban(uid: string, commentId: string | null): Promise<number> {
+  const [existing, metaForUid, metaForComment] = await Promise.all([
+    db.collection(BANNED_USERS).where('uid', '==', uid).limit(1).get(),
+    db.collection(COMMENT_META).where('uid', '==', uid).limit(MAX_META).get(),
+    commentId ? db.collection(COMMENT_META).doc(commentId).get() : null,
+  ])
+  const meta = [...metaForUid.docs, ...(metaForComment?.exists ? [metaForComment] : [])].map(
+    doc => doc.data() as CommentMetaDoc,
+  )
+  const authUids = [...new Set(meta.map(entry => entry.authUid))]
+  const networkKeys = [...new Set(meta.map(entry => entry.networkKey))]
+
+  const batch = db.batch()
+  // The extension looks bans up by `uid`, the relay by `uid` and `authUids`; the other fields are for your reference
+  if (existing.empty) {
+    batch.create(db.collection(BANNED_USERS).doc(), {
+      uid,
+      authUids,
+      bannedAt: FieldValue.serverTimestamp(),
+      ...(commentId ? { commentId } : {}),
+    })
+  } else if (authUids.length) {
+    batch.update(existing.docs[0]!.ref, { authUids: FieldValue.arrayUnion(...authUids) })
+  }
+  const expireAt = Timestamp.fromMillis(Date.now() + NETWORK_BAN_DAYS * 24 * 60 * 60 * 1000)
+  for (const networkKey of networkKeys) {
+    batch.set(db.collection(NETWORK_BANS).doc(networkKey), {
+      uid,
+      bannedAt: FieldValue.serverTimestamp(),
+      expireAt,
+      ...(commentId ? { commentId } : {}),
+    })
+  }
+  await batch.commit()
+  return networkKeys.length
 }
 
 async function unban(uid: string) {
-  const bans = await db.collection(BANNED_USERS).where('uid', '==', uid).get()
+  const [bans, networkBans] = await Promise.all([
+    db.collection(BANNED_USERS).where('uid', '==', uid).get(),
+    db.collection(NETWORK_BANS).where('uid', '==', uid).get(),
+  ])
   const batch = db.batch()
-  for (const doc of bans.docs) batch.delete(doc.ref)
+  for (const doc of [...bans.docs, ...networkBans.docs]) batch.delete(doc.ref)
   await batch.commit()
 }
 
@@ -391,8 +464,9 @@ const actions: Record<string, Handler> = {
   },
   async ban(body) {
     const uid = userId(body.uid)
-    await ban(uid, body.commentId ? commentId(body.commentId) : null)
-    console.log(`ban: ${uid}`)
+    const networks = await ban(uid, body.commentId ? commentId(body.commentId) : null)
+    console.log(`ban: ${uid} (${networks} network${networks === 1 ? '' : 's'})`)
+    return { networks }
   },
   async purge(body) {
     const uid = userId(body.uid)
