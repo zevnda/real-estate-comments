@@ -349,6 +349,13 @@ describe('live site titles', () => {
       address: '72 somerset street',
       match: 'full',
     },
+    // Homely's test listing, which is never taken down
+    {
+      url: 'https://www.homely.com.au/homes/1-great-central-road-warburton-wa-6431/7664071',
+      title: '1 Great Central Road, Warburton WA 6431 - House For Sale',
+      address: '1 great central road',
+      match: 'full',
+    },
     {
       url: 'https://www.homely.com.au/homes/20-lydwin-crescent-east-toowoomba-qld-4350/13595229',
       title: '20 Lydwin Crescent, East Toowoomba QLD 4350 - House For Sale',

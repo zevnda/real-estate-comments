@@ -27,6 +27,8 @@ const DEFAULT_SEARCHES = [
   'https://www.homely.com.au/for-rent/epping-nsw-2121/real-estate',
   'https://www.homely.com.au/sold-properties/epping-nsw-2121',
 ]
+// Always checked too: Homely's test listing, which is never taken down (search results come and go)
+const PERMANENT_PAGES = ['https://www.homely.com.au/homes/1-great-central-road-warburton-wa-6431/7664071']
 const LISTINGS_PER_SEARCH = 2
 const PAGE_WAIT_MS = 12_000
 
@@ -161,6 +163,7 @@ async function main() {
 
     const urls = process.argv.slice(2).filter(arg => arg !== '--')
     if (!urls.length) {
+      urls.push(...PERMANENT_PAGES)
       for (const search of DEFAULT_SEARCHES) {
         const tab = await chrome.open(search)
         await sleep(PAGE_WAIT_MS)
