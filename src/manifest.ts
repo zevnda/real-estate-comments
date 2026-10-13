@@ -7,6 +7,8 @@ const SITES = [
   'https://realestate.com.au/*',
   'https://www.domain.com.au/*',
   'https://domain.com.au/*',
+  'https://www.homely.com.au/*',
+  'https://homely.com.au/*',
 ]
 
 const ICONS = {
@@ -20,7 +22,8 @@ export function createManifest(browser: Browser, version: string): Record<string
     manifest_version: 3,
     name: 'Real Estate Comments',
     version,
-    description: 'Read and share honest comments about properties on realestate.com.au and domain.com.au',
+    description:
+      'Read and share honest comments about properties on realestate.com.au, domain.com.au and homely.com.au',
     icons: ICONS,
     permissions: ['storage'],
     host_permissions: SITES,

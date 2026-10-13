@@ -24,6 +24,8 @@ const DEFAULT_SEARCHES = [
   'https://www.domain.com.au/sold-listings/epping-nsw-2121/',
   'https://www.realestate.com.au/rent/in-epping,+nsw+2121/list-1',
   'https://www.realestate.com.au/sold/in-epping,+nsw+2121/list-1',
+  'https://www.homely.com.au/for-rent/epping-nsw-2121/real-estate',
+  'https://www.homely.com.au/sold-properties/epping-nsw-2121',
 ]
 const LISTINGS_PER_SEARCH = 2
 const PAGE_WAIT_MS = 12_000

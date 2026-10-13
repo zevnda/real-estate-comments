@@ -13,3 +13,4 @@
 - Sort comments by newest or top
 - Your name is remembered for next time (still optional)
 - Clearer messages when something goes wrong, with a retry button
+- Now works on homely.com.au listings too, sharing the same comments as realestate.com.au and domain.com.au

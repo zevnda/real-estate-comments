@@ -8,7 +8,7 @@ Guidance for working on Real Estate Comments. Read this before changing anything
 
 ## What the extension does
 
-A browser extension that adds a comment section to property pages on **realestate.com.au** and **domain.com.au**, so renters and buyers can share what a property is really like. Users can read, post, upvote and delete their own comments. Off property pages, the panel shows the most recent comments across all properties.
+A browser extension that adds a comment section to property pages on **realestate.com.au**, **domain.com.au** and **homely.com.au**, so renters and buyers can share what a property is really like. Users can read, post, upvote and delete their own comments. Off property pages, the panel shows the most recent comments across all properties.
 
 It ships for **Chrome** and **Firefox**, both **Manifest V3**, from one codebase. Published on the Chrome Web Store and Firefox Add-ons (links in README.md). Comments are stored in **Firebase** (Firestore, project `realestatecomments`) with anonymous auth.
 
@@ -87,6 +87,8 @@ This is where 1.x was unreliable, so be careful here.
 | domain.com.au     | sold listing       | same URL as the listing                                                                             |
 | domain.com.au     | property profile   | `/property-profile/46-stanley-road-epping-nsw-2121`                                                 |
 | domain.com.au     | expired listing    | redirects to the suburb's search page                                                               |
+| homely.com.au     | every listing      | `/homes/20-lydwin-crescent-east-toowoomba-qld-4350/13595229` (rent, sale, sold, leased: same URL)   |
+| homely.com.au     | removed listing    | HTTP 410, no address on the page                                                                    |
 
 **Titles** (`parseAddressFromTitle`), same pages in the same order:
 
@@ -97,15 +99,19 @@ This is where 1.x was unreliable, so be careful here.
 - domain.com.au rent/sale: `2/5 Chester Street, Epping NSW 2121 - Apartment For Rent | Domain`, or `3 Helen Street, Epping NSW 2121 | Domain`
 - domain.com.au sold: `Sold 46 Stanley Road, Epping NSW 2121 on 10 Oct 2026 - 2021146795 | Domain`
 - domain.com.au profile: `46 Stanley Road, Epping | Property Value Estimate & History | Domain` (no state/postcode; taken from the URL)
+- homely.com.au rent/sale: `20 Lydwin Crescent, East Toowoomba QLD 4350 - House For Sale`
+- homely.com.au sold: `Sold Unit 11/30-34 Cambridge Street, Epping NSW 2121 - Apr 19, 2026`, or `Sold House 114a Kent Street, …` (the property type before the address is trimmed off using the URL)
 
 realestate.com.au listing URLs only carry state and suburb; every other format carries the address slug, state and postcode. Anything else on those sites is a "browse" page (recent comments only).
+
+**homely.com.au** (checked against the homely-web source and the live site in October 2026): every listing is `/homes/<address slug>/<listing ID>`; the slug is the full address kebab-cased, so matches are `full`. It's a Next.js Pages Router site that navigates client-side and updates the title on navigation. It has **no property profile pages**, so `propertyLinks` doesn't link to Homely and comments can only be left on its live listings. Its pages also carry schema.org `Residence`/`PostalAddress` JSON-LD and the address in the `<h1>` (not used). Bot gating there only covers the search map, so `pnpm live-check` works.
 
 How a property's pages relate (why the key must come from the address, never a listing ID):
 
 - **realestate.com.au deletes a listing's page when it's sold or leased** and creates a sold listing with a **new ID** under `/sold/`. Old IDs 404 at both `/property-…` and `/sold/property-…`, with no address anywhere on the page, so there's nothing to show there.
 - **domain.com.au keeps the listing URL when it sells** but changes the title to "Sold … on <date> - <id>". The "Sold" prefix is stripped (`STATUS_PREFIX`). 1.x didn't strip it, so it may have saved sold-page comments under "sold <address>"; that form is still looked up (`PropertyInput.titleAddress`).
 - **Spellings differ between pages of the same site**: realestate.com.au listing "72 Somerset St", profile "72 Somerset Street", profile URL "46-stanley-rd". Normalization (see Data model) gives them one key.
-- **Comments cross sites**: comments posted through realestate.com.au show on domain.com.au's pages for the property and vice versa (verified with real comments).
+- **Comments cross sites**: comments posted through realestate.com.au show on domain.com.au's pages for the property and vice versa (verified with real comments). homely.com.au uses the same keys (419/19 Epping Road was listed on both realestate.com.au and Homely when checked).
 
 Other things the live sites showed:
 
@@ -134,7 +140,7 @@ Both sites block automation. curl and WebFetch get 403/429, and so does any brow
 - It loads `dist/chrome` with the `Extensions.loadUnpacked` CDP command.
 - It opens tabs without attaching, and attaches only after the page has loaded, to read the page and the extension's panel.
 
-By default it follows two listings from each site's Epping NSW rental and sold searches; pass URLs to check specific pages. It's read-only (it opens the panel but never posts), and it fails if the panel's address doesn't match what `identifyProperty` expects. A Chrome window opens while it runs. Keep the volume to a handful of pages.
+By default it follows two listings from each of the three sites' Epping NSW rental and sold searches; pass URLs to check specific pages. It's read-only (it opens the panel but never posts), and it fails if the panel's address doesn't match what `identifyProperty` expects. A Chrome window opens while it runs. Keep the volume to a handful of pages.
 
 When a site changes its titles, run `pnpm live-check`, add the new format to `parseAddressFromTitle`, and add cases to the "live site titles" and "one property, every page" tests in `tests/property.test.ts`. Prefer adding over replacing, since old formats may still be served.
 
@@ -280,7 +286,7 @@ pnpm sign           # signed Firefox .xpi for testing; uploads to AMO, only when
 - **Style:** Prettier config in `prettier.config.js` (2 spaces, no semicolons, single quotes, 120 columns, sorted imports). Short `//` comments explain _why_, above the code they describe. No JSDoc blocks.
 - **UI:** Preact function components and hooks, plain CSS in `styles.css`. **Colours are only ever tokens** defined on `:host` as `light-dark(<light>, <dark>)` (warm neutrals, with the extension's blue as the only accent: `--accent`, the launcher's colour since 1.x; the launcher keeps the filled chat-bubble `BrandIcon`); never hard-code a colour in a rule. The theme follows the system until the user picks one with the header's sun/moon button (`theme` in storage), which sets `data-theme` on the host and with it `color-scheme`. `light-dark()` is why the minimum versions are Chrome 123 / Firefox 128. Dialogs over the panel use `.overlay` (backdrop, absolutely positioned inside `.panel`) + `.dialog`, close on backdrop click and Esc, and stop Esc from also closing the panel; see `FormattingHelp.tsx`. While the panel is open, a slight dark `.page-backdrop` covers the page; clicking it, or anywhere outside the panel, closes the panel (the backdrop handles its own clicks; a capture-phase `pointerdown` listener in `App`, checked with `composedPath()` against the shadow host, catches anything else). The panel opens at its maximum width (`MAX_WIDTH`, capped to the window) until the user drags its edge; after that their width (`panelWidth`) is used. Icons are inline Lucide paths in `icons.tsx`. **Pressing a control must never start a text selection on the page**: buttons, the launcher and the backdrop have `user-select: none`, and the launcher and backdrop also `preventDefault()` on `mousedown`. In Firefox, pressing a control that then disappears (the launcher, when the panel opens) left a selection drag pending, and the next click (on the backdrop, over page text) completed it, selecting a large part of the page. Automated input (Playwright in Chromium and Firefox, CDP in real Chrome) doesn't reproduce this; only real mouse input in Firefox does, so check changes here by hand in Firefox (the fix was confirmed that way on 2026-10-11). Never use `alert`/`confirm` (they block the page and the browser); show messages inline. Keep it keyboard accessible (Esc closes the panel, visible focus).
 - **User-facing text:** plain Australian English, sentence case, curly apostrophes (’) in UI strings.
-- **Permissions:** `storage` plus host permissions for the two sites. Keep them minimal: every permission needs justifying in store review, and adding one prompts existing users on update. Firestore and Auth endpoints don't need host permissions (they allow CORS).
+- **Permissions:** `storage` plus host permissions for the three sites. Keep them minimal: every permission needs justifying in store review, and adding one prompts existing users on update. Firestore and Auth endpoints don't need host permissions (they allow CORS).
 - **Manifests:** edit `src/manifest.ts` only. Chrome uses `background.service_worker`; Firefox uses `background.scripts` (event page) and must keep `browser_specific_settings.gecko.id = real-estate-comments@zevnda.com`.
 - **Bundles are not minified** so store reviewers can read them.
 - **TypeScript version:** pinned to 6.0 because typescript-eslint doesn't support 7.x yet.
