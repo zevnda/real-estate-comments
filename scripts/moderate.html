@@ -393,6 +393,14 @@
         white-space: pre-wrap;
         overflow-wrap: anywhere;
       }
+      .text mark {
+        padding: 0 2px;
+        border-radius: 3px;
+        background: var(--warn-bg);
+        color: var(--warn);
+        font-weight: 600;
+        box-shadow: inset 0 -1px 0 var(--warn);
+      }
       .gone {
         margin: 0;
         color: var(--muted);
@@ -611,6 +619,53 @@
       // How long a ban covers the poster's internet connections: NETWORK_BAN_DAYS in moderate.ts
       const NETWORK_BAN_DAYS = 60
       const isBanned = uid => !!uid && state.bans.some(ban => ban.uid === uid)
+
+      // Words that often mean a comment is about a person rather than the property (the posting rules' line), so
+      // they're highlighted in every comment. Covers plurals, possessives, US spellings and common misspellings.
+      const WATCH_WORDS = [
+        String.raw`owner(?:s|ship)?`,
+        String.raw`land[\s-]?(?:lord|lady|ladies)s?`,
+        String.raw`lessors?`,
+        String.raw`n(?:ei|ie|e)g?h?t?bou?rs?`, // neighbour, neighbor, nieghbour, neibour, neightbour
+        String.raw`real[\s-]?estates?`,
+        String.raw`agen(?:t|ts|cy|cies)`,
+        String.raw`(?:property|building|strata)[\s-]?manag(?:er|ers|ement)`,
+        String.raw`manag(?:er|ers|ement)`,
+        String.raw`strata`,
+        String.raw`body[\s-]?corp(?:orate)?`,
+        String.raw`caretakers?`,
+        String.raw`(?:previous|old|former|current|other)\s+tenants?`,
+        String.raw`(?:mr|mrs|ms)\.?(?=\s+[a-z])`, // a title before a name
+        // Agencies people name
+        String.raw`ray\s+white`,
+        String.raw`lj\s+hooker`,
+        String.raw`mc\s?grath`,
+        String.raw`harcourts`,
+        String.raw`belle\s+property`,
+        String.raw`first\s+national`,
+        String.raw`century\s+21`,
+        String.raw`raine\s*(?:&|and)\s*horne`,
+        String.raw`barry\s+plant`,
+        String.raw`jellis\s+craig`,
+        String.raw`nelson\s+alexander`,
+        String.raw`marshall\s+white`,
+        String.raw`richardson\s*(?:&|and)\s*wrench`,
+        String.raw`laing\s*(?:\+|&|and)\s*simmons`,
+        String.raw`starr\s+partners`,
+      ]
+      const WATCH_PATTERN = new RegExp(String.raw`\b(?:${WATCH_WORDS.join('|')})\b`, 'gi')
+
+      // The text with watch words in <mark>s, built from text nodes so it stays safe
+      function highlighted(text) {
+        const fragment = document.createDocumentFragment()
+        let last = 0
+        for (const match of text.matchAll(WATCH_PATTERN)) {
+          fragment.append(text.slice(last, match.index), el('mark', { textContent: match[0] }))
+          last = match.index + match[0].length
+        }
+        fragment.append(text.slice(last))
+        return fragment
+      }
       const openReportsFor = id =>
         state.reports.find(item => item.commentId === id)?.reports.filter(report => report.status === 'open').length ??
         0
@@ -946,7 +1001,7 @@
             isBanned(comment.uid) && el('span', { className: 'badge danger', textContent: 'Poster banned' }),
             open > 0 && el('span', { className: 'badge warn', textContent: plural(open, 'open report') }),
           ),
-          el('p', { className: 'text', textContent: comment.text }),
+          el('p', { className: 'text' }, highlighted(comment.text)),
         )
       }
 
