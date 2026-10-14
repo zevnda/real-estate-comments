@@ -5,7 +5,7 @@
 
 This browser extension adds a comment section to [realestate.com.au](https://www.realestate.com.au), [domain.com.au](https://www.domain.com.au) and [homely.com.au](https://www.homely.com.au) listings, so real renters and buyers can share their honest experiences and thoughts of a property, not just the agent's sales pitch.
 
-<img src="./public/example.png" width="800" alt="A realestate.com.au listing with the comments panel open"><br />
+<img src="./public/example.png" width="650" alt="A realestate.com.au listing with the comments panel open"><br />
 </div>
 
 # Installation
