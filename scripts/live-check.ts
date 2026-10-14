@@ -8,11 +8,14 @@
 // Why not Playwright: both sites block browsers that have a debugger attached while the page loads (realestate.com.au
 // answers 429, domain.com.au "Access Denied"). This drives Chrome over --remote-debugging-pipe, opens tabs without
 // attaching, and only attaches after the page has loaded, to read it. Keep the volume low: a handful of pages.
+//
+// It loads a copy of dist/chrome with the optional sites (homely.com.au) made required, since a fresh profile has them
+// off and nothing here can click the browser's permission prompt.
 import type { ChildProcess } from 'node:child_process'
 import type { Readable, Writable } from 'node:stream'
 
 import { spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -132,6 +135,20 @@ const READ_PAGE = `(async () => {
 
 const LISTING_LINKS = `[...new Set([...document.querySelectorAll('a[href]')].map(a => a.href.split('?')[0]))]`
 
+// Turns the optional sites on for this run: into host_permissions, and the content script's matches
+function requireOptionalSites(path: string) {
+  const manifest = JSON.parse(readFileSync(path, 'utf8')) as {
+    host_permissions: string[]
+    optional_host_permissions?: string[]
+    content_scripts: { matches: string[] }[]
+  }
+  const optional = manifest.optional_host_permissions ?? []
+  manifest.host_permissions.push(...optional)
+  manifest.content_scripts[0]!.matches.push(...optional)
+  delete manifest.optional_host_permissions
+  writeFileSync(path, JSON.stringify(manifest, null, 2))
+}
+
 async function main() {
   const chromePath = CHROME_PATHS.find(path => path && existsSync(path))
   if (!chromePath) throw new Error('Chrome not found. Set CHROME_PATH.')
@@ -139,6 +156,9 @@ async function main() {
   if (!existsSync(join(extension, 'manifest.json'))) throw new Error('Run `pnpm build` first.')
 
   const profile = mkdtempSync(join(tmpdir(), 'rec-live-'))
+  const unpacked = mkdtempSync(join(tmpdir(), 'rec-live-extension-'))
+  cpSync(extension, unpacked, { recursive: true })
+  requireOptionalSites(join(unpacked, 'manifest.json'))
   const process_ = spawn(
     chromePath,
     [
@@ -159,7 +179,7 @@ async function main() {
 
   let failures = 0
   try {
-    await chrome.send('Extensions.loadUnpacked', { path: extension })
+    await chrome.send('Extensions.loadUnpacked', { path: unpacked })
 
     const urls = process.argv.slice(2).filter(arg => arg !== '--')
     if (!urls.length) {
@@ -204,6 +224,7 @@ async function main() {
     process_.kill()
     await sleep(1000)
     rmSync(profile, { recursive: true, force: true })
+    rmSync(unpacked, { recursive: true, force: true })
   }
   console.log(failures ? `\n${failures} page(s) failed` : '\nAll pages OK')
   process.exitCode = failures ? 1 : 0

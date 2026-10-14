@@ -153,7 +153,7 @@ export function useRecentComments(enabled: boolean) {
   return { state, reload, refreshing, hasMore, loadMore, loadingMore: more.loading, moreError: more.error }
 }
 
-// A value kept in extension storage, so it's shared by every realestate.com.au and domain.com.au tab
+// A value kept in extension storage, so it's shared by every tab the extension runs in
 export function useStored<K extends keyof StoredData>(key: K, fallback: StoredData[K]) {
   const [value, setValue] = useState<StoredData[K]>(fallback)
   const [loaded, setLoaded] = useState(false)

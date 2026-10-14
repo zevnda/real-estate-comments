@@ -28,6 +28,8 @@
   --heart: light-dark(#e11d48, #fb7185);
   --danger-soft: light-dark(#fef3f2, #3a1714);
   --backdrop: light-dark(rgba(28, 25, 23, 0.32), rgba(0, 0, 0, 0.55));
+  /* Over the page while the panel is open: the same in both themes, since it dims the site, not the panel */
+  --page-backdrop: rgba(0, 0, 0, 0.45);
   /* The image lightbox is dark in both themes, like a photo viewer */
   --lightbox-backdrop: rgba(12, 11, 10, 0.92);
   --lightbox-text: #f3f1ee;
@@ -152,7 +154,7 @@ button:disabled {
   position: fixed;
   inset: 0;
   z-index: 2147482999;
-  background: light-dark(rgba(28, 25, 23, 0.25), rgba(0, 0, 0, 0.45));
+  background: var(--page-backdrop);
   animation: fade-in 0.2s ease-out;
 }
 

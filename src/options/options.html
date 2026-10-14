@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Real Estate Comments: sites</title>
+    <style>
+      /* The same tokens as the panel (src/content/ui/styles.css) */
+      :root {
+        color-scheme: light dark;
+        --accent: light-dark(#2563eb, #3b82f6);
+        --accent-hover: light-dark(#1d4ed8, #60a5fa);
+        --on-accent: #ffffff;
+        --surface: light-dark(#ffffff, #1b1a18);
+        --surface-muted: light-dark(#f3f6fb, #141311);
+        --border: light-dark(#e2e8f0, #302d29);
+        --border-strong: light-dark(#cbd5e1, #45403a);
+        --text: light-dark(#1c1917, #f3f1ee);
+        --text-muted: light-dark(#5c5650, #b3ada5);
+        --success: light-dark(#15803d, #4ade80);
+        --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      }
+      :root[data-theme='light'] {
+        color-scheme: light;
+      }
+      :root[data-theme='dark'] {
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 40px 16px;
+        background: var(--surface-muted);
+        color: var(--text);
+        font: 15px/1.5 var(--font);
+      }
+      main {
+        max-width: 560px;
+        margin: 0 auto;
+        padding: 28px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: var(--surface);
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 22px;
+      }
+      h2 {
+        margin: 28px 0 8px;
+        color: var(--text-muted);
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      p {
+        margin: 0;
+        color: var(--text-muted);
+      }
+      ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      li {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px 16px;
+        padding: 12px 0;
+        border-top: 1px solid var(--border);
+      }
+      li:first-child {
+        border-top: none;
+      }
+      .name {
+        font-weight: 600;
+      }
+      .state {
+        color: var(--text-muted);
+        font-size: 14px;
+      }
+      .state.on {
+        color: var(--success);
+      }
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      button {
+        padding: 6px 14px;
+        border: 1px solid var(--accent);
+        border-radius: 8px;
+        background: var(--accent);
+        color: var(--on-accent);
+        font: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        user-select: none;
+      }
+      button:hover {
+        border-color: var(--accent-hover);
+        background: var(--accent-hover);
+      }
+      button.secondary {
+        border-color: var(--border-strong);
+        background: none;
+        color: var(--text);
+      }
+      button.secondary:hover {
+        background: var(--surface-muted);
+      }
+      button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .note {
+        margin-top: 24px;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Sites</h1>
+      <p>
+        Real Estate Comments shows comments on these property sites. A property has the same comments on every site, so
+        you can read and post wherever you see it listed.
+      </p>
+
+      <h2>Always on</h2>
+      <ul id="required"></ul>
+
+      <h2>Optional</h2>
+      <ul id="optional"></ul>
+
+      <p class="note">
+        Turning a site on lets the extension read its listing pages, the same as the sites that are always on. Your
+        browser asks you to confirm. You can also turn a site on by clicking the extension’s toolbar button on one of
+        its listings.
+      </p>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>

@@ -7,7 +7,7 @@ import { ext } from '../shared/ext'
 import { log } from '../shared/log'
 import { getSite, STATES } from '../shared/property'
 import { isReportReason, REPORT_DETAILS_MAX_LENGTH } from '../shared/reports'
-import { SITE_MATCHES } from '../shared/sites'
+import { REQUIRED_SITE_MATCHES } from '../shared/sites'
 import { getStored, setStored } from '../shared/storage'
 import { isPropertyInput, validateCommentText } from '../shared/validation'
 import {
@@ -24,6 +24,7 @@ import {
   UserError,
 } from './comments'
 import { getUserId } from './identity'
+import { optionalSiteFor, syncOptionalSites } from './sites'
 
 // The background script owns all Firestore access, so there's one signed-in session and the page can't interfere
 // with it. Listeners are registered synchronously at the top level, as MV3 service workers require.
@@ -104,6 +105,11 @@ const handlers: Handlers = {
     return replyNotices(await getUserId(), fresh === true)
   },
 
+  async openSites() {
+    await ext.runtime.openOptionsPage()
+    return null
+  },
+
   async setBadge({ count }, sender) {
     const tabId = sender.tab?.id
     if (tabId === undefined) return null
@@ -133,31 +139,53 @@ ext.runtime.onMessage.addListener((message: BackgroundRequest, sender, sendRespo
   return true
 })
 
-// Whether the user has let the extension run on the two sites. Firefox lets users switch Manifest V3 site access off
-// (and Chrome has "on click" access); without it the content script never runs and the extension silently does
+// Whether the user has let the extension run on the required sites. Firefox lets users switch Manifest V3 site access
+// off (and Chrome has "on click" access); without it the content script never runs and the extension silently does
 // nothing. Null until checked, e.g. just after the background has started.
 let siteAccess: boolean | null = null
-const checkSiteAccess = () =>
-  ext.permissions.contains({ origins: SITE_MATCHES }).then(
-    granted => (siteAccess = granted),
-    () => {},
-  )
+// The optional sites the user has turned on (by their matches' first pattern), for the toolbar button
+const optionalAccess = new Set<string>()
+const checkSiteAccess = async () => {
+  try {
+    siteAccess = await ext.permissions.contains({ origins: REQUIRED_SITE_MATCHES })
+    const granted = await ext.permissions.getAll()
+    optionalAccess.clear()
+    for (const origin of granted.origins ?? []) optionalAccess.add(origin)
+  } catch {
+    // Left as it was; the toolbar button asks again if needed
+  }
+}
 void checkSiteAccess()
-ext.permissions.onAdded.addListener(() => void checkSiteAccess())
-ext.permissions.onRemoved.addListener(() => void checkSiteAccess())
+// Keep the optional sites' content script in step with what's turned on: on every start (the registration may not
+// survive a browser restart in Firefox) and whenever access changes, including from the browser's own settings
+void syncOptionalSites()
+ext.permissions.onAdded.addListener(() => {
+  void checkSiteAccess()
+  void syncOptionalSites(true)
+})
+ext.permissions.onRemoved.addListener(() => {
+  void checkSiteAccess()
+  void syncOptionalSites()
+})
 
 // The toolbar button (and its keyboard shortcut) opens or closes the panel on supported sites. Without site access, it
-// asks for it first.
+// asks for it first. On an optional site the user hasn't turned on, it offers to turn that site on (activeTab is what
+// lets it see which site the tab is on).
 ext.action.onClicked.addListener(tab => {
   if (tab.id === undefined) return
   const tabId = tab.id
-  if (siteAccess === true) return togglePanel(tabId)
+  const optional = optionalSiteFor(tab.url)
+  const origins = optional ? optional.matches : REQUIRED_SITE_MATCHES
+  const granted = optional ? optional.matches.every(match => optionalAccess.has(match)) : siteAccess === true
+  if (granted) return togglePanel(tabId)
   // Asked for straight away, still inside the click: Firefox only allows the prompt from a user action. If access is
-  // already granted (siteAccess just wasn't known yet), this resolves without a prompt.
-  ext.permissions.request({ origins: SITE_MATCHES }).then(
-    granted => {
-      siteAccess = granted
-      if (granted) void startOnTab(tabId)
+  // already granted (it just wasn't known yet), this resolves without a prompt.
+  ext.permissions.request({ origins }).then(
+    async granted => {
+      if (!granted) return
+      await checkSiteAccess()
+      if (optional) await syncOptionalSites(true)
+      await startOnTab(tabId)
     },
     (error: unknown) => log.warn('Requesting site access failed:', error),
   )
@@ -166,7 +194,7 @@ ext.action.onClicked.addListener(tab => {
 function togglePanel(tabId: number) {
   const message: ContentMessage = { type: 'togglePanel' }
   ext.tabs.sendMessage(tabId, message).catch(() => {
-    // No content script in this tab: it isn't realestate.com.au or domain.com.au
+    // No content script in this tab: it isn't a supported site
   })
 }
 

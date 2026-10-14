@@ -1,4 +1,4 @@
-import { SITE_MATCHES as SITES } from './shared/sites.ts'
+import { OPTIONAL_SITE_MATCHES, REQUIRED_SITE_MATCHES } from './shared/sites.ts'
 
 // Builds manifest.json for each browser. This is the only manifest source; the version comes from package.json.
 
@@ -15,11 +15,17 @@ export function createManifest(browser: Browser, version: string): Record<string
     manifest_version: 3,
     name: 'Real Estate Comments',
     version,
+    // At most 132 characters (the Chrome Web Store's limit), so optional sites aren't named one by one
     description:
-      'Read and share honest comments about properties on realestate.com.au, domain.com.au and homely.com.au',
+      'Read and share honest comments about properties on realestate.com.au, domain.com.au and other Australian property sites',
     icons: ICONS,
-    permissions: ['storage'],
-    host_permissions: SITES,
+    // scripting: running on the optional sites the user turns on. activeTab: knowing which site the toolbar button was
+    // clicked on, to offer an optional one. Neither shows a warning, so adding them didn't prompt existing users.
+    permissions: ['storage', 'scripting', 'activeTab'],
+    // Only the required sites. Never add one here: Chrome switches the extension off for existing users until they
+    // accept a new site, so new sites go in optional_host_permissions (OPTIONAL_SITES in shared/sites.ts)
+    host_permissions: REQUIRED_SITE_MATCHES,
+    optional_host_permissions: OPTIONAL_SITE_MATCHES,
     action: {
       default_icon: ICONS,
       default_title: 'Real Estate Comments',
@@ -30,9 +36,13 @@ export function createManifest(browser: Browser, version: string): Record<string
         description: 'Show or hide property comments',
       },
     },
+    // The Sites page: which sites the extension runs on, and turning optional ones on or off
+    options_ui: { page: 'options.html', open_in_tab: true },
+    // Required sites only: Chrome counts content script matches as host permissions. The background registers the
+    // same script for optional sites once they're turned on.
     content_scripts: [
       {
-        matches: SITES,
+        matches: REQUIRED_SITE_MATCHES,
         js: ['content.js'],
         run_at: 'document_idle',
       },

@@ -20,9 +20,14 @@ async function build(browser: Browser) {
   await mkdir(outdir, { recursive: true })
   await writeFile(join(outdir, 'manifest.json'), JSON.stringify(createManifest(browser, version), null, 2))
   await cp('icons', join(outdir, 'icons'), { recursive: true, filter: source => !source.endsWith('icon-full.png') })
+  await cp('src/options/options.html', join(outdir, 'options.html'))
 
   const options: BuildOptions = {
-    entryPoints: { background: 'src/background/index.ts', content: 'src/content/index.tsx' },
+    entryPoints: {
+      background: 'src/background/index.ts',
+      content: 'src/content/index.tsx',
+      options: 'src/options/index.ts',
+    },
     outdir,
     bundle: true,
     // Classic scripts: content scripts can't be modules, and one format keeps both browsers' backgrounds the same

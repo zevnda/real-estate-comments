@@ -85,6 +85,9 @@ export interface BackgroundApi {
   // Replies to the user's comments, for notifications (cached, so opening the panel often is cheap)
   replyNotices: { request: { fresh?: boolean }; response: ReplyNotice[] }
   setBadge: { request: { count: number | null }; response: null }
+  // Opens the Sites page (the options page), where optional sites are turned on. Content scripts can't open it or
+  // ask for permissions themselves.
+  openSites: { request: Record<string, never>; response: null }
 }
 
 export type BackgroundRequest = {

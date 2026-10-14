@@ -9,7 +9,8 @@ import type { Draft } from './Composer'
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { ext } from '../../shared/ext'
-import { MAX_RECENT } from '../../shared/messages'
+import { log } from '../../shared/log'
+import { callBackground, MAX_RECENT } from '../../shared/messages'
 import { titleCase } from '../../shared/property'
 import { newComments, watchKey } from '../../shared/watchlist'
 import { pluralize } from '../format'
@@ -281,7 +282,7 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose, draft, onD
                 ) : !onPropertyPage ? (
                   <p class='hint-banner'>
                     <InfoIcon />
-                    Open a listing on realestate.com.au or domain.com.au to comment on it.
+                    Open a property listing to comment on it.
                   </p>
                 ) : null
               }
@@ -332,6 +333,14 @@ export function Panel({ page, comments, dark, onToggleTheme, onClose, draft, onD
           <div class='panel-footer-links'>
             <button type='button' onClick={() => setShowWhatsNew(true)}>
               Changelog
+            </button>
+            <button
+              type='button'
+              onClick={() =>
+                callBackground('openSites', {}).catch((error: unknown) => log.warn('Opening Sites failed:', error))
+              }
+            >
+              Sites
             </button>
             <button type='button' onClick={() => setLegal('terms')}>
               Terms

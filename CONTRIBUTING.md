@@ -21,7 +21,7 @@ Found something broken? Open an issue, or fix it and send a pull request. If the
 
 Most of the work is teaching the extension how the new site's listing links and page titles are written, so it can work out the address. The existing sites' code in `src/shared/property.ts` shows how. Add a few real listings from the site to the tests too.
 
-New sites must go in `optional_host_permissions` in `src/manifest.ts`, not `host_permissions`, so existing users aren't asked for new permissions every time a site is added.
+New sites must be optional: add the site to `OPTIONAL_SITES` in `src/shared/sites.ts`, which puts it in the manifest's `optional_host_permissions` rather than `host_permissions`, so existing users aren't asked for new permissions every time a site is added. People turn it on from the extension's toolbar button on one of its listings, or the Sites page.
 
 ## Before sending a pull request
 
