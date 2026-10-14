@@ -349,6 +349,32 @@ describe('live site titles', () => {
       address: '72 somerset street',
       match: 'full',
     },
+    // Homely's test listing, which is never taken down
+    {
+      url: 'https://www.homely.com.au/homes/1-great-central-road-warburton-wa-6431/7664071',
+      title: '1 Great Central Road, Warburton WA 6431 - House For Sale',
+      address: '1 great central road',
+      match: 'full',
+    },
+    {
+      url: 'https://www.homely.com.au/homes/20-lydwin-crescent-east-toowoomba-qld-4350/13595229',
+      title: '20 Lydwin Crescent, East Toowoomba QLD 4350 - House For Sale',
+      address: '20 lydwin crescent',
+      match: 'full',
+    },
+    // homely.com.au sold listings put "Sold" and sometimes the property type before the address
+    {
+      url: 'https://www.homely.com.au/homes/114a-kent-street-epping-nsw-2121/12917147',
+      title: 'Sold House 114a Kent Street, Epping NSW 2121 - Mar 18, 2026',
+      address: '114a kent street',
+      match: 'full',
+    },
+    {
+      url: 'https://www.homely.com.au/homes/11-30-34-cambridge-street-epping-nsw-2121/13032570',
+      title: 'Sold Unit 11/30-34 Cambridge Street, Epping NSW 2121 - Apr 19, 2026',
+      address: '11/30-34 cambridge street',
+      match: 'full',
+    },
   ] as const
 
   it.each(live)('identifies $url', ({ url, title, address, match }) => {
@@ -378,6 +404,16 @@ describe('live site titles', () => {
 // show on the others. Real URLs and titles captured from the live sites in October 2026.
 describe('one property, every page', () => {
   const PROPERTIES = {
+    '419/19 Epping Road, Epping (apartment, listed on both sites)': [
+      [
+        'https://www.realestate.com.au/property-apartment-nsw-epping-445239876',
+        '419/19 Epping Road, Epping, NSW 2121 - Apartment for Rent - realestate.com.au',
+      ],
+      [
+        'https://www.homely.com.au/homes/419-19-epping-road-epping-nsw-2121/13594393',
+        '419/19 Epping Road, Epping NSW 2121 - Apartment For Rent',
+      ],
+    ],
     '46 Stanley Road, Epping (house)': [
       // realestate.com.au sold listing (the for-sale listing's page was deleted when it sold)
       [
@@ -399,6 +435,11 @@ describe('one property, every page', () => {
         'https://www.domain.com.au/property-profile/46-stanley-road-epping-nsw-2121',
         '46 Stanley Road, Epping | Property Value Estimate & History | Domain',
       ],
+      // homely.com.au listing (format from Homely's code, not a real listing of this property)
+      [
+        'https://www.homely.com.au/homes/46-stanley-road-epping-nsw-2121/12345678',
+        '46 Stanley Road, Epping NSW 2121 - House For Sale',
+      ],
     ],
     '41/10-14 Hazlewood Place, Epping (apartment)': [
       [
@@ -416,6 +457,10 @@ describe('one property, every page', () => {
       [
         'https://www.domain.com.au/property-profile/41-10-14-hazlewood-place-epping-nsw-2121',
         '41/10-14 Hazlewood Place, Epping | Property Value Estimate & History | Domain',
+      ],
+      [
+        'https://www.homely.com.au/homes/41-10-14-hazlewood-place-epping-nsw-2121/12345679',
+        '41/10-14 Hazlewood Place, Epping NSW 2121 - Apartment For Rent',
       ],
     ],
     '72 Somerset Street, Epping (rental)': [

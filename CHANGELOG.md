@@ -1,0 +1,1 @@
+- Now works on homely.com.au listings too, sharing the same comments as realestate.com.au and domain.com.au

@@ -5,4 +5,6 @@ export const SITE_MATCHES = [
   'https://realestate.com.au/*',
   'https://www.domain.com.au/*',
   'https://domain.com.au/*',
+  'https://www.homely.com.au/*',
+  'https://homely.com.au/*',
 ]

@@ -40,6 +40,13 @@ describe('isPropertyInput', () => {
   })
 
   it('rejects anything malformed or from another site', () => {
+    // The relay runs this same check, so a Homely page's property must pass it
+    expect(
+      isPropertyInput({
+        ...valid,
+        url: 'https://www.homely.com.au/homes/1-great-central-road-warburton-wa-6431/7664071',
+      }),
+    ).toBe(true)
     expect(isPropertyInput(null)).toBe(false)
     expect(isPropertyInput({ ...valid, url: 'https://evil.example/x' })).toBe(false)
     expect(isPropertyInput({ ...valid, url: 'http://www.domain.com.au/x' })).toBe(false)

@@ -12,7 +12,7 @@ How the project is structured and why, for anyone working on it, including AI co
 
 ## What the extension does
 
-A browser extension that adds a comment section to property pages on **realestate.com.au** and **domain.com.au**, so renters and buyers can share what a property is really like. Users can read, post, upvote and delete their own comments. Off property pages, the panel shows the most recent comments across all properties.
+A browser extension that adds a comment section to property pages on **realestate.com.au**, **domain.com.au** and **homely.com.au**, so renters and buyers can share what a property is really like. Users can read, post, upvote and delete their own comments. Off property pages, the panel shows the most recent comments across all properties.
 
 It ships for **Chrome** and **Firefox**, both **Manifest V3**, from one codebase. Published on the Chrome Web Store and Firefox Add-ons (links in README.md). Comments are stored in **Firebase** (Firestore, project `realestatecomments`) with anonymous auth.
 
@@ -109,6 +109,8 @@ This is where 1.x was unreliable, so be careful here.
 | domain.com.au     | sold listing       | same URL as the listing                                                                             |
 | domain.com.au     | property profile   | `/property-profile/46-stanley-road-epping-nsw-2121`                                                 |
 | domain.com.au     | expired listing    | redirects to the suburb's search page                                                               |
+| homely.com.au     | every listing      | `/homes/20-lydwin-crescent-east-toowoomba-qld-4350/13595229` (rent, sale, sold, leased: same URL)   |
+| homely.com.au     | removed listing    | HTTP 410, no address on the page                                                                    |
 
 **Titles** (`parseAddressFromTitle`), same pages in the same order:
 
@@ -119,15 +121,19 @@ This is where 1.x was unreliable, so be careful here.
 - domain.com.au rent/sale: `2/5 Chester Street, Epping NSW 2121 - Apartment For Rent | Domain`, or `3 Helen Street, Epping NSW 2121 | Domain`
 - domain.com.au sold: `Sold 46 Stanley Road, Epping NSW 2121 on 10 Oct 2026 - 2021146795 | Domain`
 - domain.com.au profile: `46 Stanley Road, Epping | Property Value Estimate & History | Domain` (no state/postcode; taken from the URL)
+- homely.com.au rent/sale: `20 Lydwin Crescent, East Toowoomba QLD 4350 - House For Sale`
+- homely.com.au sold: `Sold Unit 11/30-34 Cambridge Street, Epping NSW 2121 - Apr 19, 2026`, or `Sold House 114a Kent Street, …` (the property type before the address is trimmed off using the URL)
 
 realestate.com.au listing URLs only carry state and suburb; every other format carries the address slug, state and postcode. Anything else on those sites is a "browse" page (no property). Suburb search results pages are browse pages too, with an `area` taken from the URL (`parseAreaUrl`; see "Suburb stats on search pages").
+
+**homely.com.au** (checked against the homely-web source and the live site in October 2026): every listing is `/homes/<address slug>/<listing ID>`; the slug is the full address kebab-cased, so matches are `full`. It's a Next.js Pages Router site that navigates client-side and updates the title on navigation. It has **no property profile pages**, so `propertyLinks` doesn't link to Homely and comments can only be left on its live listings. Its pages also carry schema.org `Residence`/`PostalAddress` JSON-LD and the address in the `<h1>` (not used). Bot gating there only covers the search map, so `pnpm live-check` works.
 
 How a property's pages relate (why the key must come from the address, never a listing ID):
 
 - **realestate.com.au deletes a listing's page when it's sold or leased** and creates a sold listing with a **new ID** under `/sold/`. Old IDs 404 at both `/property-…` and `/sold/property-…`, with no address anywhere on the page, so there's nothing to show there.
 - **domain.com.au keeps the listing URL when it sells** but changes the title to "Sold … on <date> - <id>". The "Sold" prefix is stripped (`STATUS_PREFIX`). 1.x didn't strip it, so it may have saved sold-page comments under "sold <address>"; that form is still looked up (`PropertyInput.titleAddress`).
 - **Spellings differ between pages of the same site**: realestate.com.au listing "72 Somerset St", profile "72 Somerset Street", profile URL "46-stanley-rd". Normalization (see Data model) gives them one key.
-- **Comments cross sites**: comments posted through realestate.com.au show on domain.com.au's pages for the property and vice versa (verified with real comments).
+- **Comments cross sites**: comments posted through realestate.com.au show on domain.com.au's pages for the property and vice versa (verified with real comments). homely.com.au uses the same keys (419/19 Epping Road was listed on both realestate.com.au and Homely when checked).
 
 Other things the live sites showed:
 
@@ -156,7 +162,7 @@ Both sites block automation. curl and WebFetch get 403/429, and so does any brow
 - It loads `dist/chrome` with the `Extensions.loadUnpacked` CDP command.
 - It opens tabs without attaching, and attaches only after the page has loaded, to read the page and the extension's panel.
 
-By default it follows two listings from each site's Epping NSW rental and sold searches; pass URLs to check specific pages. It's read-only (it opens the panel but never posts), and it fails if the panel's address doesn't match what `identifyProperty` expects. A Chrome window opens while it runs. Keep the volume to a handful of pages.
+By default it checks Homely's permanent test listing (`/homes/1-great-central-road-warburton-wa-6431/7664071`, never taken down) and follows two listings from each of the three sites' Epping NSW rental and sold searches; pass URLs to check specific pages. It's read-only (it opens the panel but never posts), and it fails if the panel's address doesn't match what `identifyProperty` expects. A Chrome window opens while it runs. Keep the volume to a handful of pages.
 
 When a site changes its titles, run `pnpm live-check`, add the new format to `parseAddressFromTitle`, and add cases to the "live site titles" and "one property, every page" tests in `tests/property.test.ts`. Prefer adding over replacing, since old formats may still be served.
 
@@ -221,7 +227,7 @@ New comments, edits, reports and votes are sent through a **Cloudflare Worker** 
   - **Votes** (`VOTE_LIMITS`): 1 second apart, 60 an hour, 300 a day per network.
   - **Reports** (`REPORT_LIMITS`): 10 seconds apart, 5 an hour, 10 a day per network, and each network can report a comment once a day (on top of once per person, the report's ID), so fresh anonymous accounts can't flood the queue.
   - Records live in `rateLimits` and `recentTexts` (see "Data model"). All of a post's records and the comment are committed together, each record's `updateTime` as a precondition, retried up to twice on a conflict.
-- **The bot check** (`ui/Challenge.tsx`, `worker/src/challenge.ts`): the relay serves `/challenge`, a page that runs **Turnstile** (managed mode, `interaction-only`, so usually invisible) and posts its messages to the parent as JSON strings (`ChallengeMessage`; strings cross Firefox's content script boundary cleanly). The composer shows it in an iframe **only once the user has typed something** (reading never contacts Cloudflare), keeps it at zero height unless Cloudflare asks for a tick (then it shows with a hint), and takes the token when posting. Tokens are single-use, so taking one reloads the frame for the next. Only the two property sites may frame the page (`frame-ancestors`, from `SITE_MATCHES`). The extension couldn't load Turnstile itself: both stores forbid remotely hosted code in extensions, and an iframe of a web page isn't that.
+- **The bot check** (`ui/Challenge.tsx`, `worker/src/challenge.ts`): the relay serves `/challenge`, a page that runs **Turnstile** (managed mode, `interaction-only`, so usually invisible) and posts its messages to the parent as JSON strings (`ChallengeMessage`; strings cross Firefox's content script boundary cleanly). The composer shows it in an iframe **only once the user has typed something** (reading never contacts Cloudflare), keeps it at zero height unless Cloudflare asks for a tick (then it shows with a hint), and takes the token when posting. Tokens are single-use, so taking one reloads the frame for the next. Only the property sites may frame the page (`frame-ancestors`, from `SITE_MATCHES`). The extension couldn't load Turnstile itself: both stores forbid remotely hosted code in extensions, and an iframe of a web page isn't that.
 - **Checked on 2026-10-13** with a probe extension in real Chrome: an iframe in our shadow root loads on realestate.com.au and domain.com.au (their CSPs don't restrict frames) and its token reaches the content script. A `127.0.0.1` iframe can't be used for that test (Chrome blocks public pages from loading local addresses); use a public HTTPS URL, such as a `cloudflared` quick tunnel. Posting through the deployed relay, with the real site key, was then checked by hand in Chrome and Firefox (the check was invisible in both).
 - **No new permissions:** the relay answers with CORS headers (any origin, since Firefox's extension origin differs per install; every post needs both tokens anyway).
 - **Configuration** (`worker/wrangler.jsonc`): `FIREBASE_PROJECT`, `TURNSTILE_SITE_KEY` (public) and `TURNSTILE_HOSTNAME`. **Secrets** (`pnpm worker:secret <NAME>`, never in the repo): `TURNSTILE_SECRET`; `GOOGLE_SERVICE_ACCOUNT`, the JSON key of the **`comment-relay`** service account (role **Cloud Datastore User** only; separate from the `moderate` admin key and the read-only `check-reports` key); `IP_KEY_SECRET` (random, 32+ characters; changing it resets every limit).
