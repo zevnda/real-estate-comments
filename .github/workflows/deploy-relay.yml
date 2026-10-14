@@ -1,0 +1,54 @@
+name: Deploy relay
+
+# Deploys the comment relay (worker/) to Cloudflare when a push to main changes anything it runs, so the live relay
+# never lags main (see CLAUDE.md, "Comment relay"). Pull requests never deploy: this only runs on main.
+# Secrets: CLOUDFLARE_API_TOKEN (the "Edit Cloudflare Workers" template, this account only) and CLOUDFLARE_ACCOUNT_ID.
+# The relay's own secrets (TURNSTILE_SECRET, GOOGLE_SERVICE_ACCOUNT, IP_KEY_SECRET) stay in Cloudflare.
+
+on:
+  push:
+    branches: [main]
+    # Everything the relay bundles (keep in step with worker/src's imports from src/shared)
+    paths:
+      - 'worker/**'
+      - 'src/shared/property.ts'
+      - 'src/shared/rate-limit.ts'
+      - 'src/shared/relay.ts'
+      - 'src/shared/reports.ts'
+      - 'src/shared/sites.ts'
+      - 'src/shared/validation.ts'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/deploy-relay.yml'
+  # Deploy by hand: Actions → Deploy relay → Run workflow
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy at a time, in order; a newer push waits rather than cancelling one already deploying
+concurrency:
+  group: deploy-relay
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      # The Firestore emulator for pnpm test:rules
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm test:rules
+      - run: pnpm worker:deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
