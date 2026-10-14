@@ -21,7 +21,7 @@ Found something broken? Open an issue, or fix it and send a pull request. If the
 
 Most of the work is teaching the extension how the new site's listing links and page titles are written, so it can work out the address. The existing sites' code in `src/shared/property.ts` shows how. Add a few real listings from the site to the tests too.
 
-We'll take care of the rest when merging.
+New sites must go in `optional_host_permissions` in `src/manifest.ts`, not `host_permissions`, so existing users aren't asked for new permissions every time a site is added.
 
 ## Before sending a pull request
 
