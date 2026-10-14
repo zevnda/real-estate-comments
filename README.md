@@ -52,3 +52,7 @@ pnpm build
   - Click `Load Temporary Add-on` and select `dist/firefox/manifest.json`
 
 [Chrome Written Guide](https://developer.chrome.com/docs/extensions/mv3/getstarted/development-basics/#load-unpacked) | [Firefox Written Guide](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Your_first_WebExtension#installing)
+
+# Contributing
+
+Bug fixes, new sites and improvements are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get started.
