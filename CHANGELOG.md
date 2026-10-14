@@ -1,4 +1,0 @@
-- Comments on homely.com.au listings
-  - Homely listings share comments with realestate.com.au and domain.com.au, so a property has the same comments wherever you see it
-  - It’s off until you turn it on: click the extension’s toolbar button on a Homely listing, or open **Sites** in the panel’s footer, and allow access when your browser asks
-- **Sites** link in the panel’s footer, to see which property sites the extension runs on and turn optional ones on or off
