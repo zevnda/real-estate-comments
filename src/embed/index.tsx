@@ -13,13 +13,16 @@ import { overrideValue, setMessageHandler } from './ext'
 import dropbee from './themes/dropbee.css'
 
 // The embed's page script (see CLAUDE.md, "Embed"): the comment section in the relay's /embed page, which partner
-// sites show in an iframe, and the relay's /terms and /privacy pages that it links to. The relay only serves the
-// embed's script when the embed is on for the site and the address matches the page, but it checks again here.
+// sites show in an iframe. The relay only serves the embed's script when the embed is on for the site and the address
+// matches the page, but it checks again here.
 
-// Each partner's look: tokens and overrides on top of the extension's styles. Dark only, like the partners' sites.
-const THEMES: Record<EmbedTheme, { css: string; fonts: string }> = {
+// Each partner's look: tokens and overrides on top of the extension's styles, and its site's colour scheme. The
+// embed's page must declare the same scheme as the partner's: an iframe is only transparent when the two match, and
+// otherwise the browser paints it white (or black), which shows at the card's rounded corners.
+const THEMES: Record<EmbedTheme, { css: string; fonts: string; colorScheme: 'light' | 'dark' }> = {
   dropbee: {
     css: dropbee,
+    colorScheme: 'dark',
     // Must be declared on the document: @font-face inside a shadow root isn't used
     fonts:
       "@font-face { font-family: 'Sora'; src: url('/fonts/sora.woff2') format('woff2'); font-weight: 100 800; font-display: swap; }",
@@ -28,7 +31,8 @@ const THEMES: Record<EmbedTheme, { css: string; fonts: string }> = {
 
 // In a shadow root like the extension's, so its styles (written for :host) apply unchanged
 function mount(theme: EmbedTheme, page: ComponentChild) {
-  const { css, fonts } = THEMES[theme]
+  const { css, fonts, colorScheme } = THEMES[theme]
+  document.documentElement.style.colorScheme = colorScheme
   const fontStyle = document.createElement('style')
   fontStyle.textContent = fonts
   document.head.append(fontStyle)
