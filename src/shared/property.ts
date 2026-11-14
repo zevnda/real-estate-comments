@@ -217,24 +217,31 @@ export function matchAddressToUrl(found: TitleAddress, url: PropertyUrl): { matc
   const none = { match: 'none' as const, address: found.address }
   if (found.state && found.state !== url.state) return none
   if (found.postcode && url.postcode && found.postcode !== url.postcode) return none
-  const suburbSlug = slugify(found.suburb)
-  if (!suburbSlug) return none
+  const suburbSlugs = apostropheForms(found.suburb).map(slugify)
+  if (!suburbSlugs[0]) return none
 
   if (url.suburbSlug !== undefined) {
-    return { match: url.suburbSlug === suburbSlug ? 'partial' : 'none', address: found.address }
+    return { match: suburbSlugs.includes(url.suburbSlug) ? 'partial' : 'none', address: found.address }
   }
   if (!url.addressSlug) return none
-  if (!url.addressSlug.endsWith(`-${suburbSlug}`)) return none
+  const suburbSlug = suburbSlugs.find(slug => url.addressSlug!.endsWith(`-${slug}`))
+  if (!suburbSlug) return none
 
   const urlAddress = comparableAddress(url.addressSlug.slice(0, -suburbSlug.length - 1))
   const words = found.address.split(/\s+/)
   for (let start = 0; start < words.length; start++) {
     const candidate = words.slice(start).join(' ')
     if (!hasStreetNumber(candidate)) break
-    if (comparableAddress(candidate) === urlAddress)
+    if (apostropheForms(candidate).some(form => comparableAddress(form) === urlAddress))
       return { match: 'full', address: start ? candidate : found.address }
   }
   return { match: 'partial', address: found.address }
+}
+
+// URL slugs write an apostrophe either way: dropped ("oneil", as slugify does) or as a hyphen ("o-neil", e.g.
+// dropbee.au's /p/31-o-neil-lane-st-clair-sa-5011-…), so a title's "O'Neil" or "O'Connor" is compared both ways
+function apostropheForms(text: string): string[] {
+  return /['’]/.test(text) ? [text, text.replace(/['’]/g, ' ')] : [text]
 }
 
 // Reduces an address, or a URL's address slug, to a form where the sites' different spellings compare equal:

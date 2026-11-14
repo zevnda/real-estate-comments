@@ -153,7 +153,7 @@ The street address is everything before the suburb, so it may contain commas (`U
 
 **Checking the title against the URL** (`matchAddressToUrl`) is what prevents comments being shown or saved for the wrong property. Both sites navigate client-side in places, and the URL can change before the title does, so a title is only trusted when it agrees with the URL:
 
-- `full`: the URL contains the street address and it matches (compared via `comparableAddress`, so `unit-41-10-14-hazlewood-pl` matches "41/10-14 Hazlewood Place"). Trusted immediately. Unexpected words before the address in the title are trimmed off using the URL as the guide.
+- `full`: the URL contains the street address and it matches (compared via `comparableAddress`, so `unit-41-10-14-hazlewood-pl` matches "41/10-14 Hazlewood Place"; an apostrophe may be dropped or a hyphen in the slug, so `o-neil` and `oneil` both match "O'Neil", in the street or the suburb, `apostropheForms`). Trusted immediately. Unexpected words before the address in the title are trimmed off using the URL as the guide.
 - `partial`: only suburb/state/postcode could be checked (realestate.com.au listings). Trusted on first page load, or after an in-page navigation once the title has changed or has been stable for `SETTLE_MS`.
 - `none`: contradicts the URL. Keep waiting; after `GIVE_UP_MS` show "Couldn't identify this property".
   Once a page's property is resolved it sticks until the URL path changes. Query strings and hashes are ignored (`pageKey`), since galleries and maps change them.

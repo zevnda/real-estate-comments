@@ -317,6 +317,31 @@ describe('matchAddressToUrl', () => {
       matchAddressToUrl({ address: '3/42 Kent Street', suburb: 'Epping', state: 'nsw', postcode: '3076' }, url).match,
     ).toBe('none')
   })
+
+  // Slugs write an apostrophe either way: dropped ("oneil") or as a hyphen ("o-neil")
+  it('matches apostrophes in the street or suburb whichever way the URL writes them', () => {
+    const found = { address: "12 O'Neil Lane", suburb: "O'Connor", state: 'act', postcode: '2602' }
+    for (const slug of ['12-o-neil-lane-o-connor', '12-oneil-lane-oconnor', '12-o-neil-lane-oconnor']) {
+      const url = parsePropertyUrl(`https://www.domain.com.au/${slug}-act-2602-12345678`)!
+      expect(matchAddressToUrl(found, url), slug).toEqual({ match: 'full', address: "12 O'Neil Lane" })
+    }
+    const curly = { ...found, address: '12 O’Neil Lane', suburb: 'O’Connor' }
+    const url = parsePropertyUrl('https://www.domain.com.au/12-o-neil-lane-o-connor-act-2602-12345678')!
+    expect(matchAddressToUrl(curly, url).match).toBe('full')
+    // realestate.com.au listings only carry the suburb
+    for (const suburb of ["o'connor", 'o-connor', 'oconnor']) {
+      const listing = parsePropertyUrl(`https://www.realestate.com.au/property-house-act-${suburb}-441106232`)!
+      expect(matchAddressToUrl(found, listing).match, suburb).toBe('partial')
+    }
+  })
+
+  it('still tells apart addresses that only differ around an apostrophe', () => {
+    const url = parsePropertyUrl('https://www.domain.com.au/12-o-neil-lane-o-connor-act-2602-12345678')!
+    const found = { address: "12 O'Neil Lane", suburb: "O'Connor", state: 'act', postcode: '2602' }
+    expect(matchAddressToUrl({ ...found, address: "14 O'Neil Lane" }, url).match).toBe('partial')
+    expect(matchAddressToUrl({ ...found, address: "12 D'Arcy Lane" }, url).match).toBe('partial')
+    expect(matchAddressToUrl({ ...found, suburb: "O'Malley" }, url).match).toBe('none')
+  })
 })
 
 // Captured from the live sites in October 2026 (see CLAUDE.md, "Checking the live sites")
@@ -405,12 +430,11 @@ describe('live site titles', () => {
       match: 'full',
     },
     {
-      // Bare address title (no tracked price change). The URL slug writes "O'neil" as "o-neil", while the title's
-      // form drops the apostrophe ("oneil"), so the street can't be matched and the match stays partial
+      // Bare address title (no tracked price change), and the URL slug writes "O'neil" as "o-neil"
       url: 'https://www.dropbee.au/p/31-o-neil-lane-st-clair-sa-5011-dad49489-0e45-4109-be19-da7e419122ca',
       title: "31 O'neil Lane, St Clair SA 5011 | DropBee.au",
       address: '31 oneil lane',
-      match: 'partial',
+      match: 'full',
     },
   ] as const
 
