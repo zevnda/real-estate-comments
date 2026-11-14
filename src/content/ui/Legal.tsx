@@ -16,7 +16,7 @@ export const POSTING_RULES = [
   'Your comment is public. You’re responsible for it, and it may be removed without notice.',
 ]
 
-const UPDATED = '14 October 2026'
+const UPDATED = '14 November 2026'
 
 // Bump when the posting rules change in substance, so everyone agrees to the new ones before their next post
 export const POSTING_RULES_VERSION = 1
@@ -72,8 +72,8 @@ export function TermsDialog({ onClose }: { onClose: () => void }) {
 
       <h4>Not affiliated with the property sites</h4>
       <p>
-        The extension isn’t made, endorsed or checked by REA Group, Domain, Homely or any real estate agency. Comments
-        appear alongside their pages only in your browser.
+        The extension isn’t made, endorsed or checked by REA Group, Domain, Homely, DropBee or any real estate agency.
+        Comments appear alongside their pages only in your browser.
       </p>
 
       <h4>Comments are opinions, not facts we’ve checked</h4>

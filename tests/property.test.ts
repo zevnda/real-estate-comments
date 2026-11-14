@@ -102,12 +102,16 @@ const STORED = [
 ] as const
 
 describe('getSite', () => {
-  it('matches the two sites and their subdomains only', () => {
+  it('matches the known sites and their subdomains only', () => {
     expect(getSite('www.realestate.com.au')).toBe('realestate')
     expect(getSite('realestate.com.au')).toBe('realestate')
     expect(getSite('www.domain.com.au')).toBe('domain')
+    expect(getSite('www.dropbee.au')).toBe('dropbee')
+    expect(getSite('dropbee.au')).toBe('dropbee')
     expect(getSite('notdomain.com.au')).toBeNull()
     expect(getSite('domain.com.au.evil.com')).toBeNull()
+    expect(getSite('notdropbee.au')).toBeNull()
+    expect(getSite('dropbee.au.evil.com')).toBeNull()
   })
 })
 
@@ -160,6 +164,11 @@ describe('parsePropertyUrl', () => {
       'https://www.domain.com.au/sale/?suburb=epping-nsw-2121',
       'https://www.domain.com.au/news/market-update-nsw-2000-123/',
       'https://www.google.com/property-house-vic-richmond-1234',
+      // dropbee.au suburb pages, and property paths without the trailing UUID
+      'https://www.dropbee.au/nsw/epping-2121',
+      'https://www.dropbee.au/rent/nsw/epping-2121',
+      'https://www.dropbee.au/p/46-stanley-road-epping-nsw-2121',
+      'https://www.dropbee.au/p/46-stanley-road-epping-nsw-2121-not-a-uuid',
     ]) {
       expect(parsePropertyUrl(url), url).toBeNull()
     }
@@ -396,8 +405,8 @@ describe('live site titles', () => {
       match: 'full',
     },
     {
-      // Bare address title (no tracked price change), and the URL slug keeps the apostrophe in "O'neil" while the
-      // title form drops it, so the match stays partial
+      // Bare address title (no tracked price change). The URL slug writes "O'neil" as "o-neil", while the title's
+      // form drops the apostrophe ("oneil"), so the street can't be matched and the match stays partial
       url: 'https://www.dropbee.au/p/31-o-neil-lane-st-clair-sa-5011-dad49489-0e45-4109-be19-da7e419122ca',
       title: "31 O'neil Lane, St Clair SA 5011 | DropBee.au",
       address: '31 oneil lane',
