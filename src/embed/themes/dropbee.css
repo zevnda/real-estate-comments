@@ -1,0 +1,91 @@
+/* dropbee.au's look for the embed: dark only, like the site. Colours estimated from a screenshot of a property page
+   (November 2026), not from its stylesheet; swap them for its real values if the owner shares them.
+   Near-black page, dark navy cards with thin borders, gold for links and highlights, lime for the main action, Sora
+   for labels and buttons. */
+
+:host {
+  color-scheme: dark;
+  --page: #111214;
+  --surface: #0b141d;
+  --surface-muted: #09111a;
+  --surface-raised: #0f1b27;
+  --border: #1b2733;
+  --border-strong: #293746;
+  --text: #f2f3f5;
+  --text-muted: #a2acb7;
+  --text-faint: #6c7886;
+  --accent: #f5c400;
+  --accent-hover: #ffd633;
+  --on-accent: #16120a;
+  --accent-soft: rgb(245 196 0 / 7%);
+  --accent-tint: rgb(245 196 0 / 12%);
+  --accent-border: rgb(245 196 0 / 30%);
+  --accent-text: #f5c400;
+  --primary: #e2f33c;
+  --primary-hover: #ecfa6e;
+  --on-primary: #15170a;
+  --danger: #ff4d6a;
+  --danger-soft: rgb(255 77 106 / 12%);
+  --star: #f5c400;
+  --radius: 10px;
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --heading-font: 'Sora', var(--font);
+  --shadow-color: rgb(0 0 0 / 55%);
+}
+
+/* The main action is lime and pill-shaped, like the site's "Join the hive" */
+.button--primary,
+.embed-prompt-post {
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-family: var(--heading-font);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  /* Sora's capitals sit 1px above centre (measured at this size: 10.75px above, 11.75px below), since all-caps text
+     has nothing below the baseline */
+  padding-top: 1px;
+}
+
+.button--primary:hover:not(:disabled),
+.embed-prompt:hover .embed-prompt-post {
+  background: var(--primary-hover);
+}
+
+.button--ghost {
+  border-radius: 999px;
+}
+
+/* Quieter avatars: the cards are mostly monochrome */
+.avatar {
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.replies {
+  border-left-color: var(--accent-border);
+}
+
+.view-select select {
+  border-color: var(--border-strong);
+  background: var(--surface-raised);
+}
+
+.editor,
+.composer input {
+  background: var(--surface);
+}
+
+.markdown a {
+  color: var(--accent-text);
+}
+
+.dialog-header h3 {
+  font-family: var(--heading-font);
+  font-size: 12px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}

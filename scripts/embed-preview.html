@@ -1,0 +1,192 @@
+<!doctype html>
+<!-- A mock dropbee.au property page for trying the embed locally (`pnpm embed:preview`). The comments box uses the
+     same snippet a partner pastes (CLAUDE.md, "Embed"), with two differences for local testing: RELAY is the local
+     relay, and the page URL it passes is dropbee.au's (this page is served on localhost, at the same path). -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>11/260 Casuarina Drive, Nightcliff, NT 0810 · embed preview</title>
+    <style>
+      body {
+        margin: 0;
+        background: #111214;
+        color: #f2f3f5;
+        font-family: system-ui, sans-serif;
+      }
+      .banner {
+        padding: 6px 24px;
+        background: #f5c400;
+        color: #111;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .nav {
+        display: flex;
+        gap: 24px;
+        align-items: center;
+        padding: 14px 24px;
+        border-bottom: 1px solid #1b2733;
+        font-size: 13px;
+      }
+      .nav b {
+        color: #f5c400;
+        font-size: 16px;
+      }
+      .wrap {
+        display: flex;
+        gap: 16px;
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 16px 20px 48px;
+      }
+      .main {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        gap: 16px;
+        min-width: 0;
+      }
+      .side {
+        flex: none;
+        width: 200px;
+      }
+      .side .ad {
+        height: 90px;
+        border: 1px dashed #6b5a10;
+        border-radius: 8px;
+        background: #2a2508;
+      }
+      h1 {
+        margin: 4px 0 8px;
+        font-size: 26px;
+      }
+      .crumb {
+        color: #6c7886;
+        font-size: 12px;
+      }
+      .card {
+        border: 1px solid #1b2733;
+        border-radius: 10px;
+        background: #0b141d;
+      }
+      .card h3 {
+        margin: 0;
+        padding: 14px 20px;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .card p {
+        margin: 0;
+        padding: 0 20px 16px;
+        color: #c5ccd3;
+        font-size: 13px;
+      }
+      .map {
+        height: 200px;
+        border-radius: 0 0 10px 10px;
+        background: repeating-linear-gradient(45deg, #0c1520, #0c1520 12px, #0e1925 12px, #0e1925 24px);
+      }
+      .adblock {
+        display: grid;
+        place-items: center;
+        height: 130px;
+        border-radius: 10px;
+        background: #1a1a1c;
+        color: #555;
+        font-size: 10px;
+        letter-spacing: 0.1em;
+      }
+      .drop {
+        display: flex;
+        justify-content: space-between;
+        padding: 14px 20px;
+        border-top: 1px solid #1b2733;
+        font-size: 13px;
+      }
+      .drop b {
+        color: #ff4d6a;
+      }
+      @media (max-width: 760px) {
+        .side {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="banner">Embed preview · a mock dropbee.au property page, served locally</div>
+    <div class="nav"><b>⬡ DROPBEE</b><span>Sales</span><span>Rentals</span></div>
+    <div class="wrap">
+      <div class="main">
+        <div>
+          <div class="crumb">Home / Rent NT / Nightcliff 0810</div>
+          <h1>11/260 Casuarina Drive, Nightcliff, NT 0810</h1>
+        </div>
+        <div class="card">
+          <h3>Status · For rent · $500/w</h3>
+          <div class="map"></div>
+        </div>
+        <div class="card">
+          <h3>About this rental</h3>
+          <p>
+            11/260 Casuarina Drive, Nightcliff, NT 0810 was listed at $520/w on 30 Oct 2026, cut to $500/w (-3.8%) on 12
+            Nov 2026.
+          </p>
+        </div>
+
+        <!-- Real Estate Comments: the partner snippet -->
+        <div
+          id="real-estate-comments"
+          data-address="11/260 Casuarina Drive"
+          data-suburb="Nightcliff"
+          data-state="NT"
+          data-postcode="0810"
+        ></div>
+        <script>
+          ;(() => {
+            // Local relay (pnpm embed:preview). A partner's page has https://rec.zevnda.workers.dev here.
+            const RELAY = 'http://localhost:8787'
+            const box = document.getElementById('real-estate-comments')
+            const params = new URLSearchParams({
+              // A partner's page passes its own address (location.origin + location.pathname); this page is on
+              // localhost, so it passes the dropbee.au address of the same path
+              url: 'https://www.dropbee.au' + location.pathname,
+              address: box.dataset.address,
+              suburb: box.dataset.suburb,
+              state: box.dataset.state,
+              postcode: box.dataset.postcode,
+            })
+            const frame = document.createElement('iframe')
+            frame.src = `${RELAY}/embed?${params}`
+            frame.title = 'Comments about this property'
+            frame.loading = 'lazy'
+            // Zero height until the comments load, so nothing shows if they're switched off
+            frame.style.cssText = 'display:block;width:100%;height:0;border:0;'
+            box.append(frame)
+
+            // The embed reports its height whenever it changes; size the frame to fit
+            addEventListener('message', event => {
+              if (event.origin !== RELAY || event.source !== frame.contentWindow) return
+              try {
+                const message = JSON.parse(event.data)
+                if (message.source === 'rec-embed' && message.type === 'height') {
+                  frame.style.height = `${message.height}px`
+                }
+              } catch {}
+            })
+          })()
+        </script>
+
+        <div class="adblock">ADVERTISEMENT</div>
+        <div class="card">
+          <h3>More price drops in <span style="color: #f5c400">Nightcliff NT 0810</span></h3>
+          <div class="drop"><span>5 Cattle Lane</span><b>-$100</b></div>
+          <div class="drop"><span>25 Melrose St</span><b>-$80</b></div>
+        </div>
+      </div>
+      <div class="side"><div class="ad"></div></div>
+    </div>
+  </body>
+</html>

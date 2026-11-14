@@ -63,17 +63,31 @@ const ComplaintsLink = () => <a href={complaintsMailto()}>{COMPLAINTS_EMAIL}</a>
 export function TermsDialog({ onClose }: { onClose: () => void }) {
   return (
     <Dialog id='rec-terms-of-use-title' title='Terms of use' class='legal' onClose={onClose}>
+      <TermsText />
+    </Dialog>
+  )
+}
+
+export function TermsText() {
+  return (
+    <>
       <p class='dialog-intro'>Last updated {UPDATED}</p>
       <p>
         Real Estate Comments is a free, independent browser extension that lets people share comments about properties
-        listed on realestate.com.au, domain.com.au and other property sites you turn on, such as homely.com.au. By using
-        it you agree to these terms. If you don’t agree, please don’t use the extension.
+        listed on realestate.com.au, domain.com.au and other property sites you turn on, such as homely.com.au. The same
+        comments are also shown in a comment box we provide on partner websites’ property pages (currently dropbee.au).
+        By using the extension or the comment box you agree to these terms, and they apply to both. If you don’t agree,
+        please don’t use them.
       </p>
 
       <h4>Not affiliated with the property sites</h4>
       <p>
         The extension isn’t made, endorsed or checked by REA Group, Domain, Homely, DropBee or any real estate agency.
         Comments appear alongside their pages only in your browser.
+      </p>
+      <p>
+        Partner websites show the comment box on their pages, but they don’t write, check or moderate the comments, and
+        don’t see what you post through it. We run the comment box and moderate the comments, everywhere they appear.
       </p>
 
       <h4>Comments are opinions, not facts we’ve checked</h4>
@@ -119,13 +133,21 @@ export function TermsDialog({ onClose }: { onClose: () => void }) {
         We may update these terms. The current version is always available from the extension’s panel, and continuing to
         use the extension means you accept it.
       </p>
-    </Dialog>
+    </>
   )
 }
 
 export function PrivacyDialog({ onClose }: { onClose: () => void }) {
   return (
     <Dialog id='rec-privacy-title' title='Privacy policy' class='legal' onClose={onClose}>
+      <PrivacyText />
+    </Dialog>
+  )
+}
+
+export function PrivacyText() {
+  return (
+    <>
       <p class='dialog-intro'>Last updated {UPDATED}</p>
       <p>
         This explains what Real Estate Comments collects and what it does with it. In short: no accounts, no tracking,
@@ -142,6 +164,16 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
         search for.
       </p>
 
+      <h4>On partner websites</h4>
+      <p>
+        Some property websites (currently dropbee.au) show these comments in a comment box we provide. It’s loaded from
+        our server (Cloudflare Workers), not from the website: to show comments, the website passes it the property’s
+        address and the page’s address, which it uses to look up comments the same way the extension does. Like any
+        website, our server sees your IP address and browser when the box loads. The partner website doesn’t see what
+        you write, post or report in the box, and we don’t tell it. Everything below applies to the comment box as it
+        does to the extension, except where it says otherwise.
+      </p>
+
       <h4>When you post or vote</h4>
       <p>A comment is stored with:</p>
       <ul>
@@ -150,9 +182,9 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
         <li>the date and time, and when it was last edited</li>
         <li>for a reply, which comment it answers</li>
         <li>
-          two random identifiers, one made by the extension and one by its anonymous Firebase sign-in, which link the
-          comment to your browser so you can delete it and so we can block abuse. They don’t contain your name, email or
-          IP address.
+          two random identifiers, one made by the extension (or comment box) and one by its anonymous Firebase sign-in,
+          which link the comment to your browser so you can delete it and so we can block abuse. They don’t contain your
+          name, email or IP address.
         </li>
       </ul>
       <p>
@@ -162,9 +194,10 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
 
       <h4>Spam protection</h4>
       <p>
-        When you start writing a comment, the extension loads a check from Cloudflare Turnstile to confirm you’re not a
-        bot. For this, Cloudflare sees your IP address and some details of your browser and device, under Cloudflare’s
-        privacy policy. It isn’t told which page you’re on. Just reading comments never contacts Cloudflare.
+        When you start writing a comment, the extension or comment box loads a check from Cloudflare Turnstile to
+        confirm you’re not a bot. For this, Cloudflare sees your IP address and some details of your browser and device,
+        under Cloudflare’s privacy policy. It isn’t told which page you’re on. Just reading comments never contacts
+        Cloudflare.
       </p>
       <p>
         New comments, edits, reports and votes are sent through our server (which runs on Cloudflare Workers). It checks
@@ -193,6 +226,12 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
         to the posting rules, whether you’ve seen what’s new in an update, when you installed it and whether we’ve asked
         you for a review, and your notifications are kept in your browser’s extension storage, and never leave it except
         as described above. Comments are cached in your browser for a few minutes.
+      </p>
+      <p>
+        The comment box on partner websites keeps your random identifiers, your display name, sort order, whether you’ve
+        agreed to the posting rules, and which comments you posted or upvoted in your browser’s storage for that
+        website, so they’re separate from the extension’s and from other websites’. The comments it shows are cached by
+        Cloudflare for about a minute.
       </p>
       <p>
         The properties on your watchlist are kept in your browser’s synced extension storage, so if your browser syncs
@@ -227,8 +266,8 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
 
       <h4>How long we keep it</h4>
       <p>
-        Comments are kept until you or we delete them. Uninstalling the extension removes the data stored in your
-        browser, but not comments you’ve posted.
+        Comments are kept until you or we delete them. Uninstalling the extension (or clearing a website’s data, for the
+        comment box) removes the data stored in your browser, but not comments you’ve posted.
       </p>
 
       <h4>Your choices</h4>
@@ -242,6 +281,6 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
         confirm who wrote one. We treat these requests like any other request to remove a comment and decide based on
         the comment itself, so we can’t promise to remove one just because someone says they wrote it.
       </p>
-    </Dialog>
+    </>
   )
 }

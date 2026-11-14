@@ -155,6 +155,20 @@ describe('parsePropertyUrl', () => {
     expect(parsePropertyUrl(STORED[7].url)).toMatchObject({ kind: 'profile', postcode: '2067' })
   })
 
+  it('reads dropbee.au property URLs, which end in a UUID', () => {
+    expect(
+      parsePropertyUrl(
+        'https://www.dropbee.au/p/76-36-albert-st-waterford-qld-4133-64256d2d-f860-4427-b884-b9743605db4d',
+      ),
+    ).toEqual({
+      site: 'dropbee',
+      kind: 'listing',
+      addressSlug: '76-36-albert-st-waterford',
+      state: 'qld',
+      postcode: '4133',
+    })
+  })
+
   it('ignores pages that are not a single property', () => {
     for (const url of [
       'https://www.realestate.com.au/',

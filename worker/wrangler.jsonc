@@ -12,6 +12,12 @@
   "workers_dev": true,
   "preview_urls": false,
   "observability": { "enabled": true },
+  // The embed's script (embed.js), built by `pnpm build` into dist/relay and served as a static asset before the
+  // Worker runs. Build before deploying or `pnpm worker:dev`.
+  "assets": { "directory": "../dist/relay", "html_handling": "none", "not_found_handling": "none" },
+  // Workers Cache: GET answers with a public Cache-Control (the embed page and its comments, the challenge page) are
+  // served from Cloudflare's cache without running the Worker. POSTs (posting, voting, ...) are never cached.
+  "cache": { "enabled": true },
   "vars": {
     "FIREBASE_PROJECT": "realestatecomments",
     // Public: it's in the challenge page

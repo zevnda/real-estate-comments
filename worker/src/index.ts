@@ -1,7 +1,9 @@
 import type { Firestore } from './firestore.ts'
 import type { RelayDeps } from './relay.ts'
 
+import { EMBED_COMMENTS_PATH, EMBED_PATH } from '../../src/shared/embed.ts'
 import { challengePage } from './challenge.ts'
+import { embedComments, embedPage, readEmbedConfig } from './embed.ts'
 import { createFirestore, serviceAccountToken } from './firestore.ts'
 import { ipKey, ipNetwork } from './ip.ts'
 import { editComment, postComment, RelayError, reportComment, toggleVote } from './relay.ts'
@@ -40,9 +42,24 @@ interface Context {
 
 export default {
   async fetch(request: Request, env: Env, context: Context): Promise<Response> {
-    const { pathname, searchParams } = new URL(request.url)
-    if (pathname === '/challenge' && request.method === 'GET') {
-      return challengePage(env.TURNSTILE_SITE_KEY, searchParams.get('theme') ?? '')
+    const url = new URL(request.url)
+    const { pathname, searchParams } = url
+    if (request.method === 'GET') {
+      if (pathname === '/challenge') return challengePage(env.TURNSTILE_SITE_KEY, searchParams.get('theme') ?? '')
+      // The embed (see embed.ts). Its script, /embed.js, is a static asset served before the Worker runs.
+      if (pathname === EMBED_PATH) {
+        const settings = await readEmbedConfig(getFirestore(env), Date.now())
+        return embedPage(url, settings, env.FIRESTORE_EMULATOR)
+      }
+      if (pathname === EMBED_COMMENTS_PATH) {
+        const firestore = getFirestore(env)
+        try {
+          return await embedComments(url, firestore, await readEmbedConfig(firestore, Date.now()))
+        } catch (error) {
+          console.error(`${pathname} failed:`, error)
+          return json({ status: 500, body: { ok: false, error: 'Couldn’t load comments. Please try again.' } })
+        }
+      }
     }
     const action = ACTIONS[pathname]
     if (!action) return new Response('Not found', { status: 404 })
@@ -88,6 +105,10 @@ async function run(
       now: () => Date.now(),
       afterResponse: task =>
         context.waitUntil(task.catch((error: unknown) => console.warn('Deleting expired rate limits failed:', error))),
+      embedConfig: () => readEmbedConfig(getFirestore(env), Date.now()),
+      // Browsers set Origin, and a page can't change it: the embed's requests come from the relay's own origin, the
+      // extension's from its background script
+      fromEmbed: request.headers.get('origin') === new URL(request.url).origin,
     })
     return { status: 200, body: { ok: true, data } }
   } catch (error) {

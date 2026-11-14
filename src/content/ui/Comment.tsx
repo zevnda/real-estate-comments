@@ -393,9 +393,10 @@ function useEditable(until: number | undefined): boolean {
   return !!until && now < until
 }
 
-// Dialogs belong inside .panel (see Dialog), not inside the scrolling list a comment is in
+// Dialogs belong inside .panel (see Dialog), or the embed's card (src/embed/), not inside the scrolling list a comment
+// is in
 function PanelPortal({ from, children }: { from: HTMLElement | null; children: ComponentChildren }) {
-  const panel = from?.closest('.panel')
+  const panel = from?.closest('.panel, .embed')
   return panel ? createPortal(children, panel) : null
 }
 

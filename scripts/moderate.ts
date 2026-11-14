@@ -1,6 +1,6 @@
 // Moderates comments. Starts a small server on your machine and opens a page where you can review reported comments
 // (remove, ban the poster, or dismiss the reports), browse every comment (edit, delete, look at a poster's or a
-// property's comments) and manage bans. Uses the Firebase Admin SDK, which bypasses the security rules, with a
+// property's comments), manage bans, and switch the embed on partner sites on or off. Uses the Firebase Admin SDK, which bypasses the security rules, with a
 // service account key that never leaves your machine.
 //
 //   pnpm moderate
@@ -22,8 +22,10 @@ import { createServer } from 'node:http'
 import { cert, initializeApp } from 'firebase-admin/app'
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
 
+import { EMBED_CONFIG_DOC, parseEmbedConfig } from '../src/shared/embed.ts'
 import { canonicalAddress, propertyLinks, titleCase } from '../src/shared/property.ts'
 import { reportReasonLabel } from '../src/shared/reports.ts'
+import { EMBED_SITES } from '../src/shared/sites.ts'
 import { cleanUsername, USERNAME_MAX_LENGTH, validateCommentText } from '../src/shared/validation.ts'
 
 const COMMENTS = 'listingcomments'
@@ -438,9 +440,37 @@ function text(value: unknown, max: number): string {
   return value
 }
 
+// The embed's on/off switch (src/shared/embed.ts), read by the relay within a minute or so
+async function embedSettings() {
+  const snap = await db.doc(EMBED_CONFIG_DOC).get()
+  const config = parseEmbedConfig(snap.exists ? snap.data() : null)
+  return {
+    enabled: config.enabled,
+    sites: EMBED_SITES.map(({ site, name }) => ({ site, name, enabled: config.sites[site] === true })),
+  }
+}
+
 type Handler = (body: Record<string, unknown>) => Promise<unknown>
 
 const actions: Record<string, Handler> = {
+  // { enabled } switches the embed everywhere; { site, enabled } one partner site
+  async embed(body) {
+    if (typeof body.enabled !== 'boolean') throw new BadRequest('Missing enabled')
+    const current = await embedSettings()
+    const sites = Object.fromEntries(current.sites.map(({ site, enabled }) => [site, enabled]))
+    if (body.site === undefined) {
+      await db.doc(EMBED_CONFIG_DOC).set({ enabled: body.enabled, sites })
+      console.log(`embed: ${body.enabled ? 'on' : 'off'}`)
+    } else {
+      const site = body.site
+      if (typeof site !== 'string' || !EMBED_SITES.some(embed => embed.site === site)) {
+        throw new BadRequest('Unknown site')
+      }
+      await db.doc(EMBED_CONFIG_DOC).set({ enabled: current.enabled, sites: { ...sites, [site]: body.enabled } })
+      console.log(`embed on ${site}: ${body.enabled ? 'on' : 'off'}`)
+    }
+    return embedSettings()
+  },
   async delete(body) {
     const id = commentId(body.id)
     const deleted = await deleteComment(id, { withReplies: body.withReplies === true, banPoster: body.ban === true })
@@ -497,6 +527,7 @@ const server = createServer((request, response) => {
       if (path === '/api/reports') return send(response, 200, await listReports())
       if (path === '/api/comments') return send(response, 200, await listComments(url.searchParams))
       if (path === '/api/bans') return send(response, 200, await listBans())
+      if (path === '/api/embed') return send(response, 200, await embedSettings())
     }
     const name = path.slice('/api/'.length)
     if (request.method === 'POST' && Object.hasOwn(actions, name)) {

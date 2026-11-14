@@ -7,7 +7,7 @@ import { ext } from '../shared/ext'
 import { log } from '../shared/log'
 import { getSite, STATES } from '../shared/property'
 import { isReportReason, REPORT_DETAILS_MAX_LENGTH } from '../shared/reports'
-import { REQUIRED_SITE_MATCHES } from '../shared/sites'
+import { OPTIONAL_SITES, REQUIRED_SITE_MATCHES, REQUIRED_SITES } from '../shared/sites'
 import { getStored, setStored } from '../shared/storage'
 import { isPropertyInput, validateCommentText } from '../shared/validation'
 import {
@@ -212,9 +212,11 @@ async function startOnTab(tabId: number) {
   }
 }
 
+// A site the extension runs on: getSite() could also know a site that's only an embed partner (EMBED_SITES).
 function isSupportedSite(url: string): boolean {
   try {
-    return getSite(new URL(url).hostname) !== null
+    const site = getSite(new URL(url).hostname)
+    return [...REQUIRED_SITES, ...OPTIONAL_SITES].some(info => info.site === site)
   } catch {
     return false
   }

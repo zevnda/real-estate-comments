@@ -2,7 +2,11 @@ import type { PropertyInput } from './property.ts'
 
 // The comment relay (worker/): a Cloudflare Worker that new comments are posted through, so posting limits and bans
 // can be enforced by IP address rather than by anything the extension controls (see CLAUDE.md, "Comment relay").
-export const RELAY_URL = 'https://rec.zevnda.workers.dev'
+// The embed (src/embed/) is served by the relay itself, so it uses the origin it's on, which is also how a local
+// relay (`pnpm worker:dev`) serves a working embed. `__EMBED__` is defined only by the embed's build.
+declare const __EMBED__: boolean | undefined
+export const RELAY_URL =
+  typeof __EMBED__ !== 'undefined' && __EMBED__ ? location.origin : 'https://rec.zevnda.workers.dev'
 
 // The Turnstile action the challenge page asks for and the relay checks, so a token made for anything else won't do
 export const CHALLENGE_ACTION = 'post'

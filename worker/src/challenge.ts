@@ -1,9 +1,10 @@
 import { CHALLENGE_ACTION } from '../../src/shared/relay.ts'
 import { SITE_MATCHES } from '../../src/shared/sites.ts'
+import { embedOrigins } from './embed.ts'
 
 // The page the extension shows in an iframe in its comment box: it runs Turnstile and posts the token to the property
-// page, where the extension's content script picks it up (as a JSON string; see ChallengeMessage). Only the two
-// property sites may frame it. Turnstile's "interaction-only" appearance keeps it invisible unless Cloudflare wants
+// page, where the extension's content script picks it up (as a JSON string; see ChallengeMessage). Only the property
+// sites may frame it, and the embed (this relay's own /embed page, itself framed by a partner site; see embed.ts). Turnstile's "interaction-only" appearance keeps it invisible unless Cloudflare wants
 // the user to tick a box, and it tells the extension when to show the frame.
 export function challengePage(siteKey: string, theme: string): Response {
   const options = {
@@ -53,7 +54,8 @@ export function challengePage(siteKey: string, theme: string): Response {
   })
 }
 
-// https://www.realestate.com.au/* → https://www.realestate.com.au
+// https://www.realestate.com.au/* → https://www.realestate.com.au. A frame's ancestors must all be allowed, so the
+// embed needs both itself ('self') and the partner sites framing it.
 function frameAncestors(): string {
-  return SITE_MATCHES.map(match => match.replace(/\/\*$/, '')).join(' ')
+  return [...SITE_MATCHES.map(match => match.replace(/\/\*$/, '')), "'self'", ...embedOrigins()].join(' ')
 }

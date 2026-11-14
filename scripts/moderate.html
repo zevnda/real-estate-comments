@@ -576,6 +576,7 @@
           <button type="button" data-view="reports">Reports <span class="count" id="count-reports"></span></button>
           <button type="button" data-view="comments">Comments</button>
           <button type="button" data-view="bans">Bans <span class="count" id="count-bans"></span></button>
+          <button type="button" data-view="embed">Embed</button>
         </nav>
         <button type="button" id="refresh">Refresh</button>
       </div>
@@ -598,6 +599,8 @@
         showOpen: true,
         reports: [],
         bans: [],
+        // The embed's switch (null until loaded): { enabled, sites: [{ site, name, enabled }] }
+        embed: null,
         // Comments view: the comments shown, the cursor for the next page, and what they're limited to (null: all)
         comments: [],
         next: null,
@@ -742,6 +745,9 @@
       async function loadBans() {
         state.bans = await api('/api/bans')
       }
+      async function loadEmbed() {
+        state.embed = await api('/api/embed')
+      }
       async function loadComments({ more = false } = {}) {
         state.loading = true
         render()
@@ -769,7 +775,7 @@
       async function loadAll() {
         showError(null)
         try {
-          await Promise.all([loadReports(), loadBans()])
+          await Promise.all([loadReports(), loadBans(), loadEmbed()])
         } catch (error) {
           showError(`Couldn’t load: ${error.message}`)
         }
@@ -1267,6 +1273,70 @@
         )
       }
 
+      // The embed on partner sites' property pages: on only when both the switch for every site and the site's own
+      // are on. The relay picks up a change within a minute or two (its copy, and Cloudflare's cache of pages).
+      function renderEmbed(toolbar, list) {
+        toolbar.append(
+          el('span', {
+            className: 'summary',
+            textContent:
+              'Partner sites show comments on their property pages with the embed. Switching it off empties it within a minute or two; the extension isn’t affected.',
+          }),
+        )
+        if (!state.embed) return list.append(el('p', { className: 'status', textContent: 'Loading…' }))
+        const toggle = (body, label) => async () => {
+          try {
+            state.embed = await api('/api/embed', body)
+            toast(label)
+            render()
+          } catch (error) {
+            showError(`Couldn’t change the embed: ${error.message}`)
+          }
+        }
+        const { enabled, sites } = state.embed
+        list.append(
+          el(
+            'table',
+            {},
+            el('tr', {}, el('th', {}, 'Where'), el('th', {}, 'Switch'), el('th', {}, 'Showing comments'), el('th')),
+            el(
+              'tr',
+              {},
+              el('td', { textContent: 'Every partner site' }),
+              el('td', { textContent: enabled ? 'On' : 'Off' }),
+              el('td'),
+              el(
+                'td',
+                { className: 'row-actions' },
+                enabled
+                  ? button(
+                      'Switch off everywhere',
+                      toggle({ enabled: false }, 'Embed switched off everywhere'),
+                      'danger',
+                    )
+                  : button('Switch on', toggle({ enabled: true }, 'Embed switched on'), 'primary'),
+              ),
+            ),
+            ...sites.map(({ site, name, enabled: siteOn }) =>
+              el(
+                'tr',
+                {},
+                el('td', { textContent: name }),
+                el('td', { textContent: siteOn ? 'On' : 'Off' }),
+                el('td', { textContent: enabled && siteOn ? 'Yes' : 'No' }),
+                el(
+                  'td',
+                  { className: 'row-actions' },
+                  siteOn
+                    ? button('Switch off', toggle({ site, enabled: false }, `Embed switched off on ${name}`), 'danger')
+                    : button('Switch on', toggle({ site, enabled: true }, `Embed switched on for ${name}`), 'primary'),
+                ),
+              ),
+            ),
+          ),
+        )
+      }
+
       function render() {
         const openCount = state.reports.filter(item => item.open).length
         const reportsCount = document.getElementById('count-reports')
@@ -1288,6 +1358,7 @@
         if (state.view === 'reports') renderReports(toolbar, list)
         if (state.view === 'comments') renderComments(toolbar, list)
         if (state.view === 'bans') renderBans(toolbar, list)
+        if (state.view === 'embed') renderEmbed(toolbar, list)
         if (filterFocused) toolbar.querySelector('input[type="search"]')?.focus()
       }
 

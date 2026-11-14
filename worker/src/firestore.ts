@@ -1,6 +1,6 @@
 import { importPKCS8, SignJWT } from 'jose'
 
-// A small Firestore REST client: the relay only reads single documents and commits writes. It signs in as a service
+// A small Firestore REST client: the relay reads single documents, runs simple queries and commits writes. It signs in as a service
 // account, so the security rules don't apply to it; the relay does its own checks.
 
 export type FirestoreValue =
@@ -32,6 +32,12 @@ export type Write =
     }
   | { delete: string; currentDocument?: Precondition }
 
+export interface QueryFilter {
+  field: string
+  op: 'EQUAL' | 'IN'
+  value: unknown
+}
+
 export interface CommitResult {
   commitTime: string
   writeResults: { updateTime?: string; transformResults?: FirestoreValue[] }[]
@@ -51,6 +57,14 @@ export interface Firestore {
   ): Promise<{ name: string; updateTime: string }[]>
   // Whether any document in a collection has `field` equal to `value` (or, for an array field, containing it)
   exists(collection: string, field: string, op: 'EQUAL' | 'ARRAY_CONTAINS', value: unknown): Promise<boolean>
+  // Documents in a collection matching every filter, ordered by `orderBy` descending, up to `limit`, with their IDs.
+  // Needs an index that serves it, like any Firestore query.
+  query(
+    collection: string,
+    filters: QueryFilter[],
+    orderBy: string,
+    limit: number,
+  ): Promise<(FirestoreDocument & { id: string })[]>
   commit(writes: Write[]): Promise<CommitResult>
 }
 
@@ -133,6 +147,36 @@ export function createFirestore(options: {
       if (!response.ok) return fail(response)
       const results = (await response.json()) as { document?: unknown }[]
       return results.some(result => result.document)
+    },
+
+    async query(collection, filters, orderBy, limit) {
+      const where = filters.map(({ field, op, value }) => ({
+        fieldFilter: { field: { fieldPath: field }, op, value: encodeValue(value) },
+      }))
+      const response = await request(`${base}:runQuery`, {
+        method: 'POST',
+        body: JSON.stringify({
+          structuredQuery: {
+            from: [{ collectionId: collection }],
+            ...(where.length && { where: { compositeFilter: { op: 'AND', filters: where } } }),
+            orderBy: [{ field: { fieldPath: orderBy }, direction: 'DESCENDING' }],
+            limit,
+          },
+        }),
+      })
+      if (!response.ok) return fail(response)
+      const results = (await response.json()) as { document?: { name: string; fields?: Fields; updateTime: string } }[]
+      return results.flatMap(({ document }) =>
+        document
+          ? [
+              {
+                id: document.name.slice(document.name.lastIndexOf('/') + 1),
+                fields: decodeFields(document.fields ?? {}),
+                updateTime: document.updateTime,
+              },
+            ]
+          : [],
+      )
     },
 
     async commit(writes) {

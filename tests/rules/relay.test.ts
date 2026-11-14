@@ -8,6 +8,7 @@ import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebas
 import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, Timestamp, updateDoc } from 'firebase/firestore'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
+import { EMBED_OFF } from '../../src/shared/embed'
 import { createFirestore } from '../../worker/src/firestore'
 import {
   deleteExpiredRecords,
@@ -56,6 +57,8 @@ const send = <T>(
       secret: 'secret',
       now: () => (clock += 60_000),
       afterResponse: task => void background.push(task),
+      embedConfig: async () => EMBED_OFF,
+      fromEmbed: false,
       ...as,
     },
   )

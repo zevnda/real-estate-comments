@@ -1,7 +1,9 @@
+import type { EmbedConfig } from '../../src/shared/embed.ts'
 import type { PostLimits, PostRecord } from '../../src/shared/rate-limit.ts'
 import type { RelayComment, RelayEdit, RelayVote } from '../../src/shared/relay.ts'
 import type { CommitResult, Firestore, FirestoreDocument, Write } from './firestore.ts'
 
+import { embedEnabled, embedSiteFor } from '../../src/shared/embed.ts'
 import { buildPropertyKeys } from '../../src/shared/property.ts'
 import { DAY, HOUR, rateLimitReason, recentPosts } from '../../src/shared/rate-limit.ts'
 import { isReportReason, REPORT_DETAILS_MAX_LENGTH } from '../../src/shared/reports.ts'
@@ -90,6 +92,11 @@ export interface RelayDeps {
   now(): number
   // Runs work after the response has been sent (the Worker's waitUntil)
   afterResponse(task: Promise<unknown>): void
+  // The embed's on/off switch (see embed.ts)
+  embedConfig(): Promise<EmbedConfig>
+  // Whether the request came from the embed (the relay's own page), not the extension. Partner sites can be extension
+  // sites too (dropbee.au is both), and the switch must only turn off the embed.
+  fromEmbed: boolean
 }
 
 // A response the extension shows as-is
@@ -111,6 +118,11 @@ export async function postComment(request: Request, deps: RelayDeps): Promise<Re
   if (!isUserId(userId)) throw invalid()
   if (replyTo !== undefined && !isCommentId(replyTo)) throw new RelayError(400, 'Invalid reply.')
   if (typeof turnstileToken !== 'string' || !turnstileToken || turnstileToken.length > 4096) throw invalid()
+  // A partner site's embed (see embed.ts) only takes comments while it's switched on. The extension isn't affected.
+  const embed = deps.fromEmbed ? embedSiteFor(property.url) : null
+  if (embed && !embedEnabled(await deps.embedConfig(), embed.site)) {
+    throw new RelayError(403, 'Comments are switched off on this site.')
+  }
 
   // Cheapest checks first: Turnstile tokens are single-use, so a malformed post shouldn't spend one
   if (!(await deps.verifyTurnstile(turnstileToken))) {

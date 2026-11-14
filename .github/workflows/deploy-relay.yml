@@ -8,15 +8,14 @@ name: Deploy relay
 on:
   push:
     branches: [main]
-    # Everything the relay bundles (keep in step with worker/src's imports from src/shared)
+    # Everything the relay bundles (keep in step with worker/src's imports from src/shared), and the embed it serves
+    # (dist/relay/embed.js, built from src/embed/ and the extension's UI in src/content/ and src/shared/)
     paths:
       - 'worker/**'
-      - 'src/shared/property.ts'
-      - 'src/shared/rate-limit.ts'
-      - 'src/shared/relay.ts'
-      - 'src/shared/reports.ts'
-      - 'src/shared/sites.ts'
-      - 'src/shared/validation.ts'
+      - 'src/shared/**'
+      - 'src/embed/**'
+      - 'src/content/**'
+      - 'scripts/build.ts'
       - 'pnpm-lock.yaml'
       - '.github/workflows/deploy-relay.yml'
   # Deploy by hand: Actions → Deploy relay → Run workflow
@@ -46,6 +45,7 @@ jobs:
           distribution: temurin
           java-version: 21
       - run: pnpm install --frozen-lockfile
+      # Also builds dist/relay (the embed's script), which the deploy uploads as the relay's static assets
       - run: pnpm check
       - run: pnpm test:rules
       - run: pnpm worker:deploy

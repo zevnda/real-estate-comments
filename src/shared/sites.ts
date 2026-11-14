@@ -32,3 +32,20 @@ export const REQUIRED_SITE_MATCHES = REQUIRED_SITES.flatMap(site => site.matches
 export const OPTIONAL_SITE_MATCHES = OPTIONAL_SITES.flatMap(site => site.matches)
 // Every site the extension can run on (e.g. the pages allowed to frame the comment relay's challenge page)
 export const SITE_MATCHES = [...REQUIRED_SITE_MATCHES, ...OPTIONAL_SITE_MATCHES]
+
+// Partner sites that show comments on their own property pages with the relay's embed (see CLAUDE.md, "Embed").
+// Separate from the extension's sites: dropbee.au is both. Each can be switched on and off with `pnpm moderate`.
+// `origins` may frame it.
+export interface EmbedSite {
+  site: Site
+  name: string
+  origins: string[]
+  // The look that matches the site (src/embed/themes/)
+  theme: EmbedTheme
+}
+
+export type EmbedTheme = 'dropbee'
+
+export const EMBED_SITES: EmbedSite[] = [
+  { site: 'dropbee', name: 'dropbee.au', origins: ['https://www.dropbee.au', 'https://dropbee.au'], theme: 'dropbee' },
+]

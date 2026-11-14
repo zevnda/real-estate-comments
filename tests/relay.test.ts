@@ -3,8 +3,11 @@ import type { RelayDeps } from '../worker/src/relay'
 
 import { describe, expect, it } from 'vitest'
 
+import { EMBED_OFF, parseEmbedConfig } from '../src/shared/embed'
 import { DAY } from '../src/shared/rate-limit'
 import { parseChallengeMessage } from '../src/shared/relay'
+import { challengePage } from '../worker/src/challenge'
+import { embedComments, embedPage, forgetEmbedConfig, readEmbedConfig } from '../worker/src/embed'
 import { decodeFields, encodeFields, FirestoreError } from '../worker/src/firestore'
 import { ipKey, ipNetwork } from '../worker/src/ip'
 import {
@@ -129,6 +132,25 @@ function fakeFirestore(initial: Record<string, Record<string, unknown>> = {}) {
         )
       })
     },
+    async query(collection, filters, orderBy, limit) {
+      const time = (value: unknown) => (value instanceof Date ? value.getTime() : -Infinity)
+      return [...docs.entries()]
+        .filter(
+          ([path, doc]) =>
+            path.startsWith(`${collection}/`) &&
+            !path.slice(collection.length + 1).includes('/') &&
+            filters.every(({ field, op, value }) =>
+              op === 'IN' ? (value as unknown[]).includes(doc.fields[field]) : doc.fields[field] === value,
+            ),
+        )
+        .sort(([, a], [, b]) => time(b.fields[orderBy]) - time(a.fields[orderBy]))
+        .slice(0, limit)
+        .map(([path, doc]) => ({
+          id: path.slice(collection.length + 1),
+          fields: structuredClone(doc.fields),
+          updateTime: doc.updateTime,
+        }))
+    },
     async commit(writes: Write[]): Promise<CommitResult> {
       commits++
       beforeCommit?.()
@@ -230,6 +252,8 @@ function deps(firestore: Firestore, overrides: Partial<RelayDeps> = {}): RelayDe
     secret: 'secret',
     now: () => Date.UTC(2026, 9, 13),
     afterResponse: () => {},
+    embedConfig: async () => EMBED_OFF,
+    fromEmbed: false,
     ...overrides,
   }
 }
@@ -618,5 +642,148 @@ describe('bans', () => {
       postComment(post(), at(db, { verifyIdToken: async () => 'banned-auth', networkKey: 'other' })),
     ).rejects.toMatchObject({ status: 403 })
     await postComment(post(), at(db))
+  })
+})
+
+describe('embed', () => {
+  const page = 'https://www.dropbee.au/p/46-stanley-road-epping-nsw-2121-00000000-0000-4000-8000-000000000000'
+  const query = (overrides: Record<string, string> = {}) =>
+    new URL(
+      `https://relay.test/comments?${new URLSearchParams({
+        url: page,
+        address: '46 Stanley Road',
+        suburb: 'Epping',
+        state: 'NSW',
+        postcode: '2121',
+        ...overrides,
+      })}`,
+    )
+  const on = parseEmbedConfig({ enabled: true, sites: { dropbee: true } })
+  const comment = (fields: Record<string, unknown>) => ({
+    address: '46 stanley road',
+    suburb: 'epping',
+    state: 'nsw',
+    postcode: '2121',
+    text: 'Quiet street.',
+    username: 'Jane',
+    uid: 'extension-user',
+    authorAuthUid: 'auth-uid',
+    userVotes: { someone: 'up' },
+    votes: 1,
+    ...fields,
+  })
+
+  it('lists the property’s comments, newest first, with public fields only', async () => {
+    const db = fakeFirestore({
+      'listingcomments/old': comment({ createdAt: new Date(Date.UTC(2026, 0, 1)) }),
+      // Saved by 1.x under the abbreviated street type
+      'listingcomments/legacy': comment({ address: '46 stanley rd', timestamp: '2025-06-01T00:00:00.000Z' }),
+      'listingcomments/new': comment({
+        createdAt: new Date(Date.UTC(2026, 5, 1)),
+        editedAt: new Date(Date.UTC(2026, 5, 1, 0, 5)),
+        parentId: 'old',
+        replyToId: 'old',
+      }),
+      // Same street and suburb name, another state's postcode
+      'listingcomments/elsewhere': comment({ postcode: '3000', createdAt: new Date() }),
+      'listingcomments/other': comment({ address: '48 stanley road', createdAt: new Date() }),
+    })
+    const response = await embedComments(query(), db.firestore, on)
+    expect(response.status).toBe(200)
+    expect(response.headers.get('cache-control')).toBe('public, max-age=60')
+    const body = (await response.json()) as { ok: true; data: Record<string, unknown>[] }
+    expect(body.data.map(c => c.id)).toEqual(['new', 'old', 'legacy'])
+    expect(body.data[0]).toEqual({
+      id: 'new',
+      text: 'Quiet street.',
+      username: 'Jane',
+      createdAt: Date.UTC(2026, 5, 1),
+      votes: 1,
+      editedAt: Date.UTC(2026, 5, 1, 0, 5),
+      parentId: 'old',
+      replyToId: 'old',
+    })
+    // Old comments without createdAt fall back to their timestamp
+    expect(body.data[2]!.createdAt).toBe(Date.UTC(2025, 5, 1))
+    expect(JSON.stringify(body)).not.toMatch(/extension-user|auth-uid|someone|userVotes/)
+  })
+
+  it('answers nothing while the embed is off for the site, or for an address that doesn’t match the page', async () => {
+    const db = fakeFirestore({ 'listingcomments/a': comment({ createdAt: new Date() }) })
+    const off = await embedComments(query(), db.firestore, parseEmbedConfig({ enabled: true, sites: {} }))
+    expect(off.status).toBe(403)
+    expect(await off.json()).toEqual({ ok: false, error: 'Comments are switched off on this site.' })
+    expect(off.headers.get('cache-control')).toBe('public, max-age=60')
+    const mismatch = await embedComments(query({ address: '48 Stanley Road' }), db.firestore, on)
+    expect(mismatch.status).toBe(400)
+  })
+
+  it('serves the page with its script only while it’s on, framed by partner sites only', async () => {
+    const shown = embedPage(query(), on)
+    const html = await shown.text()
+    expect(html).toContain('<script src="/embed.js"></script>')
+    const csp = shown.headers.get('content-security-policy')!
+    expect(csp).toContain(
+      'frame-ancestors https://www.dropbee.au https://dropbee.au http://localhost:* http://127.0.0.1:*;',
+    )
+    expect(csp).toContain("script-src 'self';")
+    // The partner theme's font is served by the relay
+    expect(csp).toContain("font-src 'self';")
+
+    expect(await embedPage(query(), EMBED_OFF).text()).not.toContain('<script')
+    expect(await embedPage(query({ suburb: 'Carlingford' }), on).text()).not.toContain('<script')
+    // Against the emulator only, the page names it so deletes go there
+    const local = embedPage(query(), on, 'http://127.0.0.1:8080')
+    expect(await local.clone().text()).toContain('<meta name="rec-firestore" content="http://127.0.0.1:8080">')
+    expect(local.headers.get('content-security-policy')).toContain(
+      'https://firestore.googleapis.com http://127.0.0.1:8080;',
+    )
+    expect(html).not.toContain('rec-firestore')
+  })
+
+  it('lets the embed frame the bot check', () => {
+    const csp = challengePage('site-key', '').headers.get('content-security-policy')!
+    expect(csp).toContain("'self'")
+    expect(csp).toContain('https://www.dropbee.au')
+    expect(csp).toContain('https://www.realestate.com.au')
+    expect(csp).toContain('http://localhost:*')
+  })
+
+  it('reads the switch from Firestore, keeps it a minute, and stays off if it can’t', async () => {
+    forgetEmbedConfig()
+    const db = fakeFirestore({ 'config/embed': { enabled: true, sites: { dropbee: true } } })
+    expect(await readEmbedConfig(db.firestore, 0)).toEqual(on)
+    db.docs.delete('config/embed')
+    expect(await readEmbedConfig(db.firestore, 59_000)).toEqual(on)
+    expect(await readEmbedConfig(db.firestore, 60_000)).toEqual(EMBED_OFF)
+
+    forgetEmbedConfig()
+    const broken = { ...db.firestore, get: () => Promise.reject(new Error('offline')) }
+    expect(await readEmbedConfig(broken, 0)).toEqual(EMBED_OFF)
+    forgetEmbedConfig()
+  })
+
+  it('takes posts from the embed only while it’s on for the site', async () => {
+    const db = fakeFirestore()
+    const onPartnerPage = (text: string) => post({ property: { ...property, url: page }, text })
+    await expect(
+      postComment(onPartnerPage('Mould in the bathroom.'), deps(db.firestore, { fromEmbed: true })),
+    ).rejects.toMatchObject({ status: 403, message: 'Comments are switched off on this site.' })
+    expect(db.commits()).toBe(0)
+    const result = await postComment(
+      onPartnerPage('Mould in the bathroom.'),
+      deps(db.firestore, { fromEmbed: true, embedConfig: async () => on }),
+    )
+    expect(db.docs.get(`listingcomments/${result.id}`)!.fields.url).toBe(page)
+  })
+
+  it('takes posts from the extension on a partner site whether or not the embed is on', async () => {
+    // dropbee.au is an extension site too: switching the embed off mustn't stop extension users posting there
+    const db = fakeFirestore()
+    await postComment(
+      post({ property: { ...property, url: page }, text: 'Quiet street, good neighbours.' }),
+      deps(db.firestore, { embedConfig: async () => EMBED_OFF }),
+    )
+    expect(db.commits()).toBe(1)
   })
 })

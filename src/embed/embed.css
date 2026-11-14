@@ -1,0 +1,166 @@
+/* The embed (src/embed/), after the extension's styles.css and before the partner's theme (themes/): the comment
+   section as a card in the partner page's main column rather than a fixed panel. Layout only; colours and fonts are
+   the theme's tokens. px only. Its height is capped (the list scrolls), so dialogs open over it like the panel's. */
+
+:host {
+  display: block;
+}
+
+.embed {
+  container: panel / inline-size;
+  /* Dialogs (.overlay) are positioned against it */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: 400 14px/1.55 var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A dialog needs room even over a short list: the card (and the iframe) grows while one is open */
+.embed:has(.overlay) {
+  min-height: 560px;
+}
+
+/* "COMMENTS · 3" and the sort, like the partner's section labels */
+.embed-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.embed-title {
+  margin: 0;
+  color: var(--text);
+  font: 700 12px/1.3 var(--heading-font, var(--font));
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.embed-count {
+  color: var(--accent-text);
+}
+
+/* Every comment, scrolling past this height, so a busy property doesn't push the partner's page down */
+.embed-list {
+  max-height: 520px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.embed .comment {
+  padding: 16px 20px;
+}
+
+.embed .replies {
+  margin: -6px 20px 12px 66px;
+}
+
+.embed-empty {
+  margin: 0;
+  padding: 18px 20px;
+  color: var(--text-muted);
+}
+
+/* The comment box: one line until the viewer starts writing */
+.embed-composer {
+  padding: 14px 20px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-muted);
+}
+
+.embed-prompt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 5px 5px 5px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-faint);
+  font-size: 14px;
+  text-align: left;
+  transition: border-color 0.15s ease;
+}
+
+.embed-prompt:hover {
+  border-color: var(--text-faint);
+}
+
+.embed-prompt-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.embed-prompt-post {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  height: 32px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: var(--primary, var(--accent));
+  color: var(--on-primary, var(--on-accent));
+  font-weight: 700;
+}
+
+.embed-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 10px 20px;
+  border-top: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: 11.5px;
+}
+
+.embed-footer a,
+.embed-footer button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  font: inherit;
+  text-decoration: none;
+}
+
+.embed-footer a:hover,
+.embed-footer button:hover {
+  color: var(--text-muted);
+  text-decoration: underline;
+}
+
+/* Narrow: phones, or a narrow column */
+@container panel (max-width: 520px) {
+  .embed-header,
+  .embed .comment,
+  .embed-composer,
+  .embed-footer,
+  .embed-empty {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .embed .replies {
+    margin: -6px 14px 12px 40px;
+  }
+
+  .embed-list {
+    max-height: 440px;
+  }
+}

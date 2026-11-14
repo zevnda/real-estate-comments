@@ -2,8 +2,8 @@
 //
 // Comments live in Firestore keyed by a lowercased street `address` plus `suburb` (see CLAUDE.md, "Data model").
 // The same house must map to the same key on every site (realestate.com.au, domain.com.au, homely.com.au,
-// dropbee.au), on listing and profile pages, and across re-listings, so the key comes from the address text rather
-// than any site's listing ID.
+// dropbee.au, whose own pages can also show comments through the relay's embed), on listing and profile pages, and
+// across re-listings, so the key comes from the address text rather than any site's listing ID.
 //
 // Everything here is pure (no DOM or extension APIs) so it can be unit tested and shared by both scripts.
 
