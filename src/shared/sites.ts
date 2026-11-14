@@ -25,6 +25,7 @@ export const REQUIRED_SITES: SiteInfo[] = [
 
 export const OPTIONAL_SITES: SiteInfo[] = [
   { site: 'homely', name: 'homely.com.au', matches: ['https://www.homely.com.au/*', 'https://homely.com.au/*'] },
+  { site: 'dropbee', name: 'dropbee.au', matches: ['https://www.dropbee.au/*', 'https://dropbee.au/*'] },
 ]
 
 export const REQUIRED_SITE_MATCHES = REQUIRED_SITES.flatMap(site => site.matches)

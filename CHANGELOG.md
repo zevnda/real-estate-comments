@@ -1,0 +1,3 @@
+- Comments on dropbee.au property pages
+  - DropBee pages share comments with realestate.com.au, domain.com.au and homely.com.au, so a property has the same comments wherever you see it
+  - It’s off until you turn it on: click the extension’s toolbar button on a DropBee property page, or open **Sites** in the panel’s footer, and allow access when your browser asks

@@ -1,12 +1,13 @@
 // Identifies which property a page is about, and builds the keys comments are stored under.
 //
 // Comments live in Firestore keyed by a lowercased street `address` plus `suburb` (see CLAUDE.md, "Data model").
-// The same house must map to the same key on every site (realestate.com.au, domain.com.au, homely.com.au), on listing
-// and profile pages, and across re-listings, so the key comes from the address text rather than any site's listing ID.
+// The same house must map to the same key on every site (realestate.com.au, domain.com.au, homely.com.au,
+// dropbee.au), on listing and profile pages, and across re-listings, so the key comes from the address text rather
+// than any site's listing ID.
 //
 // Everything here is pure (no DOM or extension APIs) so it can be unit tested and shared by both scripts.
 
-export type Site = 'realestate' | 'domain' | 'homely'
+export type Site = 'realestate' | 'domain' | 'homely' | 'dropbee'
 export type PageKind = 'listing' | 'profile'
 
 export const STATES = ['act', 'nsw', 'nt', 'qld', 'sa', 'tas', 'vic', 'wa'] as const
@@ -54,6 +55,7 @@ export function getSite(hostname: string): Site | null {
   if (host === 'realestate.com.au' || host.endsWith('.realestate.com.au')) return 'realestate'
   if (host === 'domain.com.au' || host.endsWith('.domain.com.au')) return 'domain'
   if (host === 'homely.com.au' || host.endsWith('.homely.com.au')) return 'homely'
+  if (host === 'dropbee.au' || host.endsWith('.dropbee.au')) return 'dropbee'
   return null
 }
 
@@ -93,6 +95,16 @@ export function parsePropertyUrl(url: string): PropertyUrl | null {
     // are no profile pages. The slug is the full address, kebab-cased.
     const listing = path.match(new RegExp(`^/homes/([a-z0-9-]+)-(${STATE_PATTERN})-(\\d{4})/\\d+$`))
     if (listing) return { site, kind: 'listing', addressSlug: listing[1]!, state: listing[2]!, postcode: listing[3]! }
+    return null
+  }
+
+  if (site === 'dropbee') {
+    // Every property page (all statuses: the same URL) persists after the listing ends, so it works like a profile
+    // page. The slug is the full address kebab-cased, ending in its state and postcode.
+    const page = path.match(
+      new RegExp(`^/p/([a-z0-9-]+)-(${STATE_PATTERN})-(\\d{4})-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$`),
+    )
+    if (page) return { site, kind: 'listing', addressSlug: page[1]!, state: page[2]!, postcode: page[3]! }
     return null
   }
 
@@ -164,6 +176,9 @@ const STATUS_PREFIX = /^(?:sold|leased|under offer|under contract|deposit taken|
 //   domain.com.au: "2/5 Chester Street, Epping NSW 2121 - Apartment For Rent | Domain"
 //   domain.com.au sold: "Sold 46 Stanley Road, Epping NSW 2121 on 10 Oct 2026 - 2021146795 | Domain"
 //   homely.com.au: "20 Lydwin Crescent, East Toowoomba QLD 4350 - House For Sale"
+//   dropbee.au: "88/42-50 Cliff Road, Epping, NSW 2121 cut its asking price by 15% | DropBee.au", or
+//               "46 Stanley Road, Epping NSW 2121 | DropBee.au" (no tracked change: bare address). Status words
+//               come after the address; the match stops at the state and postcode, so the rest is ignored
 //   domain.com.au profiles leave out the state and postcode: "8/814 Pacific Highway, Chatswood | Property Value…"
 // The street address may itself contain commas ("Unit 5, 12 Smith Street"), so it's everything before the suburb.
 // Spacing inside the address is kept as-is: 1.x saved it that way (e.g. "97  yates ave"), and legacyAddress() has to
