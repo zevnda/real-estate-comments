@@ -135,10 +135,11 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
       <h4>When you view a property</h4>
       <p>
         The extension only runs on realestate.com.au and domain.com.au, and on other property sites if you turn them on
-        (currently homely.com.au). Turning a site on is a setting in your browser; we aren’t told. To show comments, it
-        reads the address of the property you’re viewing from the page and sends it to our database to look up comments.
-        Searches you make in the panel are sent the same way, and so is the suburb of a search results page you’re
-        viewing, to count its comments. We don’t keep a record of the properties or suburbs you view or search for.
+        (currently homely.com.au and dropbee.au). Turning a site on is a setting in your browser; we aren’t told. To
+        show comments, it reads the address of the property you’re viewing from the page and sends it to our database to
+        look up comments. Searches you make in the panel are sent the same way, and so is the suburb of a search results
+        page you’re viewing, to count its comments. We don’t keep a record of the properties or suburbs you view or
+        search for.
       </p>
 
       <h4>When you post or vote</h4>

@@ -47,6 +47,13 @@ describe('isPropertyInput', () => {
         url: 'https://www.homely.com.au/homes/1-great-central-road-warburton-wa-6431/7664071',
       }),
     ).toBe(true)
+    // So must a DropBee property page's
+    expect(
+      isPropertyInput({
+        ...valid,
+        url: 'https://www.dropbee.au/p/52-salmon-avenue-essendon-vic-3040-ffff6d41-19f7-4f4a-8912-ad07d74e9c08',
+      }),
+    ).toBe(true)
     expect(isPropertyInput(null)).toBe(false)
     expect(isPropertyInput({ ...valid, url: 'https://evil.example/x' })).toBe(false)
     expect(isPropertyInput({ ...valid, url: 'http://www.domain.com.au/x' })).toBe(false)

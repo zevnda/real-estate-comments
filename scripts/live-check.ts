@@ -9,8 +9,8 @@
 // answers 429, domain.com.au "Access Denied"). This drives Chrome over --remote-debugging-pipe, opens tabs without
 // attaching, and only attaches after the page has loaded, to read it. Keep the volume low: a handful of pages.
 //
-// It loads a copy of dist/chrome with the optional sites (homely.com.au) made required, since a fresh profile has them
-// off and nothing here can click the browser's permission prompt.
+// It loads a copy of dist/chrome with the optional sites (homely.com.au, dropbee.au) made required, since a fresh
+// profile has them off and nothing here can click the browser's permission prompt.
 import type { ChildProcess } from 'node:child_process'
 import type { Readable, Writable } from 'node:stream'
 
@@ -29,9 +29,15 @@ const DEFAULT_SEARCHES = [
   'https://www.realestate.com.au/sold/in-epping,+nsw+2121/list-1',
   'https://www.homely.com.au/for-rent/epping-nsw-2121/real-estate',
   'https://www.homely.com.au/sold-properties/epping-nsw-2121',
+  'https://www.dropbee.au/nsw/epping-2121',
+  'https://www.dropbee.au/rent/nsw/epping-2121',
 ]
-// Always checked too: Homely's test listing, which is never taken down (search results come and go)
-const PERMANENT_PAGES = ['https://www.homely.com.au/homes/1-great-central-road-warburton-wa-6431/7664071']
+// Always checked too: Homely's test listing, which is never taken down (search results come and go), and a DropBee
+// property page (DropBee keeps property pages up after a listing ends)
+const PERMANENT_PAGES = [
+  'https://www.homely.com.au/homes/1-great-central-road-warburton-wa-6431/7664071',
+  'https://www.dropbee.au/p/52-salmon-avenue-essendon-vic-3040-ffff6d41-19f7-4f4a-8912-ad07d74e9c08',
+]
 const LISTINGS_PER_SEARCH = 2
 const PAGE_WAIT_MS = 12_000
 

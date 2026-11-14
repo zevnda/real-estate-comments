@@ -48,12 +48,19 @@ describe('optionalSiteFor', () => {
       optionalSiteFor('https://www.homely.com.au/homes/1-great-central-road-warburton-wa-6431/7664071')?.site,
     ).toBe('homely')
     expect(optionalSiteFor('https://homely.com.au/')?.site).toBe('homely')
+    expect(
+      optionalSiteFor(
+        'https://www.dropbee.au/p/52-salmon-avenue-essendon-vic-3040-ffff6d41-19f7-4f4a-8912-ad07d74e9c08',
+      )?.site,
+    ).toBe('dropbee')
+    expect(optionalSiteFor('https://dropbee.au/')?.site).toBe('dropbee')
   })
 
   it('ignores required sites, other sites and missing URLs', () => {
     expect(optionalSiteFor('https://www.realestate.com.au/property-house-nsw-epping-441106232')).toBeNull()
     expect(optionalSiteFor('https://www.domain.com.au/')).toBeNull()
     expect(optionalSiteFor('https://homely.com.au.evil.com/')).toBeNull()
+    expect(optionalSiteFor('https://dropbee.au.evil.com/')).toBeNull()
     expect(optionalSiteFor('not a url')).toBeNull()
     expect(optionalSiteFor(undefined)).toBeNull()
   })

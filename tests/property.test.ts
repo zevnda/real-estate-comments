@@ -375,6 +375,34 @@ describe('live site titles', () => {
       address: '11/30-34 cambridge street',
       match: 'full',
     },
+    // dropbee.au property pages: real URLs and titles, captured from the live site in November 2026 with
+    // `pnpm live-check`. Status words come after the address, or are absent when no price change is tracked.
+    {
+      url: 'https://www.dropbee.au/p/88-42-50-cliff-road-epping-nsw-2121-2e0c7eef-254a-487c-8e50-3d75bea697b8',
+      title: '88/42-50 Cliff Road, Epping, NSW 2121 cut its asking price by 15% | DropBee.au',
+      address: '88/42-50 cliff road',
+      match: 'full',
+    },
+    {
+      url: 'https://www.dropbee.au/p/19-denistone-road-epping-nsw-2121-eda3f4b5-1051-4d81-8f83-0c8d474d5084',
+      title: '19 Denistone Road, Epping, NSW 2121 cut its rent by 20% | DropBee.au',
+      address: '19 denistone road',
+      match: 'full',
+    },
+    {
+      url: 'https://www.dropbee.au/p/16-84-grey-street-east-melbourne-vic-3002-0002e93b-278c-4dbc-bdae-a821acc052b1',
+      title: '16/84 Grey Street, East Melbourne VIC 3002 sold after a 9% asking price rise | DropBee.au',
+      address: '16/84 grey street',
+      match: 'full',
+    },
+    {
+      // Bare address title (no tracked price change), and the URL slug keeps the apostrophe in "O'neil" while the
+      // title form drops it, so the match stays partial
+      url: 'https://www.dropbee.au/p/31-o-neil-lane-st-clair-sa-5011-dad49489-0e45-4109-be19-da7e419122ca',
+      title: "31 O'neil Lane, St Clair SA 5011 | DropBee.au",
+      address: '31 oneil lane',
+      match: 'partial',
+    },
   ] as const
 
   it.each(live)('identifies $url', ({ url, title, address, match }) => {
@@ -400,7 +428,7 @@ describe('live site titles', () => {
   })
 })
 
-// Every page for the same property, on both sites, must produce the same key, or comments left on one page won't
+// Every page for the same property, on every site, must produce the same key, or comments left on one page won't
 // show on the others. Real URLs and titles captured from the live sites in October 2026.
 describe('one property, every page', () => {
   const PROPERTIES = {
@@ -412,6 +440,10 @@ describe('one property, every page', () => {
       [
         'https://www.homely.com.au/homes/419-19-epping-road-epping-nsw-2121/13594393',
         '419/19 Epping Road, Epping NSW 2121 - Apartment For Rent',
+      ],
+      [
+        'https://www.dropbee.au/p/419-19-epping-road-epping-nsw-2121-6287217f-7d4d-4cba-b8e9-f6b3f4325ae8',
+        '419/19 Epping Road, Epping NSW 2121 cut its rent by 3% | DropBee.au',
       ],
     ],
     '46 Stanley Road, Epping (house)': [
@@ -440,6 +472,11 @@ describe('one property, every page', () => {
         'https://www.homely.com.au/homes/46-stanley-road-epping-nsw-2121/12345678',
         '46 Stanley Road, Epping NSW 2121 - House For Sale',
       ],
+      // dropbee.au property page (real page of this property, title captured live)
+      [
+        'https://www.dropbee.au/p/46-stanley-road-epping-nsw-2121-8fee70ae-4605-471c-9274-3edcad3e5cf4',
+        '46 Stanley Road, Epping NSW 2121 | DropBee.au',
+      ],
     ],
     '41/10-14 Hazlewood Place, Epping (apartment)': [
       [
@@ -462,6 +499,10 @@ describe('one property, every page', () => {
         'https://www.homely.com.au/homes/41-10-14-hazlewood-place-epping-nsw-2121/12345679',
         '41/10-14 Hazlewood Place, Epping NSW 2121 - Apartment For Rent',
       ],
+      [
+        'https://www.dropbee.au/p/41-10-14-hazlewood-place-epping-nsw-2121-0e465437-3b20-48b1-a52f-697f27b34dbe',
+        '41/10-14 Hazlewood Place, Epping NSW 2121 | DropBee.au',
+      ],
     ],
     '72 Somerset Street, Epping (rental)': [
       [
@@ -471,6 +512,10 @@ describe('one property, every page', () => {
       [
         'https://www.realestate.com.au/property/72-somerset-st-epping-nsw-2121/',
         '72 Somerset Street, Epping, NSW 2121 - realestate.com.au',
+      ],
+      [
+        'https://www.dropbee.au/p/72-somerset-st-epping-nsw-2121-dac2f704-3baf-47c4-b6d3-8acec5db2051',
+        '72 Somerset St, Epping, NSW 2121 cut its rent by 4% | DropBee.au',
       ],
     ],
     '242-244 Beecroft Road, Epping (building)': [
