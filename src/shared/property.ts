@@ -310,12 +310,14 @@ export function propertyLinks(key: {
   postcode: string
 }): PropertyLinks {
   const address = canonicalAddress(key.address)
-  const locality = `${slugify(key.suburb)}-${key.state.toLowerCase()}-${key.postcode}`
+  const state = `${key.state.toLowerCase()}-${key.postcode}`
   const unit = address.split(' ')[0]!.includes('/') ? 'unit-' : ''
   const label = `${titleCase(address)}, ${titleCase(collapse(key.suburb))} ${key.state.toUpperCase()} ${key.postcode}`
+  // An apostrophe in the suburb: realestate.com.au drops it ("oconnor"), domain.com.au makes it a hyphen ("o-connor").
+  // Addresses are stored without apostrophes, so a street's ("O'Neil") can't be restored; the web search covers those.
   return {
-    realestate: `https://www.realestate.com.au/property/${unit}${slugify(abbreviateStreetType(address))}-${locality}/`,
-    domain: `https://www.domain.com.au/property-profile/${slugify(address)}-${locality}`,
+    realestate: `https://www.realestate.com.au/property/${unit}${slugify(abbreviateStreetType(address))}-${slugify(key.suburb)}-${state}/`,
+    domain: `https://www.domain.com.au/property-profile/${slugify(address)}-${slugify(key.suburb.replace(/['’]/g, ' '))}-${state}`,
     search: `https://www.google.com/search?q=${encodeURIComponent(label)}`,
   }
 }

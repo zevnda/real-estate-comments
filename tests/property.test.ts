@@ -627,6 +627,12 @@ describe('propertyLinks', () => {
       'https://www.realestate.com.au/property/97-yates-ave-dundas-valley-nsw-2117/',
       'https://www.domain.com.au/property-profile/97-yates-avenue-dundas-valley-nsw-2117',
     ],
+    [
+      // An apostrophe in the suburb: dropped by realestate.com.au, a hyphen on domain.com.au (checked in November 2026)
+      { address: '4 banner street', suburb: "o'connor", state: 'act', postcode: '2602' },
+      'https://www.realestate.com.au/property/4-banner-st-oconnor-act-2602/',
+      'https://www.domain.com.au/property-profile/4-banner-street-o-connor-act-2602',
+    ],
   ])('%o', (key, realestate, domain) => {
     expect(propertyLinks(key)).toMatchObject({ realestate, domain })
   })

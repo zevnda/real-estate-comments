@@ -302,6 +302,7 @@ Wherever the panel shows a property other than the current page (Recent, Search)
 
 - realestate.com.au: `/property/<abbreviated address>-<suburb>-<state>-<postcode>/`, units prefixed `unit-`: `/property/unit-41-10-14-hazlewood-pl-epping-nsw-2121/`
 - domain.com.au: `/property-profile/<address, street type spelled out>-<suburb>-<state>-<postcode>`
+- Apostrophes (checked November 2026): in a suburb, realestate.com.au drops it (`oconnor`) and domain.com.au makes it a hyphen (`o-connor`); both are built that way. Domain does the same in streets (`31-o-neil-lane`), but stored addresses have no apostrophes (`canonicalAddress`), so those Domain links 404 and the Google link is the way there.
 
 In Recent they sit with the comment's actions, next to Report. The site the user is on is listed first. The Google link is the fallback for the rare address neither site has a page for (brand-new builds, lots, off-the-plan units); the comments themselves are never lost either way, since they're keyed by address and always reachable from Search. Checked on 2026-10-11 by opening both profile links for all 19 stored properties with `pnpm live-check`: 36 of 38 opened the right page. The two misses are the same unit, 6/21-25 Truganini Road, Carnegie: **street-number ranges are inconsistent** (domain.com.au lists it as 6/25, realestate.com.au under none of 6/21-25, 6/21 or 6/25), and that can't be predicted without fetching, so ranges just rely on the Search link. The links render as small buttons (`.property-links`) but stay `<a>` elements, since they navigate.
 
